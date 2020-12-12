@@ -1,0 +1,24 @@
+#!/bin/bash
+
+cursys=$(uname -r)
+mod=$(modinfo /usr/local/share/plugsched/plugsched.ko | grep vermagic | awk '{print $2}')
+
+not_install="/var/plugsched/plugsched-install-not"
+if [ -f "$not_install" ]; then
+	echo "Error: plugsched: cannot load plugsched, please update"
+	exit 1
+fi
+
+if [ "$cursys" == "$mod" ]; then
+	/usr/bin/cp /usr/local/share/plugsched/plugsched.ko /tmp/plugsched_tmp.ko
+	/usr/local/bin/plugsched /tmp/plugsched_tmp.ko /proc/kallsyms
+	/usr/bin/touch $not_install
+	/usr/bin/sync
+	/usr/sbin/insmod /tmp/plugsched_tmp.ko
+	/usr/bin/rm -f $not_install
+	/usr/bin/rm -f /tmp/plugsched_tmp.ko
+else
+	echo "Error: kernel version is not same as plugsched version!"
+	exit 1
+fi
+

@@ -1,0 +1,5 @@
+- gcc-python-plugin as dependency
+- extract.sh -> developers do their work -> rpmbuild ( don't extract.sh in spec in other words)
+- no patch_kbuild ( try not to patch kbuild, but write a stand-alone makefile, which is cleaner)
+- test cases in test/
+- organize git log

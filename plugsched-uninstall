@@ -1,0 +1,6 @@
+#!/bin/bash
+
+/usr/bin/touch /var/plugsched/plugsched-install-not
+/usr/bin/sync
+/sbin/rmmod plugsched
+/usr/bin/rm /var/plugsched/plugsched-install-not

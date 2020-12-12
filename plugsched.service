@@ -1,0 +1,11 @@
+[Unit]
+Description=The plugsched service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/plugsched-install
+RemainAfterExit=yes
+ExecStop=/usr/local/bin/plugsched-uninstall
+
+[Install]
+WantedBy=multi-user.target

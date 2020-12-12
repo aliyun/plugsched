@@ -1,0 +1,53 @@
+diff --git a/include/linux/preempt.h b/include/linux/preempt.h
+index c01813c..574977b 100644
+--- a/include/linux/preempt.h
++++ b/include/linux/preempt.h
+@@ -255,7 +255,7 @@ do { \
+ 
+ #endif /* CONFIG_PREEMPT_COUNT */
+ 
+-#ifdef MODULE
++#if 0
+ /*
+  * Modules have no business playing preemption tricks.
+  */
+diff --git a/kernel/sched/mod/core.c b/kernel/sched/mod/core.c
+index 2dcecfd..0e37f1f 100644
+--- a/kernel/sched/mod/core.c
++++ b/kernel/sched/mod/core.c
+@@ -20,7 +20,6 @@
+ 
+ #include "../pelt.h"
+ 
+-#define CREATE_TRACE_POINTS
+ #include <trace/events/sched.h>
+ 
+ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
+@@ -5296,9 +5295,13 @@ extern int sched_cpu_dying (unsigned int);
+ }
+ #endif /* CONFIG_SMP */
+ 
++extern char __mod_sched_start[], __mod_sched_end[];
++
+ int in_sched_functions(unsigned long addr)
+ {
+ 	return in_lock_functions(addr) ||
++		(addr >= (unsigned long)__mod_sched_start
++		&& addr < (unsigned long)__mod_sched_end) ||
+ 		(addr >= (unsigned long)__sched_text_start
+ 		&& addr < (unsigned long)__sched_text_end);
+ }
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 3581697..8f4f532 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -62,6 +62,9 @@
+ #include <linux/stop_machine.h>
+ #include <linux/suspend.h>
+ #include <linux/swait.h>
++
++#undef CONFIG_FTRACE_SYSCALLS
++
+ #include <linux/syscalls.h>
+ #include <linux/task_work.h>
+ #include <linux/tsacct_kern.h>

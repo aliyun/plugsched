@@ -1,0 +1,23 @@
+include Makefile
+
+all: plugsched
+
+plugsched: scripts prepare
+	awk '/interface:/{getline; start=1}/:/{start=0}start==1{print $$2 }' \
+		< sched_boundary_extract.yaml \
+		> $(abspath $(srctree))/kernel/sched/mod/.tmp.interface_fn_ptrs
+	awk '/fn_ptr:/{getline; start=1}/:/{start=0}start==1{print "__mod_" $$2 }' \
+		< sched_boundary_extract.yaml \
+		>> $(abspath $(srctree))/kernel/sched/mod/.tmp.interface_fn_ptrs
+	$(MAKE) CFLAGS_MODULE=-fkeep-static-functions -C $(srctree) M=$(abspath $(srctree))/kernel/sched/mod modules
+
+PHONY += plugsched
+
+ifdef SCHED_MOD_STAGE
+PHONY += sched_mod sched_mod_$(SCHED_MOD_STAGE)
+sched_mod: prepare sched_mod_$(SCHED_MOD_STAGE) FORCE
+sched_mod_collect: $(core-y) $(core-m) $(drivers-y) $(drivers-m) $(net-y) $(net-m) $(virt-y)
+sched_mod_analyze:
+	python2 process.py $(SYSTEM_MAP)
+sched_mod_extract: $(obj)
+endif
