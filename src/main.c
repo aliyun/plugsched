@@ -9,11 +9,7 @@
 #include "helper.h"
 #include "mempool.h"
 #include "head_jump.h"
-#ifdef SCHEDMOD_STACK_SAFETY_LIGHT
-#include "stack_safe_light.h"
-#else
-#include "stack_safe_heavy.h"
-#endif
+#include "stack_check.h"
 
 #define RETRY_CNT 5
 #define MAX_CPU_NR		1024

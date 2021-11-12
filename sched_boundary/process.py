@@ -221,5 +221,3 @@ if __name__ == '__main__':
         dump(struct_properties, f, Dumper)
     with open('sched_boundary_extract.yaml', 'w') as f:
         dump(config, f, Dumper)
-    with open('sched_boundary_stack_safe.yaml', 'w') as f:
-        f.writelines(['{} {} {} {}\n'.format(*e) for e in edges])

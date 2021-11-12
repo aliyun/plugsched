@@ -117,7 +117,7 @@ class Plugsched(object):
         logging.info('Patching kernel kbuild system')
         self.apply_patch('kbuild.patch')
 
-    def cmd_init(self, system_map, kernel_config='', kernel_customized=[], stack_check='light'):
+    def cmd_init(self, system_map, kernel_config='', kernel_customized=[]):
         if not os.path.exists(kernel_config):
             logging.fatal("Kernel config not specified")
         self.create_mod(kernel_config)
@@ -146,10 +146,6 @@ class Plugsched(object):
         self.apply_patch('module.patch')
         if 'builtin_springboard' not in kernel_customized:
             self.apply_patch('dynamic_springboard.patch')
-        if stack_check == 'light':
-            self.plugsched_sh.python('sched_boundary/sleepable.py', self.mod_path)
-            with open(os.path.join(self.mod_path, 'kernel/sched/mod/Makefile'), 'a') as f:
-                f.write('ccflags-y += "-DSCHEDMOD_STACK_SAFETY_LIGHT"')
         try:
             springboard = self.search_springboard('vmlinux')
 
@@ -213,16 +209,15 @@ class PlugschedCLI(object):
         depsh.make(jobs=j)
 
     def init(self, kernel_path, mod_path, kernel_debuginfo_path, j=1, kernel_config='',
-			system_map='', kernel_customized='', stack_check='light'):
+			system_map='', kernel_customized=''):
         """ Initialize a scheduler module for a specific kernel release and product
 
         :param j: Number of threads. "-j N" is okay while "-jN" is not allowed.
         :param kernel_config: Specify kernel_config to create scheduler module
         :param kernel_customized: builtin_springboard | task_life_hook
-        :param stack_check: light / heavy
         """
         self.plugsched = Plugsched(kernel_path, mod_path, threads=j, kernel_debuginfo_path=kernel_debuginfo_path)
-        self.plugsched.cmd_init(system_map, kernel_config, kernel_customized.split('|'), stack_check)
+        self.plugsched.cmd_init(system_map, kernel_config, kernel_customized.split('|'))
 
     def build(self, kernel_path, mod_path, kernel_devel_path, kernel_debuginfo_path, j=1):
         """ Build a scheduler module rpm package for a specific kernel release and product
