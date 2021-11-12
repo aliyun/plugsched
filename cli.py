@@ -48,7 +48,6 @@ class Plugsched(object):
         with open(os.path.join(self.plugsched_path, 'sched_boundary/sched_boundary.yaml')) as f:
             self.config = load(f, Loader)
         self.file_mapping = {
-            'modsign_alinux.pem': 'certs/',
             'sched_boundary/sched_boundary.py': './',
             'sched_boundary/process.py': './',
             'sched_boundary/sched_boundary.yaml': './',
