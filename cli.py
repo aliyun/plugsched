@@ -117,7 +117,7 @@ class Plugsched(object):
         logging.info('Patching kernel kbuild system')
         self.apply_patch('kbuild.patch')
 
-    def cmd_init(self, system_map, kernel_config='', kernel_customized=[]):
+    def cmd_init(self, system_map, kernel_config=''):
         if not os.path.exists(kernel_config):
             logging.fatal("Kernel config not specified")
         self.create_mod(kernel_config)
@@ -132,9 +132,14 @@ class Plugsched(object):
             'arch/x86/oprofile/',
             jobs=self.threads
         )
-        if 'task_life_hook' not in kernel_customized:
+
+        # special handle for task life hook
+        try:
+            sh.grep('release_task_reserve', os.path.join(self.mod_path, 'kernel/sched/core.c'))
+        except:
             self.mod_sh.sed('/EXPORT_PLUGSCHED(release_task_reserve/d', 'kernel/sched/mod/export_jump.h', in_place=True)
             self.mod_sh.sed('/EXPORT_PLUGSCHED(init_task_reserve/d', 'kernel/sched/mod/export_jump.h', in_place=True)
+
         self.extract(system_map)
         with open(os.path.join(self.mod_path, '.gitignore'), 'a') as f:
             f.write('*.sched_boundary\n*.fn_ptr.h')
@@ -215,15 +220,14 @@ class PlugschedCLI(object):
         depsh.make(jobs=j)
 
     def init(self, kernel_path, mod_path, kernel_debuginfo_path, j=1, kernel_config='',
-			system_map='', kernel_customized=''):
+			system_map=''):
         """ Initialize a scheduler module for a specific kernel release and product
 
         :param j: Number of threads. "-j N" is okay while "-jN" is not allowed.
         :param kernel_config: Specify kernel_config to create scheduler module
-        :param kernel_customized: task_life_hook
         """
         self.plugsched = Plugsched(kernel_path, mod_path, threads=j, kernel_debuginfo_path=kernel_debuginfo_path)
-        self.plugsched.cmd_init(system_map, kernel_config, kernel_customized.split('|'))
+        self.plugsched.cmd_init(system_map, kernel_config)
 
     def build(self, kernel_path, mod_path, kernel_devel_path, kernel_debuginfo_path, j=1):
         """ Build a scheduler module rpm package for a specific kernel release and product
