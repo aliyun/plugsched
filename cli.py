@@ -10,7 +10,6 @@ except ImportError:
 import sh
 from sh import rsync, cp, glob as _glob
 from sched_boundary import check_sym_duplicy
-from sanity import SanityChecker
 import coloredlogs
 import logging
 import uuid
@@ -63,7 +62,6 @@ class Plugsched(object):
         self.mod_objs = [f[:-2]+'.o' for f in self.mod_srcs]
         self.extracted_mod_srcs = [os.path.join('kernel/sched/mod', os.path.basename(f)) for f in self.mod_srcs]
         self.extracted_mod_files = self.extracted_mod_srcs + self.mod_hdrs
-        self.sanity_checker = SanityChecker(self.mod_path, self.kernel_path)
 
     def apply_patch(self, f, **kwargs):
         self.mod_sh.patch(input=os.path.join(self.plugsched_path, 'src', f), strip=1, **kwargs)
@@ -89,8 +87,6 @@ class Plugsched(object):
                         in_place=True)
 
     def extract(self, system_map):
-        if not self.sanity_checker.check('extract'):
-            logging.fatal('Sanity checking faild before extracting')
         logging.info('Extracting scheduler module objs: %s', ' '.join(self.mod_objs))
         self.make(SCHED_MOD_STAGE = 'collect')
         self.make(SCHED_MOD_STAGE = 'analyze',
@@ -143,8 +139,6 @@ class Plugsched(object):
         self.extract(system_map)
         with open(os.path.join(self.mod_path, '.gitignore'), 'a') as f:
             f.write('*.sched_boundary\n*.fn_ptr.h')
-        if not self.sanity_checker.check('after_extract'):
-            logging.fatal('Sanity checking faild after extracting')
         logging.info('Fixing up extracted scheduler module')
         self.fix_up()
         logging.info('Patching extracted scheduler module')
@@ -174,8 +168,6 @@ class Plugsched(object):
         logging.info("Succeed!")
 
     def cmd_build(self):
-        if not self.sanity_checker.check('build'):
-            logging.fatal('Sanity checking faild before build')
         if not os.path.exists(self.mod_path):
             logging.fatal("plugsched: Can't find %s", self.mod_path)
         logging.info("Preparing rpmbuild environment")
