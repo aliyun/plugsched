@@ -144,8 +144,14 @@ class Plugsched(object):
         self.fix_up()
         logging.info('Patching extracted scheduler module')
         self.apply_patch('module.patch')
-        if 'builtin_springboard' not in kernel_customized:
+
+        # special handle for builtin springboard kernel version
+        try:
+            sh.grep('label_recover', os.path.join(self.mod_path, 'kernel/sched/core.c'))
+        except:
+            logging.info('Patching dynamic springboard')
             self.apply_patch('dynamic_springboard.patch')
+
         try:
             springboard = self.search_springboard('vmlinux')
 
@@ -214,7 +220,7 @@ class PlugschedCLI(object):
 
         :param j: Number of threads. "-j N" is okay while "-jN" is not allowed.
         :param kernel_config: Specify kernel_config to create scheduler module
-        :param kernel_customized: builtin_springboard | task_life_hook
+        :param kernel_customized: task_life_hook
         """
         self.plugsched = Plugsched(kernel_path, mod_path, threads=j, kernel_debuginfo_path=kernel_debuginfo_path)
         self.plugsched.cmd_init(system_map, kernel_config, kernel_customized.split('|'))
