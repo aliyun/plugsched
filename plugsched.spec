@@ -10,6 +10,11 @@ License:	GPLv2
 URL:		None
 Source0:	None
 
+#Dependent static libraries of symbol_resolve tool
+BuildRequires:	elfutils-devel-static > 0.169
+BuildRequires:	zlib-static
+BuildRequires:	glibc-static
+
 %description
 The plugsched rpm-package.
 
