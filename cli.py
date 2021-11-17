@@ -223,6 +223,11 @@ class PlugschedCLI(object):
             logging.fatal("find multi kernel source, fuzz ...")
 
         rsync(src[0] + '/', target_dir + '/', archive=True, verbose=True, delete=True)
+
+        # certificates for CONFIG_MODULE_SIG_KEY & CONFIG_SYSTEM_TRUSTED_KEYS
+        for pem in glob('*.pem', rpmbuild_root + '/SOURCES/'):
+            sh.cp(pem, target_dir + '/certs', force=True)
+
         sh.rm(rpmbuild_root, recursive=True, force=True)
 
     def init(self, release_kernel, kernel_src, mod_path):
