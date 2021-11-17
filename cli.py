@@ -11,6 +11,7 @@ import sh
 from sh import rsync, cp, glob as _glob
 from sched_boundary import check_sym_duplicy
 from multiprocessing import cpu_count
+from tempfile import mkdtemp
 import coloredlogs
 import logging
 import uuid
@@ -204,6 +205,25 @@ class PlugschedCLI(object):
         with sh.contrib.sudo:
             sh.yum.install('python-devel', 'gcc', 'gcc-plugin-devel', _fg=True)
         depsh.make(jobs=j)
+
+    def extract_src(self, kernel_src_rpm, target_dir):
+        """ extract kernel source code from kernel-src rpm
+
+        :param kernel_src_rpm: path of kernel source rpm
+        :param target_dir: directory to place kernel source code
+        """
+
+        rpmbuild_root = mkdtemp()
+        sh.rpmbuild('--define', '%%_topdir %s' % rpmbuild_root,
+                    '-rp', kernel_src_rpm)
+
+        src = glob('kernel*/linux*', rpmbuild_root + '/BUILD/')
+
+        if len(src) != 1:
+            logging.fatal("find multi kernel source, fuzz ...")
+
+        rsync(src[0] + '/', target_dir + '/', archive=True, verbose=True, delete=True)
+        sh.rm(rpmbuild_root, recursive=True, force=True)
 
     def init(self, release_kernel, kernel_src, mod_path):
         """ Initialize a scheduler module for a specific kernel release and product
