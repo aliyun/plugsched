@@ -179,8 +179,8 @@ class Plugsched(object):
         KVER = '%s.%s.%s' % (VERSION, PATCHLEVEL, SUBLEVEL)
         rpmname = 'plugsched-{}'.format(KVER)
 
-        self.plugsched_sh.cp('plugsched.spec', os.path.join(rpmbuild_root, 'SPECS'), force=True)
-        rpmbase_sh.rpmbuild('--define', '%%_outdir %s' % os.path.realpath(self.plugsched_path),
+        self.plugsched_sh.cp('module-contrib/plugsched.spec', os.path.join(rpmbuild_root, 'SPECS'), force=True)
+        rpmbase_sh.rpmbuild('--define', '%%_outdir %s' % os.path.realpath(self.plugsched_path + '/module-contrib'),
                             '--define', '%%_topdir %s' % os.path.realpath(rpmbuild_root),
                             '--define', '%%_dependdir %s' % os.path.realpath(self.plugsched_path),
                             '--define', '%%_kerneldir %s' % os.path.realpath(self.mod_path),
