@@ -35,7 +35,7 @@ class Plugsched(object):
         self.plugsched_path = os.path.abspath(os.path.dirname(__file__))
         self.mod_path = mod_path
         self.vmlinux = vmlinux
-        self.search_springboard = sh.Command(os.path.join(self.plugsched_path, 'springboard_search.sh'))
+        self.search_springboard = sh.Command(os.path.join(self.plugsched_path, 'tools/springboard_search.sh'))
 
         plugsched_sh = sh(_cwd=self.plugsched_path)
         mod_sh = sh(_cwd=self.mod_path)

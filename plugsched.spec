@@ -26,13 +26,13 @@ cp %{_outdir}/plugsched.service %{_builddir}/plugsched
 
 %build
 #build symbol resolve tool
-cd %{_dependdir}/symbol_resolve
+cd %{_dependdir}/tools/symbol_resolve
 make srctree=%{_kerneldir}
 cd %{_kerneldir}
 LOCALVERSION=-%{RELEASE}.%{_arch} make -f Makefile.plugsched plugsched -j %{threads}
 
 #copy these two files to rpmbuild/BUILD/plugsched
-cp %{_dependdir}/symbol_resolve/symbol_resolve %{_builddir}/plugsched
+cp %{_dependdir}/tools/symbol_resolve/symbol_resolve %{_builddir}/plugsched
 cp %{_kerneldir}/kernel/sched/mod/plugsched.ko %{_builddir}/plugsched
 
 %install

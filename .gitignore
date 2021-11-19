@@ -1,2 +1,6 @@
 *.rej
 /rpmbuild
+symbol_resolve
+*.o
+*.pyc
+*.swp
