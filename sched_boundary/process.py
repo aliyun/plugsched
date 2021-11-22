@@ -221,3 +221,6 @@ if __name__ == '__main__':
         dump(struct_properties, f, Dumper)
     with open('sched_boundary_extract.yaml', 'w') as f:
         dump(config, f, Dumper)
+    with open('tainted_functions', 'w') as f:
+        func = config['function']
+        f.write('\n'.join(func['interface'] + func['fn_ptr'] + func['insider']))
