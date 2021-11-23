@@ -1,83 +1,107 @@
 %define dist .al7
+%define sha 384f26418c1eff9a48ae337ec5cb69ffe7f8a857
+%define kerneltarball 4.19-%{sha}-%{sha}
+%define KVER 4.19.91
+%define KREL 1
+%define _prefix /usr/local
 
-Name:		plugsched
-Version:	4.19.91
-Release:	22.fc.al7.x86_64
+Name:		plugsched-ant
+Version:	%{KVER}
+Release:	%{KREL}.3
 Summary:	The plugsched rpm
+BuildRequires:	elfutils-devel
+BuildRequires:	systemd
+BuildRequires:	yum-plugin-pre-transaction-actions
+BuildRequires:	kernel-devel = %{KVER}-%{KREL}
+Requires:	systemd
+Requires:	binutils
+Requires:	cpio
+Packager:	Yihao Wu <wuyihao@linux.alibaba.com>
 
 Group:		System Environment/Kernel
 License:	GPLv2
 URL:		None
-Source0:	None
-
-#Dependent static libraries of symbol_resolve tool
-BuildRequires:	elfutils-devel-static > 0.169
-BuildRequires:	zlib-static
-BuildRequires:	glibc-static
+Source0:	%{sha}.tar.gz
+Source1:	plugsched-install
+Source2:	plugsched-uninstall
+Source3:	plugsched.service
+Source4:	plugsched-tmp.conf
+Source5:	plugsched.action
+Source6:	plugsched-actions.conf
+Source7:	plugsched-verses-kpatch.py
+Source8:	extract-abi-black.py
+Patch0: 	plugsched-actions.patch
 
 %description
 The plugsched rpm-package.
 
 %prep
-mkdir -p %{_builddir}/plugsched
-cp %{_outdir}/plugsched-install %{_builddir}/plugsched
-cp %{_outdir}/plugsched-uninstall %{_builddir}/plugsched
-cp %{_outdir}/plugsched.service %{_builddir}/plugsched
+%setup -q -n kernel-%{kerneltarball}
+cp /usr/src/kernels/%{KVER}-%{KREL}.%{_arch}/Module.symvers Module.symvers
+cp /usr/lib/yum-plugins/pre-transaction-actions.py plugsched-actions.py
+%patch0 -p1
 
 %build
-#build symbol resolve tool
-cd %{_dependdir}/tools/symbol_resolve
-make srctree=%{_kerneldir}
-cd %{_kerneldir}
-LOCALVERSION=-%{RELEASE}.%{_arch} make -f Makefile.plugsched plugsched -j %{threads}
-
-#copy these two files to rpmbuild/BUILD/plugsched
-cp %{_dependdir}/tools/symbol_resolve/symbol_resolve %{_builddir}/plugsched
-cp %{_kerneldir}/kernel/sched/mod/plugsched.ko %{_builddir}/plugsched
+# Build prepare target
+make prepare scripts
+# Build symbol resolve tool
+make tools/plugsched
+# Build sched_mod
+LOCALVERSION=-%{KREL}.%{_arch} %make_build -f Makefile.plugsched plugsched
+# Extract abi blacklist
+python %{SOURCE8} sched_boundary_extract.yaml > abi_blacklist
 
 %install
-cd plugsched
+#install the plugsched tool and plugsched-install script and systemd service
+mkdir -p %{buildroot}%{_bindir}
+mkdir -p %{buildroot}%{_prefix}/lib/systemd/system
+mkdir -p %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
+mkdir -p %{buildroot}%{_rundir}/plugsched
+mkdir -p %{buildroot}%{_tmpfilesdir}
+mkdir -p %{buildroot}%{_sysconfdir}/yum/plugsched-actions
+mkdir -p %{buildroot}%{_sysconfdir}/yum/pluginconf.d
+mkdir -p %{buildroot}/usr/lib/yum-plugins
 
-#install the plugsched tool and plugsched-install script
-mkdir -p %{buildroot}/usr/local/bin
-mkdir -p %{buildroot}/var/plugsched
-install -m 755 symbol_resolve %{buildroot}/usr/local/bin/plugsched
-install -m 755 plugsched-install %{buildroot}/usr/local/bin/plugsched-install
-install -m 755 plugsched-uninstall %{buildroot}/usr/local/bin/plugsched-uninstall
-
-mkdir -p %{buildroot}/usr/local/share/plugsched
-cp plugsched.ko %{buildroot}/usr/local/share/plugsched
-
-#create systemd service
-mkdir -p %{buildroot}/usr/lib/systemd/system
-cp plugsched.service %{buildroot}/usr/lib/systemd/system
-
-#Auto start the service when system reboot
-mkdir -p %{buildroot}/etc/systemd/system/multi-user.target.wants
-ln -s  /usr/lib/systemd/system/plugsched.service \
-	%{buildroot}/etc/systemd/system/multi-user.target.wants/plugsched.service
+install -m 755 tools/plugsched/symbol_resolve %{buildroot}%{_bindir}/plugsched
+install -m 755 kernel/sched/mod/plugsched.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/plugsched.ko
+install -m 755 abi_blacklist %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/abi_blacklist
+install -m 755 %{SOURCE1} %{buildroot}%{_bindir}
+install -m 755 %{SOURCE2} %{buildroot}%{_bindir}
+install -m 755 %{SOURCE3} %{buildroot}%{_prefix}/lib/systemd/system
+install -m 755 %{SOURCE4} %{buildroot}%{_tmpfilesdir}/plugsched.conf
+install -m 755 %{SOURCE5} %{buildroot}%{_sysconfdir}/yum/plugsched-actions/
+install -m 755 %{SOURCE6} %{buildroot}%{_sysconfdir}/yum/pluginconf.d/
+install -m 755 plugsched-actions.py %{buildroot}/usr/lib/yum-plugins/
+install -m 755 %{SOURCE7} %{buildroot}%{_bindir}
 
 #install plugsched module after install this rpm-package
 %post
 systemctl daemon-reload
+systemctl enable plugsched
 systemctl start plugsched
 
-#uninstall plugscehd module before remove this rpm-package
+#uninstall plugsched module before remove this rpm-package
 %preun
+systemctl --no-reload disable plugsched
 systemctl stop plugsched
-if [ -f "/var/plugsched/plugsched-install-not" ]; then
-	/usr/bin/rm -f /var/plugsched/plugsched-install-not
-fi
+
+%postun
+systemctl daemon-reload
 
 %files
-#%doc
-/usr/local/bin/plugsched
-/usr/local/bin/plugsched-install
-/usr/local/bin/plugsched-uninstall
-/etc/systemd/system/multi-user.target.wants/plugsched.service
-/usr/lib/systemd/system/plugsched.service
+%{_bindir}/plugsched
+%{_bindir}/plugsched-install
+%{_bindir}/plugsched-uninstall
+%{_bindir}/plugsched-verses-kpatch.py
+%{_prefix}/lib/systemd/system/plugsched.service
+%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/plugsched.ko
+%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/abi_blacklist
+%{_tmpfilesdir}/plugsched.conf
+%{_sysconfdir}/yum/plugsched-actions/plugsched.action
+%{_sysconfdir}/yum/pluginconf.d/plugsched-actions.conf
+/usr/lib/yum-plugins/plugsched-actions.py
 
 %dir
-/usr/local/share/plugsched
-/var/plugsched
+%{_rundir}/plugsched
 
+%changelog
