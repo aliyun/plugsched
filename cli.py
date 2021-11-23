@@ -32,7 +32,7 @@ logging.getLogger().addHandler(ShutdownHandler())
 
 class Plugsched(object):
     def __init__(self, mod_path, vmlinux):
-        self.plugsched_path = os.path.abspath(os.path.dirname(__file__))
+        self.plugsched_path = os.path.dirname(os.path.realpath(__file__))
         self.mod_path = mod_path
         self.vmlinux = vmlinux
         self.search_springboard = sh.Command(os.path.join(self.plugsched_path, 'tools/springboard_search.sh'))
@@ -198,7 +198,7 @@ class PlugschedCLI(object):
 
         :param j: Number of threads. "-j N" is okay while "-jN" is not allowed.
         """
-        root_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)))
+        root_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)))
         plugsched_sh = sh(_cwd = root_dir)
         plugsched_sh.git.submodule.update(init = True)
         depsh = sh(_cwd = os.path.join(root_dir, 'gcc-python-plugin'))
