@@ -10,14 +10,9 @@ if [ -f "$skip" ]; then
 	exit 1
 fi
 
-if ! /usr/local/bin/plugsched-verses-kpatch.py pre; then
-	echo "Error: there are hotfixes conflicting with plugsched. Exit."
-	exit 1
-fi
-
 if [ "$cursys" == "$mod" ]; then
 	/usr/bin/cp $modfile /run/plugsched/plugsched.ko
-	/usr/local/bin/plugsched /run/plugsched/plugsched.ko /proc/kallsyms
+	/usr/local/bin/symbol_resolve /run/plugsched/plugsched.ko /proc/kallsyms
 	/usr/bin/touch $skip
 	/usr/bin/sync
 	/usr/sbin/insmod /run/plugsched/plugsched.ko
@@ -26,4 +21,3 @@ else
 	echo "Error: kernel version is not same as plugsched version!"
 	exit 1
 fi
-
