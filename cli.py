@@ -33,8 +33,8 @@ logging.getLogger().addHandler(ShutdownHandler())
 class Plugsched(object):
     def __init__(self, mod_path, vmlinux):
         self.plugsched_path = os.path.dirname(os.path.realpath(__file__))
-        self.mod_path = mod_path
-        self.vmlinux = vmlinux
+        self.mod_path = os.path.abspath(mod_path)
+        self.vmlinux = os.path.abspath(vmlinux)
         self.search_springboard = sh.Command(os.path.join(self.plugsched_path, 'tools/springboard_search.sh'))
 
         plugsched_sh = sh(_cwd=self.plugsched_path)
