@@ -15,7 +15,7 @@ index 64fac0a..eadcce4 100644
  endif
  
 +ifneq ($(strip $(SCHED_MOD_STAGE)),)
-+SCHED_MOD_CFLAGS := -fplugin=../gcc-python-plugin/python.so \
++SCHED_MOD_CFLAGS := -fplugin=/usr/lib64/gcc-python-plugin/python.so	    \
 +                    -fplugin-arg-python-script=sched_boundary.py	    \
 +                    -fplugin-arg-python-stage=$(SCHED_MOD_STAGE)
 +cmd_sched_boundary_cc_o_c = $(cmd_cc_o_c) $(SCHED_MOD_CFLAGS)
