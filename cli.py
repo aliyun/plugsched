@@ -240,7 +240,7 @@ class PlugschedCLI(object):
 
         vmlinux = '/usr/lib/debug/lib/modules/' + release_kernel + '/vmlinux'
         if not os.path.exists(vmlinux):
-            logging.fatal("%s not found, please install kernel-debuginfo-%s.rpm", release_kernel)
+            logging.fatal("%s not found, please install kernel-debuginfo-%s.rpm", vmlinux, release_kernel)
 
         system_map    = '/usr/src/kernels/' + release_kernel + '/System.map'
         sym_vers      = '/usr/src/kernels/' + release_kernel + '/Module.symvers'
@@ -248,7 +248,7 @@ class PlugschedCLI(object):
         makefile      = '/usr/src/kernels/' + release_kernel + '/Makefile'
 
         if not os.path.exists(kernel_config):
-            logging.fatal("%s not found, please install kernel-devel-%s.rpm", release_kernel)
+            logging.fatal("%s not found, please install kernel-devel-%s.rpm", kernel_config, release_kernel)
 
         self.plugsched = Plugsched(mod_path, vmlinux)
         self.plugsched.cmd_init(kernel_src, system_map, sym_vers, kernel_config, makefile)
