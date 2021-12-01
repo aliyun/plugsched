@@ -56,16 +56,26 @@ install -m 755 %{SOURCE3} %{buildroot}%{_prefix}/lib/systemd/system
 
 #install plugsched module after install this rpm-package
 %post
-systemctl daemon-reload
-systemctl enable plugsched
-systemctl start plugsched
+if [ $1 == 1 ];  then
+	echo "Installing plugsched."
+	systemctl daemon-reload
+	systemctl enable plugsched
+	systemctl start plugsched
+elif [ $1 == 2 ];  then
+	echo "Upgrading plugsched - install new version."
+	/sbin/rmmod plugsched || echo "plugsched module not loaded. Skip rmmod and continue upgrade."
+fi
 
 #uninstall plugsched module before remove this rpm-package
-%preun
-/sbin/rmmod plugsched || echo "plugsched module not loaded. Skip rmmod and continue uninstall."
-
 %postun
 systemctl daemon-reload
+if [ $1 == 0 ]; then
+	echo "Uninstalling plugsched."
+	/sbin/rmmod plugsched || echo "plugsched module not loaded. Skip rmmod and continue uninstall."
+elif [ $1 == 1 ]; then
+	echo "Upgrading plugsched - uninstall old version."
+	systemctl start plugsched
+fi
 
 %files
 %{_bindir}/symbol_resolve
