@@ -1,6 +1,0 @@
-#!/bin/bash
-
-/usr/bin/touch /var/plugsched/skip
-/usr/bin/sync
-/sbin/rmmod plugsched
-/usr/bin/rm /var/plugsched/skip

@@ -4,19 +4,10 @@ cursys=$(uname -r)
 modfile=/var/plugsched/$cursys/plugsched.ko
 mod=$(modinfo $modfile | grep vermagic | awk '{print $2}')
 
-skip="/var/plugsched/skip"
-if [ -f "$skip" ]; then
-	echo "Error: plugsched: cannot load plugsched, please update"
-	exit 1
-fi
-
 if [ "$cursys" == "$mod" ]; then
 	/usr/bin/cp $modfile /run/plugsched/plugsched.ko
 	/usr/local/bin/symbol_resolve /run/plugsched/plugsched.ko /proc/kallsyms
-	/usr/bin/touch $skip
-	/usr/bin/sync
 	/usr/sbin/insmod /run/plugsched/plugsched.ko
-	/usr/bin/rm -f $skip
 else
 	echo "Error: kernel version is not same as plugsched version!"
 	exit 1

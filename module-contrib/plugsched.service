@@ -1,11 +1,10 @@
 [Unit]
 Description=The plugsched service
+ConditionKernelCommandLine=!plugsched.enable=0
 
 [Service]
-Type=simple
+Type=oneshot
 ExecStart=/usr/local/bin/plugsched-install
-RemainAfterExit=yes
-ExecStop=/usr/local/bin/plugsched-uninstall
 
 [Install]
 WantedBy=multi-user.target
