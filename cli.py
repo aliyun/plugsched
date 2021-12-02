@@ -149,14 +149,19 @@ class Plugsched(object):
             self.apply_patch('dynamic_springboard.patch')
 
         try:
-            springboard = self.search_springboard(self.vmlinux)
+            springboard = list(self.search_springboard(self.vmlinux))
 
-            if len(list(springboard)) != 1:
+            if len(springboard) != 2:
                 logging.error("Search springboard faild!")
                 exit(-1)
 
+            """
+            springboard[0] is the value of sched_springboard var.
+            springboard[1] is the stack size of __schedule in vmlinux.
+            """
             with open(os.path.join(self.mod_path, 'kernel/sched/mod/Makefile'), 'a') as f:
-                f.write('ccflags-y += -DSPRINGBOARD=' + str(springboard))
+                f.write('ccflags-y += -DSPRINGBOARD=' + str(springboard[0]))
+                f.write('ccflags-y += -DSTACKSIZE_SCHEDULE=' + str(springboard[1]))
 
         except sh.ErrorReturnCode:
             logging.error("Search springboard faild!")
