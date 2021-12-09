@@ -39,12 +39,12 @@ class SchedBoundary(object):
 
 # Workarounds
 class GccBugs(object):
-    array_pointer_re = re.compile(r'(.*)\[([0-9]*)\] \* (.*);')
+    array_pointer_re = re.compile(r'(.*)\[([0-9]*)\] \*\s*([^,\);]*)')
 
-    # struct cpumask[1] * doms_cur; -> struct cpumask (*doms_cur)[1];
+    # struct cpumask[1] * doms_cur -> struct cpumask (*doms_cur)[1]
     @staticmethod
     def array_pointer(decl, str):
-        return GccBugs.array_pointer_re.sub(r'\1 (*\3)[\2];', str)
+        return GccBugs.array_pointer_re.sub(r'\1 (*\3)[\2]', str)
 
     @staticmethod
     def enum_type_name(decl, str):
