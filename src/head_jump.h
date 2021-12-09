@@ -4,9 +4,6 @@
 #include <linux/cpu.h>
 #include <linux/kallsyms.h>
 
-extern void install_sched_syscall(void);
-extern void restore_sched_syscall(void);
-
 #define PLUGSCHED_FN_PTR EXPORT_PLUGSCHED
 #define EXPORT_PLUGSCHED(fn, ...) NR_##fn,
 enum {
@@ -158,7 +155,6 @@ static int aarch64_write_insn(void *addr, u32 insn)
 static inline void jump_install(void)
 {
 	#include "export_jump.h"
-	install_sched_syscall();
 }
 #undef EXPORT_PLUGSCHED
 
@@ -166,7 +162,6 @@ static inline void jump_install(void)
 static inline void jump_remove(void)
 {
 	#include "export_jump.h"
-	restore_sched_syscall();
 }
 #undef EXPORT_PLUGSCHED
 

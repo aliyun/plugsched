@@ -34,7 +34,7 @@ $(obj)/%.stub.o: $(obj)/%.o FORCE
 
 obj-stubs := $(patsubst %.o,%.stub.o,$(objs-y))
 
-plugsched-objs := $(obj-stubs) main.o sched_syscall.o sched_rebuild.o
+plugsched-objs := $(obj-stubs) main.o sched_rebuild.o
 
 ldflags-y += -T $(srctree)/kernel/sched/mod/plugsched.lds
 ccflags-n += -DSCHEDMOD_MEMPOOL
