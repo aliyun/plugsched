@@ -49,6 +49,7 @@ class Plugsched(object):
             'sched_boundary/process.py': './',
             'sched_boundary/sched_boundary.yaml': './',
             'src/*.[ch]': 'kernel/sched/mod',
+            'src/.gitignore': './',
             'src/Makefile': 'kernel/sched/mod/',
             'src/plugsched.lds': 'kernel/sched/mod/',
             'src/Makefile.plugsched': './'
@@ -134,8 +135,6 @@ class Plugsched(object):
             self.mod_sh.sed('/EXPORT_PLUGSCHED(init_task_reserve/d', 'kernel/sched/mod/export_jump.h', in_place=True)
 
         self.extract()
-        with open(os.path.join(self.mod_path, '.gitignore'), 'a') as f:
-            f.write('*.sched_boundary\n*.fn_ptr.h')
         logging.info('Fixing up extracted scheduler module')
         self.fix_up()
         logging.info('Patching extracted scheduler module')
