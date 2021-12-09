@@ -17,7 +17,8 @@ Group:		System Environment/Kernel
 License:	GPLv2
 URL:		None
 Source1:	plugsched-install
-Source3:	plugsched.service
+Source2:	plugsched.service
+Source3:	version
 
 %description
 The plugsched rpm-package.
@@ -26,6 +27,7 @@ The plugsched rpm-package.
 # copy files to rpmbuild/SOURCE/
 cp %{_outdir}/plugsched-install %{_sourcedir}
 cp %{_outdir}/plugsched.service %{_sourcedir}
+cp %{_outdir}/version %{_sourcedir}
 
 %build
 # Build symbol resolve tool
@@ -51,7 +53,8 @@ install -m 755 %{_kerneldir}/kernel/sched/mod/plugsched.ko %{buildroot}%{_locals
 install -m 755 %{_kerneldir}/tainted_functions %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
 
 install -m 755 %{SOURCE1} %{buildroot}%{_bindir}
-install -m 755 %{SOURCE3} %{buildroot}%{_prefix}/lib/systemd/system
+install -m 755 %{SOURCE2} %{buildroot}%{_prefix}/lib/systemd/system
+install -m 755 %{SOURCE3} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
 
 #install plugsched module after install this rpm-package
 %post
@@ -82,6 +85,7 @@ fi
 %{_prefix}/lib/systemd/system/plugsched.service
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/plugsched.ko
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
+%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
 
 %dir
 %{_rundir}/plugsched
