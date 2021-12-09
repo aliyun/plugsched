@@ -54,6 +54,12 @@ class GccBugs(object):
         else:
             return str
 
+    @staticmethod
+    def fix(decl, str):
+        for bugfix in [GccBugs.array_pointer, GccBugs.enum_type_name]:
+            str = bugfix(decl, str)
+        return str
+
 class SchedBoundaryExtract(SchedBoundary):
     def __init__(self):
         super().__init__('sched_boundary_extract.yaml')
@@ -164,10 +170,7 @@ class SchedBoundaryExtract(SchedBoundary):
                 elif 'DEFINE_STATIC_KEY_TRUE(' in line:
                     line = line.replace('DEFINE_STATIC_KEY_TRUE(', 'DECLARE_STATIC_KEY_TRUE(').replace('static ', '')
                 else:
-                    line = decl.str_decl
-                    line = GccBugs.array_pointer(decl, line)
-                    line = GccBugs.enum_type_name(decl, line)
-                    line += '\n'
+                    line = GccBugs.fix(decl, decl.str_decl) + '\n'
                 lines[row_start] = line
                 for i in range(row_start+1, row_end+1):
                     lines[i] = ''
