@@ -73,15 +73,6 @@ def all_meta_files():
             if file.endswith('.sched_boundary'):
                 yield os.path.join(r, file)
 
-def input_interface():
-    names = []
-    with open('kernel/sched/mod/export_jump.h') as f:
-        for line in f.readlines():
-            if 'EXPORT_PLUGSCHED' not in line:
-                continue
-            names.append(line[len('EXPORT_PLUGSCHED')+1:line.index(',')])
-    return names
-
 def read_meta(filename):
     with open(filename) as f:
         return json.load(f)
@@ -97,12 +88,10 @@ def find_fn_ptr(meta):
         and Symbol.get(f).file in config['mod_files']
     ]
 
-__input_interface_names = None
 def find_interface(meta):
     return [f
-        for f in meta['fn']
-        if (f['syscall'] or f['name'] in __input_interface_names)
-        and Symbol.get(f) not in fn_symbol_classify['force_outsider']
+        for f in meta['interface']
+        if Symbol.get(f) not in fn_symbol_classify['force_outsider']
         and Symbol.get(f).file in config['mod_files']
     ]
 
@@ -174,11 +163,9 @@ if __name__ == '__main__':
     Symbol.fix_vagueness()
 
     # Init all kinds of functions
-    __input_interface_names = input_interface()
     for process in ['init', 'force_outsider', 'interface', 'fn_ptr', 'initial_insider']:
         processor = globals()['find_' + process]
         fn_symbol_classify[process] = [Symbol.get(fn) for fn in chain(map(processor, metas))]
-    del __input_interface_names
 
     # Init edges
     edges = list(chain(m['edge'] for m in metas))

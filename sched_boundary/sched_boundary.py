@@ -186,6 +186,7 @@ class SchedBoundaryCollect(SchedBoundary):
         self.edge_properties = []
         self.struct_properties = {}
         self.fn_ptr_properties = []
+        self.interface_properties = []
         self.seek_public_field = False
 
     def is_init_fn(self, fndecl):
@@ -211,7 +212,6 @@ class SchedBoundaryCollect(SchedBoundary):
             properties = {
                 "name": decl.name,
                 "init": self.is_init_fn(decl),
-                "syscall": any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']),
                 "file": decl.location.file,
                 "l_brace_loc": (decl.function.start.line, decl.function.start.column),
                 "r_brace_loc": (decl.function.end.line, decl.function.end.column),
@@ -221,6 +221,13 @@ class SchedBoundaryCollect(SchedBoundary):
                 "static": decl.static,
             }
             self.fn_properties.append(properties)
+
+            if decl.name in self.config['function']['interface'] or \
+               any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']):
+                self.interface_properties.append({
+                    "name": decl.name,
+                    "file": decl.location.file
+                })
 
     def var_declare(self, decl, _):
         def var_decl_start_loc(decl):
@@ -410,6 +417,7 @@ class SchedBoundaryCollect(SchedBoundary):
             "var": self.var_properties,
             "edge": self.edge_properties,
             "fn_ptr": self.fn_ptr_properties,
+            "interface": self.interface_properties,
             "struct": self.struct_properties
         }
         with open(gcc.get_main_input_filename() + '.sched_boundary', 'w') as f:

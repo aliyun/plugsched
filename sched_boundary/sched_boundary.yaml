@@ -29,9 +29,53 @@ interface_prefix:
     - __se_compat_sys_
     - __ia32_compat_sys_
 function:
-    interface: [
-        # Defined in export_jump.h
-    ]
+    interface:
+        - do_set_cpus_allowed
+        - set_user_nice
+        - sched_setscheduler
+        - sched_setscheduler_nocheck
+        - __set_cpus_allowed_ptr
+        - schedule_tail
+        - scheduler_tick
+        - sched_fork
+        - scheduler_ipi
+        - __schedule
+        - resched_cpu
+        - task_rq_lock
+        - get_nohz_timer_target
+        - nohz_balance_enter_idle
+        - sched_ttwu_pending
+        - wake_up_if_idle
+        - try_to_wake_up
+        - wake_up_new_task
+        - wake_up_nohz_cpu
+        - rt_mutex_setprio
+        - idle_cpu
+        - partition_sched_domains
+        - sched_set_stop_task
+        - task_numa_group_id
+        - should_numa_migrate_memory
+        - task_numa_free
+        - task_numa_fault
+        - proc_sched_show_task
+        - proc_sched_set_task
+        - init_idle
+        - release_task_reserve
+        - init_task_reserve
+        - in_sched_functions
+        - task_sched_runtime
+        - cpuset_cpumask_can_shrink
+        - task_can_attach
+        - normalize_rt_tasks
+        - sysrq_sched_debug_show
+        - sched_move_task
+        - sched_group_set_shares
+        - sched_offline_group
+        - sched_destroy_group
+        - sched_create_group
+        - sched_online_group
+        - id_nr_invalid
+        - finish_task_switch
     outsider: []
     force_outsider:
     - default_wake_function
