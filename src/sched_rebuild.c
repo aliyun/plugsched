@@ -1,7 +1,8 @@
 #include <linux/sched.h>
 #include "../sched.h"
 
-static void (*orig_unthrottle_cfs_rq)(struct cfs_rq *);
+static void (*orig_set_rq_offline)(struct rq *);
+static void (*orig_set_rq_online)(struct rq *);
 
 extern struct static_key __cfs_bandwidth_used;
 
@@ -10,35 +11,10 @@ extern unsigned int process_id[];
 
 void init_sched_rebuild(void)
 {
-	orig_unthrottle_cfs_rq =
-		(void (*) (struct cfs_rq *))
-			kallsyms_lookup_name("unthrottle_cfs_rq");
-}
-
-static inline void clear_bandwidth(struct task_group *tg, bool mod)
-{
-	struct cfs_rq *cfs_rq;
-	struct cfs_bandwidth *cfs_b = &tg->cfs_bandwidth;
-	bool cfs_bandwidth_used = static_key_false(&__cfs_bandwidth_used);
-
-	if (!cfs_bandwidth_used || tg == &root_task_group)
-		return;
-
-	/* Force unthrottle the throttled cfs rq. */
-	list_for_each_entry_rcu(cfs_rq, &cfs_b->throttled_cfs_rq, throttled_list) {
-		if (cfs_rq->throttled) {
-			if (mod)
-				unthrottle_cfs_rq(cfs_rq);
-			else
-				orig_unthrottle_cfs_rq(cfs_rq);
-		}
-	}
-
-	/* Deactivate the timer of cfs bandwidth, see destroy_cfs_bandwidth*/
-	if (cfs_b->throttled_cfs_rq.next && cfs_b->period_active) {
-		hrtimer_cancel(&cfs_b->period_timer);
-		hrtimer_cancel(&cfs_b->slack_timer);
-	}
+	orig_set_rq_online = (void (*) (struct rq *))
+			kallsyms_lookup_name("set_rq_online");
+	orig_set_rq_offline = (void (*) (struct rq *))
+			kallsyms_lookup_name("set_rq_offline");
 }
 
 void clear_sched_state(bool mod)
@@ -46,10 +22,14 @@ void clear_sched_state(bool mod)
 	struct task_struct *g, *p;
 	struct task_group *tg;
 	struct rq *rq;
-	int queue_flags = DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
+	int cpu, queue_flags = DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
 
-	list_for_each_entry_rcu(tg, &task_groups, list)
-		clear_bandwidth(tg, mod);
+	for_each_online_cpu(cpu) {
+		if (mod)
+			set_rq_offline(cpu_rq(cpu));
+		else
+			orig_set_rq_offline(cpu_rq(cpu));
+	}
 
 	for_each_process_thread(g, p) {
 		rq = task_rq(p);
@@ -81,6 +61,11 @@ void rebuild_sched_state(bool mod)
 		cpu_relax();
 	}
 
+	if (mod)
+		set_rq_online(this_rq());
+	else
+		orig_set_rq_online(this_rq());
+
 	for_each_process_thread(g, p) {
 		if (rq != task_rq(p))
 			continue;
@@ -95,12 +80,18 @@ void rebuild_sched_state(bool mod)
 	if (process_id[cpu])
 		return;
 
-	/* Restart the cfs bandwidth timer */
+	/* Restart the cfs/rt bandwidth timer */
 	list_for_each_entry_rcu(tg, &task_groups, list) {
-		if (tg == &root_task_group || !tg->cfs_bandwidth.period_active)
+		if (tg == &root_task_group)
 			continue;
 
-		hrtimer_restart(&tg->cfs_bandwidth.period_timer);
-		hrtimer_restart(&tg->cfs_bandwidth.slack_timer);
+		if (tg->cfs_bandwidth.period_active) {
+			hrtimer_restart(&tg->cfs_bandwidth.period_timer);
+			hrtimer_restart(&tg->cfs_bandwidth.slack_timer);
+		}
+#ifdef CONFIG_RT_GROUP_SCHED
+		if (tg->rt_bandwidth.rt_period_active)
+			hrtimer_restart(&tg->rt_bandwidth.rt_period_timer);
+#endif
 	}
 }
