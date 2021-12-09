@@ -1,2 +1,2 @@
 *.sched_boundary
-*.fn_ptr
+*.export_jump

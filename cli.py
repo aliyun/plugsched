@@ -92,8 +92,8 @@ class Plugsched(object):
                   SYSTEM_MAP      = './System.map')
         self.make(SCHED_MOD_STAGE = 'extract',
                   objs            = self.mod_objs)
-        with open(os.path.join(self.mod_path, 'kernel/sched/mod/export_jump.h'), 'a') as f:
-            sh.sort(glob('kernel/sched/*.fn_ptr.h', _cwd=self.mod_path), _out=f)
+        with open(os.path.join(self.mod_path, 'kernel/sched/mod/export_jump.h'), 'w') as f:
+            sh.sort(glob('kernel/sched/*.export_jump.h', _cwd=self.mod_path), _out=f)
 
     def create_mod(self, kernel_src):
         logging.info('Creating mod build directory structure')
@@ -126,13 +126,6 @@ class Plugsched(object):
             'arch/x86/oprofile/',
             jobs=self.threads
         )
-
-        # special handle for task life hook
-        try:
-            sh.grep('release_task_reserve', os.path.join(self.mod_path, 'kernel/sched/core.c'))
-        except:
-            self.mod_sh.sed('/EXPORT_PLUGSCHED(release_task_reserve/d', 'kernel/sched/mod/export_jump.h', in_place=True)
-            self.mod_sh.sed('/EXPORT_PLUGSCHED(init_task_reserve/d', 'kernel/sched/mod/export_jump.h', in_place=True)
 
         self.extract()
         logging.info('Fixing up extracted scheduler module')

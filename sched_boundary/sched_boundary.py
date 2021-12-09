@@ -66,6 +66,7 @@ class SchedBoundaryExtract(SchedBoundary):
         assert gcc.get_main_input_filename() in self.sched_mod_source_files
         self.fn_list = []
         self.fn_ptr_list = []
+        self.interface_list = []
         self.var_list = []
 
     # TODO use gcc.get_callgraph_nodes is okay too. Are there any difference ?
@@ -79,6 +80,7 @@ class SchedBoundaryExtract(SchedBoundary):
 
         assert(isinstance(decl, gcc.FunctionDecl))
 
+        interface_export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})\n"
         fn_ptr_export_fmt = "PLUGSCHED_FN_PTR({fn}, {ret}, {params})\n"
         # translate index to start with 0
         if decl.name in self.config['function']['outsider'] or \
@@ -91,8 +93,9 @@ class SchedBoundaryExtract(SchedBoundary):
         elif decl.name in self.config['function']['fn_ptr']:
             fn_ptr_export = fn_ptr_export_fmt.format(
                 fn=decl.name,
-                ret=GccBugs.enum_type_name(decl.result, decl.result.type.str_no_uid),
-                params=",".join(GccBugs.enum_type_name(arg, arg.type.str_no_uid) for arg in decl.arguments)
+                ret=GccBugs.fix(decl.result, decl.result.type.str_no_uid),
+                params=", ".join(GccBugs.fix(arg, arg.type.str_no_uid) for arg in decl.arguments) if decl.arguments else
+                       "void"
             )
             self.fn_ptr_list.append([decl,
                 fn_ptr_export,
@@ -100,6 +103,14 @@ class SchedBoundaryExtract(SchedBoundary):
                 decl.location.column - 1,
                 decl.function.end.line - 1,
                 decl.function.end.column - 1])
+        elif decl.name in self.config['function']['interface']:
+            interface_export = interface_export_fmt.format(
+                fn=decl.name,
+                ret=GccBugs.fix(decl.result, decl.result.type.str_no_uid),
+                params=", ".join(GccBugs.fix(arg, arg.type.str_no_uid) for arg in decl.arguments) if decl.arguments else
+                       "void"
+            )
+            self.interface_list.append(interface_export)
 
     def var_declare(self, decl, _):
         def anonymous_type_var(var_decl):
@@ -131,7 +142,7 @@ class SchedBoundaryExtract(SchedBoundary):
         src_fn = gcc.get_main_input_filename()
         assert src_fn in self.sched_mod_source_files
 
-        with open(src_fn) as in_f, open(src_fn + '.fn_ptr.h', 'w') as fn_ptr_f:
+        with open(src_fn) as in_f, open(src_fn + '.export_jump.h', 'w') as fn_export_jump:
             lines = in_f.readlines()
 
             for decl, fn_row_start, fn_col_start, fn_row_end, __ in self.fn_list:
@@ -145,7 +156,7 @@ class SchedBoundaryExtract(SchedBoundary):
                         lines[i] = ''
 
             for decl, export, fn_row_start, fn_col_start, fn_row_end, fn_col_end in self.fn_ptr_list:
-                fn_ptr_f.write(export)
+                fn_export_jump.write(export)
                 decl.public = True
                 decl.external = True
                 decl.static = False
@@ -153,6 +164,9 @@ class SchedBoundaryExtract(SchedBoundary):
                     lines[fn_row_start][fn_col_start:].replace(decl.name, '__mod_' + decl.name)
                 lines[fn_row_end] = lines[fn_row_end] + '\n' + \
                     GccBugs.enum_type_name(decl.result, decl.str_decl) + '\n'
+
+            for export in self.interface_list:
+                fn_export_jump.write(export)
 
             for decl, row_start, row_end in self.var_list:
                 decl.static = False
