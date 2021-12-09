@@ -184,12 +184,25 @@ class Plugsched(object):
         KVER = '%s.%s.%s' % (VERSION, PATCHLEVEL, SUBLEVEL)
         rpmname = 'plugsched-{}'.format(KVER)
 
+        KREL = self.mod_sh.awk('-F=', '/^EXTRAVERSION/{print $2}', 'Makefile').strip(' \n-')
+        if len(KREL) == 0:
+            logging.fatal('''Maybe you are using plugsched on non-released kernel,
+                          please set EXTRAVERSION in Makefile (%s) before build kernel''',
+                          os.path.join(self.mod_path, 'Makefile'))
+
+        # strip ARCH
+        for arch in ['.x86_64', '.aarch64']:
+            idx = KREL.find(arch)
+            if idx != -1:
+                KREL = KREL[:idx]
+
         self.plugsched_sh.cp('module-contrib/plugsched.spec', os.path.join(rpmbuild_root, 'SPECS'), force=True)
         rpmbase_sh.rpmbuild('--define', '%%_outdir %s' % os.path.realpath(self.plugsched_path + '/module-contrib'),
                             '--define', '%%_topdir %s' % os.path.realpath(rpmbuild_root),
                             '--define', '%%_dependdir %s' % os.path.realpath(self.plugsched_path),
                             '--define', '%%_kerneldir %s' % os.path.realpath(self.mod_path),
                             '--define', '%%KVER %s' % KVER,
+                            '--define', '%%KREL %s' % KREL,
                             '--define', '%%name %s' % rpmname,
                             '--define', '%%threads %d' % self.threads,
                             '-bb', 'SPECS/plugsched.spec')

@@ -1,6 +1,3 @@
-%define dist .al7
-%define KVER 4.19.91
-%define KREL 1
 %define _prefix /usr/local
 
 Name:		plugsched
@@ -35,7 +32,7 @@ make srctree=%{_kerneldir}
 
 # Build sched_mod
 cd %{_kerneldir}
-LOCALVERSION=-%{KREL}.%{_arch} make -f Makefile.plugsched plugsched -j %{threads}
+make -f Makefile.plugsched plugsched -j %{threads}
 
 #%pre
 # TODO: confict check
