@@ -1,8 +1,10 @@
 %define _prefix /usr/local
+%define minor_name xxx
+%define release yyy
 
-Name:		plugsched
+Name:		plugsched-%{minor_name}
 Version:	%{KVER}
-Release:	%{KREL}.3
+Release:	%{KREL}.%{release}
 Summary:	The plugsched rpm
 BuildRequires:	elfutils-devel
 BuildRequires:	systemd
