@@ -24,8 +24,6 @@ interface_prefix:
     - __ia32_sys_
     - __x64_sys_
     - __x32_compat_
-    - __do_compat_sys_
-    - __do_sys_
     - __se_compat_sys_
     - __ia32_compat_sys_
 function:
