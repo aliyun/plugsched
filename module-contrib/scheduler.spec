@@ -2,10 +2,10 @@
 %define minor_name xxx
 %define release yyy
 
-Name:		plugsched-%{minor_name}
+Name:		scheduler-%{minor_name}
 Version:	%{KVER}
 Release:	%{KREL}.%{release}
-Summary:	The plugsched rpm
+Summary:	The schedule policy RPM for linux kernel scheduler subsystem
 BuildRequires:	elfutils-devel
 BuildRequires:	systemd
 Requires:	systemd
@@ -16,16 +16,16 @@ Packager:	Yihao Wu <wuyihao@linux.alibaba.com>
 Group:		System Environment/Kernel
 License:	GPLv2
 URL:		None
-Source1:	plugsched-install
+Source1:	scheduler-install
 Source2:	plugsched.service
 Source3:	version
 
 %description
-The plugsched rpm-package.
+The scheduler policy rpm-package.
 
 %prep
 # copy files to rpmbuild/SOURCE/
-cp %{_outdir}/plugsched-install %{_sourcedir}
+cp %{_outdir}/scheduler-install %{_sourcedir}
 cp %{_outdir}/plugsched.service %{_sourcedir}
 cp %{_outdir}/version %{_sourcedir}
 
@@ -42,48 +42,48 @@ make -f Makefile.plugsched plugsched -j %{threads}
 # TODO: confict check
 
 %install
-#install the plugsched tool and plugsched-install script and systemd service
+#install tool, module and systemd service
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_prefix}/lib/systemd/system
 mkdir -p %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
 mkdir -p %{buildroot}%{_rundir}/plugsched
 
 install -m 755 %{_dependdir}/tools/symbol_resolve/symbol_resolve %{buildroot}%{_bindir}/symbol_resolve
-install -m 755 %{_kerneldir}/kernel/sched/mod/plugsched.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/plugsched.ko
+install -m 755 %{_kerneldir}/kernel/sched/mod/scheduler.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
 install -m 755 %{_kerneldir}/tainted_functions %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
 
 install -m 755 %{SOURCE1} %{buildroot}%{_bindir}
 install -m 755 %{SOURCE2} %{buildroot}%{_prefix}/lib/systemd/system
 install -m 755 %{SOURCE3} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
 
-#install plugsched module after install this rpm-package
+#install kernel module after install this rpm-package
 %post
 if [ $1 == 1 ];  then
-	echo "Installing plugsched."
+	echo "Installing scheduler"
 	systemctl daemon-reload
 	systemctl enable plugsched
 	systemctl start plugsched
 elif [ $1 == 2 ];  then
-	echo "Upgrading plugsched - install new version."
-	/sbin/rmmod plugsched || echo "plugsched module not loaded. Skip rmmod and continue upgrade."
+	echo "Upgrading scheduler - install new version."
+	/sbin/rmmod scheduler || echo "scheduler module not loaded. Skip rmmod and continue upgrade."
 fi
 
-#uninstall plugsched module before remove this rpm-package
+#uninstall kernel module before remove this rpm-package
 %postun
 systemctl daemon-reload
 if [ $1 == 0 ]; then
-	echo "Uninstalling plugsched."
-	/sbin/rmmod plugsched || echo "plugsched module not loaded. Skip rmmod and continue uninstall."
+	echo "Uninstalling scheduler"
+	/sbin/rmmod scheduler || echo "scheduler module not loaded. Skip rmmod and continue uninstall."
 elif [ $1 == 1 ]; then
-	echo "Upgrading plugsched - uninstall old version."
-	systemctl start plugsched
+	echo "Upgrading scheduler - uninstall old version."
+	systemctl start scheduler
 fi
 
 %files
 %{_bindir}/symbol_resolve
-%{_bindir}/plugsched-install
+%{_bindir}/scheduler-install
 %{_prefix}/lib/systemd/system/plugsched.service
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/plugsched.ko
+%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
 

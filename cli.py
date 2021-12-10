@@ -51,7 +51,7 @@ class Plugsched(object):
             'src/*.[ch]': 'kernel/sched/mod',
             'src/.gitignore': './',
             'src/Makefile': 'kernel/sched/mod/',
-            'src/plugsched.lds': 'kernel/sched/mod/',
+            'src/scheduler.lds': 'kernel/sched/mod/',
             'src/Makefile.plugsched': './'
         }
         self.threads = cpu_count()
@@ -174,7 +174,6 @@ class Plugsched(object):
         PATCHLEVEL = self.mod_sh.awk('-F=', '/^PATCHLEVEL/{print $2}', 'Makefile').strip()
         SUBLEVEL = self.mod_sh.awk('-F=', '/^SUBLEVEL/{print $2}', 'Makefile').strip()
         KVER = '%s.%s.%s' % (VERSION, PATCHLEVEL, SUBLEVEL)
-        rpmname = 'plugsched-{}'.format(KVER)
 
         KREL = self.mod_sh.awk('-F=', '/^EXTRAVERSION/{print $2}', 'Makefile').strip(' \n-')
         if len(KREL) == 0:
@@ -188,16 +187,15 @@ class Plugsched(object):
             if idx != -1:
                 KREL = KREL[:idx]
 
-        self.plugsched_sh.cp('module-contrib/plugsched.spec', os.path.join(rpmbuild_root, 'SPECS'), force=True)
+        self.plugsched_sh.cp('module-contrib/scheduler.spec', os.path.join(rpmbuild_root, 'SPECS'), force=True)
         rpmbase_sh.rpmbuild('--define', '%%_outdir %s' % os.path.realpath(self.plugsched_path + '/module-contrib'),
                             '--define', '%%_topdir %s' % os.path.realpath(rpmbuild_root),
                             '--define', '%%_dependdir %s' % os.path.realpath(self.plugsched_path),
                             '--define', '%%_kerneldir %s' % os.path.realpath(self.mod_path),
                             '--define', '%%KVER %s' % KVER,
                             '--define', '%%KREL %s' % KREL,
-                            '--define', '%%name %s' % rpmname,
                             '--define', '%%threads %d' % self.threads,
-                            '-bb', 'SPECS/plugsched.spec')
+                            '-bb', 'SPECS/scheduler.spec')
         logging.info("Succeed!")
 
 class PlugschedCLI(object):

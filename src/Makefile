@@ -23,7 +23,7 @@ objs-$(CONFIG_SCHED_AUTOGROUP) += autogroup.o
 objs-$(CONFIG_SCHEDSTATS) += stats.o
 objs-$(CONFIG_SCHED_DEBUG) += debug.o
 
-obj-m += plugsched.o
+obj-m += scheduler.o
 
 $(obj)/%.o: $(src)/%.c FORCE
 	$(call cmd,force_checksrc)
@@ -34,7 +34,7 @@ $(obj)/%.stub.o: $(obj)/%.o FORCE
 
 obj-stubs := $(patsubst %.o,%.stub.o,$(objs-y))
 
-plugsched-objs := $(obj-stubs) main.o sched_rebuild.o
+scheduler-objs := $(obj-stubs) main.o sched_rebuild.o
 
-ldflags-y += -T $(srctree)/kernel/sched/mod/plugsched.lds
+ldflags-y += -T $(srctree)/kernel/sched/mod/scheduler.lds
 ccflags-n += -DSCHEDMOD_MEMPOOL

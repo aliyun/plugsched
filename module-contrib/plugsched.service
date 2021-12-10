@@ -4,7 +4,7 @@ ConditionKernelCommandLine=!plugsched.enable=0
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/plugsched-install
+ExecStart=/usr/local/bin/scheduler-install
 
 [Install]
 WantedBy=multi-user.target
