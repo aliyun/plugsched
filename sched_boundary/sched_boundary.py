@@ -216,6 +216,8 @@ class SchedBoundaryCollect(SchedBoundary):
             self.seek_public_field = True
 
     def collect_fn(self):
+        src_fn = gcc.get_main_input_filename()
+
         for node in gcc.get_callgraph_nodes():
             decl = node.decl
             if not isinstance(decl.context, gcc.TranslationUnitDecl):
@@ -235,6 +237,10 @@ class SchedBoundaryCollect(SchedBoundary):
                 "static": decl.static,
             }
             self.fn_properties.append(properties)
+
+            # interface candidates must belongs to module source files
+            if not src_fn in self.sched_mod_source_files:
+                continue
 
             if decl.name in self.config['function']['interface'] or \
                any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']):
@@ -288,6 +294,10 @@ class SchedBoundaryCollect(SchedBoundary):
                 assert len(var.attributes['section']) == 1
                 return True
             return False
+
+        # only take care of function pointers in module source files
+        if not gcc.get_main_input_filename() in self.sched_mod_source_files:
+            return
 
         # Find fn ptrs in function body
         for node in gcc.get_callgraph_nodes():
