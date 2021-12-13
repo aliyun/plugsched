@@ -13,7 +13,7 @@ ifneq ($(CONFIG_SCHED_OMIT_FRAME_POINTER),y)
 CFLAGS_core.o := $(PROFILING) -fno-omit-frame-pointer
 endif
 
-OBJCOPYFLAGS := --globalize-symbols kernel/sched/mod/.tmp.interface_fn_ptrs
+OBJCOPYFLAGS := --globalize-symbols interface_fn_ptrs
 
 objs-y += core.o
 objs-y += idle.o fair.o rt.o deadline.o

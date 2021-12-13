@@ -208,3 +208,6 @@ if __name__ == '__main__':
     with open('tainted_functions', 'w') as f:
         func = config['function']
         f.write('\n'.join(func['interface'] + func['fn_ptr'] + func['insider']))
+    with open('interface_fn_ptrs', 'w') as f:
+        f.write('\n'.join([fn for fn in config['function']['interface']]))
+        f.write('\n'.join(['__mod_' + fn for fn in config['function']['fn_ptr']]))
