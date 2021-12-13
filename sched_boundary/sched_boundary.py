@@ -339,12 +339,6 @@ class SchedBoundaryCollect(SchedBoundary):
             }
 
     def collect_edges(self):
-        def wait_arg(op, _):
-            if isinstance(op, (gcc.VarDecl, gcc.FieldDecl)) and op.type and op.type.name \
-               and op.type.name.name in ('mutex', 'wait_queue_head_t'):
-                return True
-            return False
-
         for node in gcc.get_callgraph_nodes():
             if self.is_init_fn(node.decl):
                 continue
@@ -355,16 +349,13 @@ class SchedBoundaryCollect(SchedBoundary):
                 properties = {
                     "from": {"name": node.decl.name, "file": node.decl.location.file},
                     "to": {"name": real_name, "file": "?"},
-                    "tail": True,
-                    "carry": None
                 }
                 self.edge_properties.append(properties)
                 continue
 
-            for stmt, tail in self.each_call_stmt(node):
+            for stmt in self.each_call_stmt(node):
                 if not stmt.fndecl:
                     continue
-                callee_carry_wait = stmt.walk_tree(wait_arg, None)
                 assert node.decl.function
                 properties = {
                     "from": {
@@ -375,10 +366,6 @@ class SchedBoundaryCollect(SchedBoundary):
                         "name": stmt.fndecl.name,
                         "file": stmt.fndecl.location.file if stmt.fndecl.function else '?'
                     },
-                    "carry": [callee_carry_wait.context.name.name, callee_carry_wait.name] if isinstance(callee_carry_wait, gcc.FieldDecl) else
-                             [callee_carry_wait.name] if isinstance(callee_carry_wait, gcc.VarDecl) else
-                             None,
-                    "tail": tail
                 }
                 self.edge_properties.append(properties)
 
@@ -389,36 +376,13 @@ class SchedBoundaryCollect(SchedBoundary):
                     yield stmt
 
     def each_call_stmt(self, node):
-        # If is "return [retval]"
-        def ret_gimple_seq(gimples):
-            for g in gimples:
-                if isinstance(g, gcc.GimpleAssign):
-                    if not isinstance(g.lhs, gcc.VarDecl):
-                        return False
-                    if g.lhs.context != node.decl:
-                        return False
-                elif isinstance(g, gcc.GimpleLabel):
-                    continue
-                elif isinstance(g, gcc.GimpleReturn):
-                    return True
-                else:
-                    return False
-            return False
-
         for bb in node.decl.function.cfg.basic_blocks:
             if not bb.gimple:
                 continue
             stmts = list(bb.gimple)
-            succs = []
-            if not bb.succs:
-                # It's actually unreachable, eg. panic, BUG_ON, but we use GimpleReturn to workaround
-                succs = [gcc.GimpleReturn()]
-            elif len(bb.succs) == 1:
-                # Call gimple should not have branch
-                succs = bb.succs[0].dest.gimple
             for i, stmt in enumerate(stmts):
                 if isinstance(stmt, gcc.GimpleCall):
-                    yield stmt, ret_gimple_seq(stmts[i+1:] + succs)
+                    yield stmt
 
     def final_work(self):
         self.collect_edges()

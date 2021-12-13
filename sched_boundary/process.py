@@ -201,9 +201,6 @@ if __name__ == '__main__':
         for struct in set(chain(m['struct'].keys() for m in metas))
     }
 
-    # TODO Better just integrate sleepable.py into this.
-    edges = list(chain([(e['from']['name'], e['to']['name'], str(e['carry']).replace(' ', ''), e['tail']) for e in m['edge']] for m in metas))
-
     with open('sched_boundary_doc.yaml', 'w') as f:
         dump(struct_properties, f, Dumper)
     with open('sched_boundary_extract.yaml', 'w') as f:
