@@ -2,6 +2,7 @@
 #include <linux/init.h>
 #include <linux/printk.h>
 #include <linux/path.h>
+#include <linux/mutex.h>
 #include <linux/namei.h>
 #include <linux/livepatch.h>
 #include <linux/sched/task.h>
@@ -25,6 +26,8 @@ DECLARE_PER_CPU(struct callback_head, rt_push_head);
 DECLARE_PER_CPU(struct callback_head, rt_pull_head);
 unsigned long sched_springboard;
 
+extern struct mutex cgroup_mutex;
+extern struct mutex cpuset_mutex;
 extern cpumask_var_t sd_sysctl_cpus;
 extern int __mod_sched_cpu_activate(unsigned int cpu);
 extern int __mod_sched_cpu_deactivate(unsigned int cpu);
@@ -63,19 +66,31 @@ static inline void install_sched_domain_sysctl(void)
 {
 	void (*old_unregister_sd_sysctl)(void);
 
+	mutex_lock(&cgroup_mutex);
+	mutex_lock(&cpuset_mutex);
+
 	old_unregister_sd_sysctl = (void *)kallsyms_lookup_name("unregister_sched_domain_sysctl");
 	old_unregister_sd_sysctl();
 	register_sched_domain_sysctl();
+
+	mutex_unlock(&cpuset_mutex);
+	mutex_unlock(&cgroup_mutex);
 }
 
 static inline void restore_sched_domain_sysctl(void)
 {
 	void (*old_register_sd_sysctl)(void);
 
+	mutex_lock(&cgroup_mutex);
+	mutex_lock(&cpuset_mutex);
+
 	unregister_sched_domain_sysctl();
 	cpumask_copy(sd_sysctl_cpus, cpu_possible_mask);
 	old_register_sd_sysctl = (void *)kallsyms_lookup_name("register_sched_domain_sysctl");
 	old_register_sd_sysctl();
+
+	mutex_unlock(&cpuset_mutex);
+	mutex_unlock(&cgroup_mutex);
 }
 
 static int __sync_sched_install(void *arg)

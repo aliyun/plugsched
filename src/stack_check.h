@@ -1,5 +1,4 @@
 #include <linux/list.h>
-#include <linux/mutex.h>
 #include <trace/events/sched.h>
 
 #define MAX_STACK_ENTRIES	100
@@ -209,20 +208,13 @@ static int stack_check(bool install, int *error)
 	return 0;
 }
 
-extern struct mutex cgroup_mutex;
-extern struct mutex cpuset_mutex;
-
 static inline void stack_protect_open(void)
 {
 	atomic_set(&cpu_finished, nr_cpus);
 	atomic_set(&cpu_check_result, nr_cpus);
 	atomic_set(&check_result, 1);
-	mutex_lock(&cgroup_mutex);
-	mutex_lock(&cpuset_mutex);
 }
 
 static inline void stack_protect_close(void)
 {
-	mutex_unlock(&cpuset_mutex);
-	mutex_unlock(&cgroup_mutex);
 }
