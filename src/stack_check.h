@@ -6,14 +6,7 @@
 extern const char *get_ksymbol(struct module *, unsigned long,
 		unsigned long *, unsigned long *);
 
-static atomic_t cpu_finished = ATOMIC_INIT(0);
-static atomic_t cpu_check_result = ATOMIC_INIT(0);
-static unsigned int nr_cpus;
-
-extern unsigned int process_id[];
-extern atomic_t check_result;
-
-extern ktime_t stop_time_p0, stop_time_p1, stop_time_p2;
+extern int process_id[];
 
 static inline void addr_swap(unsigned long *a, unsigned long *b)
 {
@@ -61,7 +54,6 @@ static void stack_check_insmod_init(void)
 {
 	int cpu, idx = 0;
 
-	nr_cpus = num_online_cpus();
 	for_each_online_cpu(cpu)
 		process_id[cpu] = idx++;
 
@@ -82,7 +74,6 @@ static void stack_check_rmmod_init(void)
 {
 	int cpu, idx = 0;
 
-	nr_cpus = num_online_cpus();
 	for_each_online_cpu(cpu)
 		process_id[cpu] = idx++;
 
@@ -140,7 +131,7 @@ static int heavy_stack_check_fn_rmmod(struct stack_trace *trace)
 }
 
 /* This is basically copied from klp_check_stack */
-static int heavy_stack_check_task(struct task_struct *task, bool install)
+static int stack_check_task(struct task_struct *task, bool install)
 {
 	static unsigned long entries[MAX_STACK_ENTRIES];
 	struct stack_trace trace;
@@ -158,63 +149,24 @@ static int heavy_stack_check_task(struct task_struct *task, bool install)
 		return heavy_stack_check_fn_rmmod(&trace);
 }
 
-static void stack_check_cpu_id(bool install, unsigned int this_id, unsigned long cpu)
+static int stack_check(bool install)
 {
 	struct task_struct *p, *t;
-	int task_count = 0, allcpus = nr_cpus;
+	int task_count = 0;
+	int nr_cpus = num_online_cpus();
+	int cpu = smp_processor_id();
+
 	for_each_process_thread(p, t) {
-		if ((task_count % allcpus) == this_id) {
-			if (heavy_stack_check_task(t, install))
-				return;
+		if ((task_count % nr_cpus) == process_id[cpu]) {
+			if (stack_check_task(t, install))
+				return -EBUSY;
 		}
 		task_count++;
 	}
 
 	t = idle_task(cpu);
-	if (heavy_stack_check_task(t, install))
-		return;
+	if (stack_check_task(t, install))
+		return -EBUSY;
 
-	atomic_dec(&cpu_check_result);
-}
-
-/*
- * return 0 when needing to continue updating scheduler
- * return 1 when needing to skip undating scheduler, with error set to errno
- */
-static int stack_check(bool install, int *error)
-{
-	unsigned int cpu = smp_processor_id();
-	unsigned int this_id = process_id[cpu];
-
-	stack_check_cpu_id(install, this_id, cpu);
-	atomic_dec(&cpu_finished);
-
-	if (this_id) {
-		*error = 0;
-		return 1;
-	}
-
-	/* only the first processor do these */
-	/* waitint all cpus finished stack safeness checking */
-	atomic_cond_read_relaxed(&cpu_finished, !VAL);
-
-	stop_time_p1 = ktime_get();
-
-	if (atomic_read(&cpu_check_result)) {
-		atomic_set(&check_result, -1);
-		*error = -EAGAIN;
-		return 1;
-	}
 	return 0;
-}
-
-static inline void stack_protect_open(void)
-{
-	atomic_set(&cpu_finished, nr_cpus);
-	atomic_set(&cpu_check_result, nr_cpus);
-	atomic_set(&check_result, 1);
-}
-
-static inline void stack_protect_close(void)
-{
 }

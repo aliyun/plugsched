@@ -17,8 +17,8 @@
 
 static int retry_count;
 
-unsigned int process_id[MAX_CPU_NR];
-atomic_t check_result = ATOMIC_INIT(1);
+int process_id[MAX_CPU_NR];
+atomic_t cpu_finished;
 
 DECLARE_PER_CPU(struct callback_head, dl_push_head);
 DECLARE_PER_CPU(struct callback_head, dl_pull_head);
@@ -100,7 +100,7 @@ static int __sync_sched_install(void *arg)
 	if (!stop_time_p0)
 		stop_time_p0 = ktime_get();
 
-	if (stack_check(true, &error)) {
+	if (stack_check(true)) {
 		if (error) {
 			printk("plugsched: Error: Device or resources busy! Retrying...X%d\n",
 					retry_count);
@@ -137,7 +137,7 @@ static int __sync_sched_restore(void *arg)
 	if (!stop_time_p0)
 		stop_time_p0 = ktime_get();
 
-	if (stack_check(false, &error)) {
+	if (stack_check(false)) {
 		if (error) {
 			printk("plugsched: Warning: Device or resources busy! Retrying...X%d\n",
 					++retry_count);
@@ -299,10 +299,9 @@ retry:
 		goto retry;
 	}
 
-	stack_protect_open();
+	atomic_set(&cpu_finished, 0);
 
 	if (sync_sched_mod(__sync_sched_install)) {
-		stack_protect_close();
 		sched_mempools_destroy();
 
 		cond_resched();
@@ -310,7 +309,6 @@ retry:
 	}
 
 	install_sched_domain_sysctl();
-	stack_protect_close();
 
 	install_sched_debug_procfs();
 	install_proc_schedstat();
@@ -336,16 +334,14 @@ static void __exit sched_mod_exit(void)
 
 	main_time_p1 = ktime_get();
 retry:
-	stack_protect_open();
+	atomic_set(&cpu_finished, 0);
 
 	if (sync_sched_mod(__sync_sched_restore)) {
-		stack_protect_close();
 		cond_resched();
 		goto retry;
 	}
 
 	restore_sched_domain_sysctl();
-	stack_protect_close();
 
 	restore_sched_debug_procfs();
 	restore_proc_schedstat();
