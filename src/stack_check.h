@@ -14,8 +14,7 @@ static unsigned int nr_cpus;
 extern unsigned int process_id[];
 extern atomic_t check_result;
 
-extern ktime_t stop_time_p0, stop_time_p1, stop_time_p2,
-	       stop_time_p3, stop_time_p4, stop_time_p5;
+extern ktime_t stop_time_p0, stop_time_p1, stop_time_p2;
 
 static inline void addr_swap(unsigned long *a, unsigned long *b)
 {

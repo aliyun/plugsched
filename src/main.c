@@ -37,9 +37,8 @@ extern unsigned long sched_springboard;
 
 static struct dentry *sched_features_dir;
 static s64 stop_time;
-ktime_t stop_time_p0, stop_time_p1, stop_time_p2,
-	stop_time_p3, stop_time_p4, stop_time_p5;
-ktime_t main_time_p0, main_time_p1, main_time_p2, main_time_p3;
+ktime_t stop_time_p0, stop_time_p1, stop_time_p2;
+ktime_t main_time_p0, main_time_p1, main_time_p2;
 
 extern void init_sched_rebuild(void);
 extern void clear_sched_state(bool mod);
@@ -102,21 +101,17 @@ static int __sync_sched_install(void *arg)
 	}
 
 	clear_sched_state(false);
-	stop_time_p2 = ktime_get();
-
 	JUMP_OPERATION(install);
-	stop_time_p3 = ktime_get();
 
 	sched_alloc_extrapad();
 
 	/* should call in stop machine context */
 	open_softirq(SCHED_SOFTIRQ, __mod_run_rebalance_domains);
 	reset_balance_callback();
-	stop_time_p4 = ktime_get();
 
 rebuild:
 	rebuild_sched_state(true);
-	stop_time_p5 = ktime_get();
+	stop_time_p2 = ktime_get();
 	return 0;
 }
 
@@ -136,21 +131,18 @@ static int __sync_sched_restore(void *arg)
 		goto rebuild;
 	}
 	clear_sched_state(true);
-	stop_time_p2 = ktime_get();
 
 	JUMP_OPERATION(remove);
-	stop_time_p3 = ktime_get();
 
 	/* should call in stop machine context */
 	open_softirq(SCHED_SOFTIRQ, run_rebalance_domains);
 	reset_balance_callback();
 	sched_free_extrapad();
-	stop_time_p4 = ktime_get();
 
 rebuild:
 	rebuild_sched_state(false);
 
-	stop_time_p5 = ktime_get();
+	stop_time_p2 = ktime_get();
 
 	return 0;
 }
@@ -245,7 +237,7 @@ int restore_proc_schedstat(void)
 
 static void report_cur_status(char *ops)
 {
-	printk("plugsched %s: current core number is  %-15d ns\n", ops, nr_cpu_ids);
+	printk("plugsched %s: current cpu number is  %-15d ns\n", ops, nr_cpu_ids);
 	printk("plugsched %s: current thread number is  %-15d ns\n", ops, nr_threads);
 }
 
@@ -254,26 +246,14 @@ static void report_detail_time(char *ops)
 	report_cur_status(ops);
 	printk("plugsched %s: stop machine time is  %-15lld ns\n", ops, stop_time);
 	printk("plugsched %s: stop handler time is  %-15lld ns\n", ops,
-			ktime_to_ns(ktime_sub(stop_time_p5, stop_time_p0)));
+			ktime_to_ns(ktime_sub(stop_time_p2, stop_time_p0)));
 	printk("plugsched %s: stack check time is   %-15lld ns\n", ops,
 			ktime_to_ns(ktime_sub(stop_time_p1, stop_time_p0)));
-	printk("plugsched %s: sched clear time is   %-15lld ns\n", ops,
-			ktime_to_ns(ktime_sub(stop_time_p2, stop_time_p1)));
-	printk("plugsched %s: func redir time is    %-15lld ns\n", ops,
-			ktime_to_ns(ktime_sub(stop_time_p3, stop_time_p2)));
-	printk("plugsched %s: other time is         %-15lld ns\n", ops,
-			ktime_to_ns(ktime_sub(stop_time_p4, stop_time_p3)));
-	printk("plugsched %s: sched rebuild time is %-15lld ns\n", ops,
-			ktime_to_ns(ktime_sub(stop_time_p5, stop_time_p4)));
 
-	printk("plugsched %s: %s all time is        %-15lld ns\n", ops, ops,
-			ktime_to_ns(ktime_sub(main_time_p3, main_time_p0)));
 	printk("plugsched %s: %s init time is       %-15lld ns\n", ops, ops,
 			ktime_to_ns(ktime_sub(main_time_p1, main_time_p0)));
-	printk("plugsched %s: %s retry time is      %-15lld ns\n", ops, ops,
-			ktime_to_ns(ktime_sub(main_time_p2, main_time_p1)));
-	printk("plugsched %s: %s other time is      %-15lld ns\n", ops, ops,
-			ktime_to_ns(ktime_sub(main_time_p3, main_time_p2)));
+	printk("plugsched %s: %s all time is        %-15lld ns\n", ops, ops,
+			ktime_to_ns(ktime_sub(main_time_p2, main_time_p0)));
 	stop_time_p0 = 0;
 }
 
@@ -313,7 +293,6 @@ retry:
 		cond_resched();
 		goto retry;
 	}
-	main_time_p2 = ktime_get();
 
 	install_sched_domain_sysctl();
 	stack_protect_close();
@@ -324,7 +303,7 @@ retry:
 
 	update_max_interval();
 	sched_init_granularity();
-	main_time_p3 = ktime_get();
+	main_time_p2 = ktime_get();
 
 	report_detail_time("install");
 
@@ -350,7 +329,6 @@ retry:
 		goto retry;
 	}
 
-	main_time_p2 = ktime_get();
 	restore_sched_domain_sysctl();
 	stack_protect_close();
 
@@ -359,7 +337,7 @@ retry:
 	restore_sched_debugfs();
 	sched_mempools_destroy();
 
-	main_time_p3 = ktime_get();
+	main_time_p2 = ktime_get();
 	report_detail_time("remove");
 }
 
