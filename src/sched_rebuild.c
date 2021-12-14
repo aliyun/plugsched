@@ -4,9 +4,6 @@
 static void (*orig_set_rq_offline)(struct rq *);
 static void (*orig_set_rq_online)(struct rq *);
 
-extern struct static_key __cfs_bandwidth_used;
-
-extern atomic_t check_result;
 extern unsigned int process_id[];
 
 void init_sched_rebuild(void)
@@ -20,23 +17,23 @@ void init_sched_rebuild(void)
 void clear_sched_state(bool mod)
 {
 	struct task_struct *g, *p;
-	struct task_group *tg;
-	struct rq *rq;
-	int cpu, queue_flags = DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
+	struct rq *rq = this_rq();
+	int queue_flags = DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
 
-	for_each_online_cpu(cpu) {
-		if (mod)
-			set_rq_offline(cpu_rq(cpu));
-		else
-			orig_set_rq_offline(cpu_rq(cpu));
+	if (mod) {
+		set_rq_offline(rq);
+	} else {
+		orig_set_rq_offline(rq);
 	}
 
 	for_each_process_thread(g, p) {
-		rq = task_rq(p);
+		if (rq != task_rq(p))
+			continue;
 
 		if (p == rq->stop)
 			continue;
 
+		/* To avoid SCHED_WARN_ON(rq->clock_update_flags < RQCF_ACT_SKIP) */
 		rq->clock_update_flags = RQCF_UPDATED;
 
 		if (task_on_rq_queued(p))
@@ -50,21 +47,13 @@ void rebuild_sched_state(bool mod)
 	struct task_group *tg;
 	struct rq *rq = this_rq();
 	int queue_flags = ENQUEUE_RESTORE | ENQUEUE_MOVE | ENQUEUE_NOCLOCK;
-	int __check_result, cpu = smp_processor_id();
+	int cpu = smp_processor_id();
 
-	if (!process_id[cpu])
-		atomic_set(&check_result, 0);
-
-	while (__check_result = atomic_read(&check_result)) {
-		if (__check_result == -1)
-			return;
-		cpu_relax();
+	if (mod) {
+		set_rq_online(rq);
+	} else {
+		orig_set_rq_online(rq);
 	}
-
-	if (mod)
-		set_rq_online(this_rq());
-	else
-		orig_set_rq_online(this_rq());
 
 	for_each_process_thread(g, p) {
 		if (rq != task_rq(p))
