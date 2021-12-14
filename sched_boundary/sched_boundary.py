@@ -228,7 +228,7 @@ class SchedBoundaryCollect(SchedBoundary):
             properties = {
                 "name": decl.name,
                 "init": self.is_init_fn(decl),
-                "file": decl.location.file,
+                "file": os.path.relpath(decl.location.file),
                 "l_brace_loc": (decl.function.start.line, decl.function.start.column),
                 "r_brace_loc": (decl.function.end.line, decl.function.end.column),
                 "fn_name_loc": (decl.location.line, decl.location.column),
@@ -246,7 +246,7 @@ class SchedBoundaryCollect(SchedBoundary):
                any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']):
                 self.interface_properties.append({
                     "name": decl.name,
-                    "file": decl.location.file
+                    "file": os.path.relpath(decl.location.file)
                 })
 
     def var_declare(self, decl, _):
@@ -270,7 +270,7 @@ class SchedBoundaryCollect(SchedBoundary):
             return
         properties = {
             "name": decl.name,
-            "file": decl.location.file,
+            "file": os.path.relpath(decl.location.file),
             "var_name_loc": (decl.location.line, decl.location.column),
             "dec_start_loc_line": var_decl_start_loc(decl).line,
             "dec_end_loc_line": loc.line,
@@ -286,7 +286,7 @@ class SchedBoundaryCollect(SchedBoundary):
             if isinstance(op, gcc.FunctionDecl) and not self.is_init_fn(op):
                 self.fn_ptr_properties.append({
                     'name': op.name,
-                    'file': op.location.file if op.function else '?'
+                    'file': os.path.relpath(op.location.file) if op.function else '?'
                 })
 
         def temporary_var(var):
@@ -344,7 +344,7 @@ class SchedBoundaryCollect(SchedBoundary):
                                          grouper=lambda (user, field): field.name,
                                          selector=lambda (user, field): {
                                             'name': user.name,
-                                            'file': user.location.file
+                                            'file': os.path.relpath(user.location.file)
                                          })
             }
 
@@ -357,7 +357,7 @@ class SchedBoundaryCollect(SchedBoundary):
             if node.decl.function is None:
                 real_name = node.decl.attributes['alias'][0].str_no_uid.replace('"','')
                 properties = {
-                    "from": {"name": node.decl.name, "file": node.decl.location.file},
+                    "from": {"name": node.decl.name, "file": os.path.relpath(node.decl.location.file)},
                     "to": {"name": real_name, "file": "?"},
                 }
                 self.edge_properties.append(properties)
@@ -370,11 +370,11 @@ class SchedBoundaryCollect(SchedBoundary):
                 properties = {
                     "from": {
                         "name": node.decl.name,
-                        "file": node.decl.location.file
+                        "file": os.path.relpath(node.decl.location.file)
                     },
                     "to": {
                         "name": stmt.fndecl.name,
-                        "file": stmt.fndecl.location.file if stmt.fndecl.function else '?'
+                        "file": os.path.relpath(stmt.fndecl.location.file) if stmt.fndecl.function else '?'
                     },
                 }
                 self.edge_properties.append(properties)
