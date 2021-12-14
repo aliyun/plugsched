@@ -1,7 +1,7 @@
 from yaml import load, dump, resolver, CLoader as Loader, CDumper as Dumper
 from itertools import islice as skipline, groupby as _groupby
 from itertools import chain as _chain
-from collections import defaultdict
+from collections import Counter
 from sh import readelf
 import logging
 import json
@@ -20,6 +20,7 @@ Dumper.add_representer(unicode,
 
 class Symbol(object):
     objs = {}
+    pos = Counter()
 
     @classmethod
     def get(cls, desc, no_create=False):
@@ -48,6 +49,18 @@ class Symbol(object):
         return 2, None
 
     @classmethod
+    def inc_pos(cls, name):
+        Symbol.pos[name] += 1
+
+    @classmethod
+    def assign_cur_pos(cls, obj):
+        obj.pos = Symbol.pos[obj.name]
+
+    @classmethod
+    def assign_pos(cls, obj, pos):
+        obj.pos = pos
+
+    @classmethod
     def fix_vagueness(cls):
         for name, files in cls.objs.iteritems():
             if '?' not in files:
@@ -63,6 +76,7 @@ class Symbol(object):
     def __init__(self, name, file):
         self.name = name
         self.file = file
+        self.pos = None
 
 class VagueSymbol(Symbol):
     def assert_vague(self, old_method):
@@ -134,8 +148,9 @@ def find_initial_insider(meta):
     ]
 
 # This method connects gcc-plugin with vmlinux (or the ld linker)
-# It serves only one purpose right now:
+# It serves two purposes right now:
 #   1. find functions in vmlinux, to calc optimized_out later
+#   2. find sympos from vmlinux, which will be used to check confliction with kpatch
 # This must be called after we have read all files, and all vagueness has been solved.
 #
 # Four pitfalls because of disagreement between vmlinux and gcc-plugin, illustrated with examples
@@ -163,6 +178,7 @@ def find_in_vmlinux():
         # Disagreement 4
         if '.' in key:
             key = key[:key.index('.')]
+        Symbol.inc_pos(key)
         if scope == 'LOCAL':
             if filename not in config['mod_files']: continue
             sym = Symbol.get({'name': key, 'file': filename}, no_create=True)
@@ -176,6 +192,11 @@ def find_in_vmlinux():
 
         assert sym
         in_vmlinux.add(sym)
+        if scope == 'LOCAL':
+            Symbol.assign_cur_pos(sym)
+        else:
+            Symbol.assign_pos(sym, 0)
+
     return in_vmlinux
 
 # __insiders is a global variable only used by these two functions
@@ -238,6 +259,7 @@ if __name__ == '__main__':
     fn_symbol_classify['insider'] = inflect(fn_symbol_classify['initial_insider'], edges)
     fn_symbol_classify['outsider'] = (fn_symbol_classify['initial_insider'] - fn_symbol_classify['insider']) | fn_symbol_classify['force_outsider']
     fn_symbol_classify['optimized_out'] = fn_symbol_classify['outsider'] - fn_symbol_classify['in_vmlinux']
+    fn_symbol_classify['tainted'] = (fn_symbol_classify['interface'] | fn_symbol_classify['fn_ptr'] | fn_symbol_classify['insider']) & fn_symbol_classify['in_vmlinux']
 
     # TODO Better output the file too to avoid duplicy ???
     for output_item in ['outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out']:
@@ -267,8 +289,7 @@ if __name__ == '__main__':
     with open('sched_boundary_extract.yaml', 'w') as f:
         dump(config, f, Dumper)
     with open('tainted_functions', 'w') as f:
-        func = config['function']
-        f.write('\n'.join(func['interface'] + func['fn_ptr'] + func['insider']))
+        f.write('\n'.join(["{fn} {sympos}".format(fn=fn.name, sympos=fn.pos) for fn in fn_symbol_classify['tainted']]))
     with open('interface_fn_ptrs', 'w') as f:
         f.write('\n'.join([fn for fn in config['function']['interface']]))
         f.write('\n'.join(['__mod_' + fn for fn in config['function']['fn_ptr']]))
