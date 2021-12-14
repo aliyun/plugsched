@@ -165,14 +165,14 @@ if __name__ == '__main__':
     # Init all kinds of functions
     for process in ['init', 'force_outsider', 'interface', 'fn_ptr', 'initial_insider']:
         processor = globals()['find_' + process]
-        fn_symbol_classify[process] = [Symbol.get(fn) for fn in chain(map(processor, metas))]
+        fn_symbol_classify[process] = {Symbol.get(fn) for fn in chain(map(processor, metas))}
 
     # Init edges
     edges = list(chain(m['edge'] for m in metas))
 
     # Inflect outsider functions
     fn_symbol_classify['insider'] = inflect(fn_symbol_classify['initial_insider'], edges)
-    fn_symbol_classify['outsider'] = (set(fn_symbol_classify['initial_insider']) - set(fn_symbol_classify['insider'])) | set(fn_symbol_classify['force_outsider'])
+    fn_symbol_classify['outsider'] = (fn_symbol_classify['initial_insider'] - fn_symbol_classify['insider']) | fn_symbol_classify['force_outsider']
 
     # TODO Better output the file too to avoid duplicy ???
     for output_item in ['outsider', 'fn_ptr', 'interface', 'init', 'insider']:
@@ -188,7 +188,7 @@ if __name__ == '__main__':
             'public_fields': set(chain(                                                         #   public_fields:
                 [field for field, users in m['struct'][struct]['public_fields'].iteritems()     #   - nr_uninterruptible
                        if any(user['file'] not in config['mod_files'] for user in users)        #   # ca_uninterruptible (in cpuacct.c) referenced it.
-                       or set(map(Symbol.get, users)) & set(fn_symbol_classify['outsider'])]    #   # maybe some outsider (in scheduler c files) referenced it.
+                       or set(map(Symbol.get, users)) & fn_symbol_classify['outsider']]         #   # maybe some outsider (in scheduler c files) referenced it.
                 for m in metas                                                                  ## for all files output by SchedBoundaryCollect
                 if struct in m['struct']                                                        ## and only if this file has structure information
              )),
