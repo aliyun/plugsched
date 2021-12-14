@@ -125,7 +125,7 @@ static void sched_mempools_destroy(void)
 
 static int recheck_smps(void)
 {
-	int err;
+	int err = -ENOMEM;
 
 	/*
 	 * Examples of mempools recheck

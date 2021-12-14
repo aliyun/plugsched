@@ -19,6 +19,8 @@ static int retry_count;
 
 int process_id[MAX_CPU_NR];
 atomic_t cpu_finished;
+static atomic_t global_error;
+static atomic_t redirect_done;
 
 DECLARE_PER_CPU(struct callback_head, dl_push_head);
 DECLARE_PER_CPU(struct callback_head, dl_pull_head);
@@ -46,6 +48,25 @@ ktime_t main_time_p0, main_time_p1, main_time_p2;
 extern void init_sched_rebuild(void);
 extern void clear_sched_state(bool mod);
 extern void rebuild_sched_state(bool mod);
+
+static bool is_first_process(void)
+{
+	return process_id[smp_processor_id()] == 0;
+}
+
+static void print_error(int error, int retry_count)
+{
+	if (is_first_process()) {
+		if (error == -ENOMEM) {
+			printk("plugsched: Error: not enough memory for mempool! Retrying...X%d\n", retry_count);
+		} else if(error == -EBUSY) {
+			printk("plugsched: Error: Device or resources busy! Retrying...X%d\n",
+					retry_count);
+		} else {
+			printk("plugsched: Error: Unknown\n");
+		}
+	}
+}
 
 static void reset_balance_callback(void)
 {
@@ -97,36 +118,47 @@ static int __sync_sched_install(void *arg)
 {
 	int error;
 
-	if (!stop_time_p0)
+	if (is_first_process()) {
 		stop_time_p0 = ktime_get();
 
-	if (stack_check(true)) {
-		if (error) {
-			printk("plugsched: Error: Device or resources busy! Retrying...X%d\n",
-					retry_count);
-			return error;
-		}
-		goto rebuild;
+		/* double checker simple memory pool */
+		if (error = recheck_smps())
+			atomic_cmpxchg(&global_error, 0, error);
 	}
 
-	if (recheck_smps()) {
-		printk("plugsched: Error: not enough memory for mempool! Retrying...X%d\n",
-				retry_count);
-		return -ENOMEM;
+	error = stack_check(true);
+	atomic_dec(&cpu_finished);
+	if (error)
+		atomic_cmpxchg(&global_error, 0, error);
+
+	/* wait for all cpu to finish stack check */
+	atomic_cond_read_relaxed(&cpu_finished, !VAL);
+
+	if (error = atomic_read(&global_error)) {
+		print_error(error, retry_count);
+		return error;
 	}
+
+	if (is_first_process())
+		stop_time_p1 = ktime_get();
 
 	clear_sched_state(false);
-	JUMP_OPERATION(install);
 
-	sched_alloc_extrapad();
+	if (is_first_process()) {
+		JUMP_OPERATION(install);
+		sched_alloc_extrapad();
 
-	/* should call in stop machine context */
-	open_softirq(SCHED_SOFTIRQ, __mod_run_rebalance_domains);
-	reset_balance_callback();
+		/* should call in stop machine context */
+		open_softirq(SCHED_SOFTIRQ, __mod_run_rebalance_domains);
+		reset_balance_callback();
+		atomic_set(&redirect_done, 1);
+	}
 
-rebuild:
 	rebuild_sched_state(true);
-	stop_time_p2 = ktime_get();
+
+	if (is_first_process())
+		stop_time_p2 = ktime_get();
+
 	return 0;
 }
 
@@ -134,30 +166,42 @@ static int __sync_sched_restore(void *arg)
 {
 	int error;
 
-	if (!stop_time_p0)
+	if (is_first_process())
 		stop_time_p0 = ktime_get();
 
-	if (stack_check(false)) {
-		if (error) {
-			printk("plugsched: Warning: Device or resources busy! Retrying...X%d\n",
-					++retry_count);
-			return error;
-		}
-		goto rebuild;
+	error = stack_check(false);
+	atomic_dec(&cpu_finished);
+	if (error)
+		atomic_cmpxchg(&global_error, 0, error);
+
+	/* wait for all cpu to finish stack check */
+	atomic_cond_read_relaxed(&cpu_finished, !VAL);
+
+	if (error = atomic_read(&global_error)) {
+		print_error(error, ++retry_count);
+		return error;
 	}
+
+	if (is_first_process())
+		stop_time_p1 = ktime_get();
+
 	clear_sched_state(true);
 
-	JUMP_OPERATION(remove);
+	if (is_first_process()) {
+		JUMP_OPERATION(remove);
 
-	/* should call in stop machine context */
-	open_softirq(SCHED_SOFTIRQ, run_rebalance_domains);
-	reset_balance_callback();
-	sched_free_extrapad();
+		/* should call in stop machine context */
+		open_softirq(SCHED_SOFTIRQ, run_rebalance_domains);
+		reset_balance_callback();
+		sched_free_extrapad();
+		atomic_set(&redirect_done, 1);
+	}
 
-rebuild:
+	atomic_cond_read_relaxed(&redirect_done, VAL);
 	rebuild_sched_state(false);
 
-	stop_time_p2 = ktime_get();
+	if (is_first_process())
+		stop_time_p2 = ktime_get();
 
 	return 0;
 }
@@ -269,7 +313,6 @@ static void report_detail_time(char *ops)
 			ktime_to_ns(ktime_sub(main_time_p1, main_time_p0)));
 	printk("plugsched %s: %s all time is        %-15lld ns\n", ops, ops,
 			ktime_to_ns(ktime_sub(main_time_p2, main_time_p0)));
-	stop_time_p0 = 0;
 }
 
 static int __init sched_mod_init(void)
@@ -299,7 +342,9 @@ retry:
 		goto retry;
 	}
 
-	atomic_set(&cpu_finished, 0);
+	atomic_set(&cpu_finished, num_online_cpus());
+	atomic_set(&global_error, 0);
+	atomic_set(&redirect_done, 0);
 
 	if (sync_sched_mod(__sync_sched_install)) {
 		sched_mempools_destroy();
@@ -334,7 +379,9 @@ static void __exit sched_mod_exit(void)
 
 	main_time_p1 = ktime_get();
 retry:
-	atomic_set(&cpu_finished, 0);
+	atomic_set(&cpu_finished, num_online_cpus());
+	atomic_set(&global_error, 0);
+	atomic_set(&redirect_done, 0);
 
 	if (sync_sched_mod(__sync_sched_restore)) {
 		cond_resched();
