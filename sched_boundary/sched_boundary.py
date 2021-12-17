@@ -80,17 +80,18 @@ class SchedBoundaryExtract(SchedBoundary):
 
         assert(isinstance(decl, gcc.FunctionDecl))
 
+        obj = (decl.name, loc.file)
         interface_export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})\n"
         fn_ptr_export_fmt = "PLUGSCHED_FN_PTR({fn}, {ret}, {params})\n"
         # translate index to start with 0
-        if decl.name in self.config['function']['outsider'] or \
-           decl.name in self.config['function']['init']:
+        if obj in self.config['function']['outsider'] or \
+           obj in self.config['function']['init']:
             self.fn_list.append([decl,
                 decl.function.start.line - 1,
                 decl.function.start.column - 1,
                 decl.function.end.line - 1,
                 decl.function.end.column - 1])
-        elif decl.name in self.config['function']['fn_ptr']:
+        elif obj in self.config['function']['fn_ptr']:
             fn_ptr_export = fn_ptr_export_fmt.format(
                 fn=decl.name,
                 ret=GccBugs.fix(decl.result, decl.result.type.str_no_uid),
@@ -103,7 +104,7 @@ class SchedBoundaryExtract(SchedBoundary):
                 decl.location.column - 1,
                 decl.function.end.line - 1,
                 decl.function.end.column - 1])
-        elif decl.name in self.config['function']['interface']:
+        elif obj in self.config['function']['interface']:
             interface_export = interface_export_fmt.format(
                 fn=decl.name,
                 ret=GccBugs.fix(decl.result, decl.result.type.str_no_uid),
@@ -146,7 +147,7 @@ class SchedBoundaryExtract(SchedBoundary):
             lines = in_f.readlines()
 
             for decl, fn_row_start, fn_col_start, fn_row_end, __ in self.fn_list:
-                if 'always_inline' in decl.attributes or decl.inline is True or decl.name in self.config['function']['optimized_out']:
+                if 'always_inline' in decl.attributes or decl.inline is True or (decl.name, src_fn) in self.config['function']['optimized_out']:
                     lines[fn_row_end] += " /* DON'T MODIFY FUNCTION {}, IT'S NOT PART OF SCHEDMOD */\n".format(decl.name)
                 else:
                     # convert function body "{}" to ";"
@@ -235,6 +236,7 @@ class SchedBoundaryCollect(SchedBoundary):
                 "external": decl.external,
                 "public": decl.public,
                 "static": decl.static,
+                "signature": (decl.name, os.path.relpath(decl.location.file)),
             }
             self.fn_properties.append(properties)
 
@@ -244,10 +246,10 @@ class SchedBoundaryCollect(SchedBoundary):
 
             if decl.name in self.config['function']['interface'] or \
                any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']):
-                self.interface_properties.append({
-                    "name": decl.name,
-                    "file": os.path.relpath(decl.location.file)
-                })
+                self.interface_properties.append([
+                    decl.name,
+                    os.path.relpath(decl.location.file),
+                ])
 
     def var_declare(self, decl, _):
         def var_decl_start_loc(decl):
@@ -284,10 +286,9 @@ class SchedBoundaryCollect(SchedBoundary):
         # return True means we stop walk subtree
         def mark_fn_ptr(op, caller):
             if isinstance(op, gcc.FunctionDecl) and not self.is_init_fn(op):
-                self.fn_ptr_properties.append({
-                    'name': op.name,
-                    'file': os.path.relpath(op.location.file) if op.function else '?'
-                })
+                self.fn_ptr_properties.append(
+                    [op.name, os.path.relpath(op.location.file) if op.function else '?']
+                )
 
         def temporary_var(var):
             if 'section' in var.attributes and var.attributes['section'][0].constant == '.discard.addressable':
@@ -357,8 +358,8 @@ class SchedBoundaryCollect(SchedBoundary):
             if node.decl.function is None:
                 real_name = node.decl.attributes['alias'][0].str_no_uid.replace('"','')
                 properties = {
-                    "from": {"name": node.decl.name, "file": os.path.relpath(node.decl.location.file)},
-                    "to": {"name": real_name, "file": "?"},
+                    "from": (node.decl.name, os.path.relpath(node.decl.location.file)),
+                    "to": (real_name, "?"),
                 }
                 self.edge_properties.append(properties)
                 continue
@@ -368,14 +369,14 @@ class SchedBoundaryCollect(SchedBoundary):
                     continue
                 assert node.decl.function
                 properties = {
-                    "from": {
-                        "name": node.decl.name,
-                        "file": os.path.relpath(node.decl.location.file)
-                    },
-                    "to": {
-                        "name": stmt.fndecl.name,
-                        "file": os.path.relpath(stmt.fndecl.location.file) if stmt.fndecl.function else '?'
-                    },
+                    "from": (
+                            node.decl.name,
+                            os.path.relpath(node.decl.location.file),
+                    ),
+                    "to": (
+                            stmt.fndecl.name,
+                            os.path.relpath(stmt.fndecl.location.file) if stmt.fndecl.function else '?',
+                    ),
                 }
                 self.edge_properties.append(properties)
 
