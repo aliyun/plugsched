@@ -25,10 +25,11 @@ struct kallsym_t {
 };
 
 typedef std::map<std::string, struct kallsym_t> kallsym_collection;
+typedef std::map<std::string, int> sympos_collection;
 
-static void resolve_ref(const char *fname, kallsym_collection &kallsyms)
+static void resolve_ref(const char *fname, kallsym_collection &kallsyms, sympos_collection &symposes)
 {
-        int fd;
+        int fd, sympos;
         Elf *elf;
         GElf_Sym sym;
         GElf_Shdr sh;
@@ -82,9 +83,19 @@ static void resolve_ref(const char *fname, kallsym_collection &kallsyms)
 
                 if (!strcmp(name, "kern_path") && kallsym->type != 'T')
                         continue;
+                if (symposes.find(name) != symposes.end())
+                        sympos = symposes[name];
+                else /* Symbols which dont appear in sched_outsider should be global symbols */
+                        sympos = 0;
+                if (sympos == 0 && kallsym->addr.size() > 1)
+                        ERROR("global symbol ambigouos is unresolvable.", false, name);
+                if (sympos >  0 && kallsym->addr.size() < sympos)
+                        ERROR("local symbol doens't have as many alternatives.", false, name);
+                if (sympos > 0)
+                        sympos --;
                 /* Resolve UND symbols */
                 sym.st_shndx = SHN_ABS;
-                sym.st_value = kallsym->addr.front();
+                sym.st_value = kallsym->addr[sympos];
                 modified = 1;
                 if (gelf_update_sym(data, i, &sym) == -1)
                         ERROR("gelf_update_sym", true);
@@ -127,9 +138,12 @@ static void load_kallsyms(const char *fname, kallsym_collection &kallsyms)
 int main(int argc, const char **argv)
 {
         kallsym_collection kallsyms;
+        sympos_collection sched_outsider = {
+                #include "sched_outsider.h"
+        };
 
         load_kallsyms(argv[2], kallsyms);
-        resolve_ref(argv[1], kallsyms);
+        resolve_ref(argv[1], kallsyms, sched_outsider);
 
         return 0;
 }
