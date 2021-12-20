@@ -8,7 +8,6 @@ import os
 import copy
 chain = _chain.from_iterable
 
-fn_symbol_classify = {}
 config = None
 # store sympos for local functions in module files
 local_sympos = {}
@@ -121,11 +120,14 @@ if __name__ == '__main__':
     config['mod_files_basename'] = {os.path.basename(f): f for f in config['mod_files']}
     config['mod_header_files'] = [f for f in config['mod_files'] if f.endswith('.h')]
     metas = map(read_meta, all_meta_files())
-    fn_symbol_classify['fn'] = set()
-    fn_symbol_classify['init'] = set()
-    fn_symbol_classify['interface'] = set()
-    fn_symbol_classify['fn_ptr'] = set()
-    fn_symbol_classify['mod_fns'] = set()
+
+    fn_symbol_classify = {
+        'fn':        set(),
+        'init':      set(),
+        'interface': set(),
+        'fn_ptr':    set(),
+        'mod_fns':   set()
+    }
     global_fn_dict = {}
     edges= []
 
@@ -168,7 +170,7 @@ if __name__ == '__main__':
     fn_symbol_classify['tainted'] = (fn_symbol_classify['interface'] | fn_symbol_classify['fn_ptr'] | fn_symbol_classify['insider']) & fn_symbol_classify['in_vmlinux']
 
     for output_item in ['outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out']:
-        config['function'][output_item] = [fn for fn in fn_symbol_classify[output_item]]
+        config['function'][output_item] = fn_symbol_classify[output_item]
 
 #    # Handle Struct public fields. The right hand side gives an example
 #    struct_properties = {
