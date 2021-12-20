@@ -125,6 +125,7 @@ if __name__ == '__main__':
     fn_symbol_classify['init'] = set()
     fn_symbol_classify['interface'] = set()
     fn_symbol_classify['fn_ptr'] = set()
+    fn_symbol_classify['mod_fns'] = set()
     global_fn_dict = {}
     edges= []
 
@@ -134,6 +135,7 @@ if __name__ == '__main__':
             fn_sign  = tuple(fn['signature'])
             fn_symbol_classify['fn'].add(fn_sign)
 
+            if fn_sign[1] in config['mod_files']: fn_symbol_classify['mod_fns'].add(fn_sign)
             if fn['init']: fn_symbol_classify['init'].add(fn_sign)
             if fn['public']: global_fn_dict[fn['name']] = fn['file']
 
@@ -156,13 +158,7 @@ if __name__ == '__main__':
                     edge['to'][1] = global_fn_dict[edge['to'][0]]
             edges.append(edge)
 
-    fn_symbol_classify['initial_insider'] = set([fn
-            for fn in fn_symbol_classify['fn']
-            if  fn[1] in config['mod_files']
-            and fn not in fn_symbol_classify['interface']
-            and fn not in fn_symbol_classify['fn_ptr']
-        ])
-
+    fn_symbol_classify['initial_insider'] = fn_symbol_classify['mod_fns'] - fn_symbol_classify['interface'] - fn_symbol_classify['fn_ptr']
     fn_symbol_classify['in_vmlinux'] = find_in_vmlinux()
 
     # Inflect outsider functions
