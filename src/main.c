@@ -43,7 +43,7 @@ extern unsigned long sched_springboard;
 static struct dentry *sched_features_dir;
 static s64 stop_time;
 ktime_t stop_time_p0, stop_time_p1, stop_time_p2;
-ktime_t main_time_p0, main_time_p1, main_time_p2;
+ktime_t main_start, main_end, init_start, init_end;
 
 extern void init_sched_rebuild(void);
 extern void clear_sched_state(bool mod);
@@ -317,29 +317,16 @@ static void report_detail_time(char *ops)
 	printk("plugsched %s: stack check time is   %-15lld ns\n", ops,
 			ktime_to_ns(ktime_sub(stop_time_p1, stop_time_p0)));
 
-	if (!strcmp(ops, "install"))
-		printk("plugsched %s: %s init time is       %-15lld ns\n", ops, ops,
-				ktime_to_ns(ktime_sub(main_time_p1, main_time_p0)));
-
-	printk("plugsched %s: %s all time is        %-15lld ns\n", ops, ops,
-			ktime_to_ns(ktime_sub(main_time_p2, main_time_p0)));
+	printk("plugsched %s: the %s time is        %-15lld ns\n", ops, ops,
+			ktime_to_ns(ktime_sub(main_end, main_start)));
 }
 
-static int __init sched_mod_init(void)
+static int load_sched_routine(void)
 {
 	retry_count = 0;
 
-	printk("Hi, plugsched mod is loading\n");
-
-	main_time_p0 = ktime_get();
-	sched_springboard = kallsyms_lookup_name("__schedule") + SPRINGBOARD;
-
-	init_sched_rebuild();
-
-	jump_init_all();
-	/* This must after jump_init_all function !!! */
-	stack_check_init();
-	main_time_p1 = ktime_get();
+	printk("plugsched: module is loading\n");
+	main_start = ktime_get();
 
 retry:
 	if (retry_count == RETRY_CNT)
@@ -372,20 +359,20 @@ retry:
 
 	update_max_interval();
 	sched_init_granularity();
-	main_time_p2 = ktime_get();
 
-	report_detail_time("install");
+	main_end = ktime_get();
+	report_detail_time("load");
 
 	return 0;
 }
 
-static void __exit sched_mod_exit(void)
+static void unload_sched_routine(void)
 {
 	retry_count = 0;
 
-	printk("Bye, plugsched mod is unloading\n");
+	printk("plugsched: module is unloading\n");
+	main_start = ktime_get();
 
-	main_time_p0 = ktime_get();
 retry:
 	atomic_set(&cpu_finished, num_online_cpus());
 	atomic_set(&global_error, 0);
@@ -402,12 +389,38 @@ retry:
 	restore_sched_debug_procfs();
 	restore_proc_schedstat();
 	restore_sched_debugfs();
-	sched_mempools_destroy();
 
-	main_time_p2 = ktime_get();
-	report_detail_time("remove");
+	main_end = ktime_get();
+	report_detail_time("unload");
 }
 
+static int __init sched_mod_init(void)
+{
+	printk("Hi, plugsched mod is installing!\n");
+	init_start = ktime_get();
+
+	sched_springboard = kallsyms_lookup_name("__schedule") + SPRINGBOARD;
+
+	init_sched_rebuild();
+	jump_init_all();
+
+	/* This must after jump_init_all function !!! */
+	stack_check_init();
+
+	init_end = ktime_get();
+	printk("plugsched: total initialization time is %-15lld ns\n",
+			ktime_to_ns(ktime_sub(init_end, init_start)));;
+
+	return load_sched_routine();
+}
+
+static void __exit sched_mod_exit(void)
+{
+	unload_sched_routine();
+	sched_mempools_destroy();
+
+	printk("Bey, plugsched mod has be removed!\n");
+}
 
 module_init(sched_mod_init);
 module_exit(sched_mod_exit);
