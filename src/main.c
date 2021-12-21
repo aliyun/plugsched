@@ -46,6 +46,9 @@ extern void init_sched_rebuild(void);
 extern void clear_sched_state(bool mod);
 extern void rebuild_sched_state(bool mod);
 
+static int scheduler_enable = 1;
+struct ctl_table_header *scheduler_enable_sysctl_hdr;
+
 static inline void parallel_state_check_init(void)
 {
 	atomic_set(&cpu_finished, num_online_cpus());
@@ -327,11 +330,15 @@ static int load_sched_routine(void)
 {
 	int ret;
 
+	/* Add refcnt to avoid rmmod before disable. */
+	__module_get(THIS_MODULE);
+
 	printk("scheduler: module is loading\n");
 	main_start = ktime_get();
 
 	if (sched_mempools_create()) {
 		printk("scheduler: Error: create mempools failed!\n");
+		module_put(THIS_MODULE);
 		return -ENOMEM;
 	}
 
@@ -341,6 +348,7 @@ static int load_sched_routine(void)
 	ret = sync_sched_mod(__sync_sched_install);
 	if (ret) {
 		sched_mempools_destroy();
+		module_put(THIS_MODULE);
 		return ret;
 	}
 
@@ -359,7 +367,7 @@ static int load_sched_routine(void)
 	return 0;
 }
 
-static void unload_sched_routine(void)
+static int unload_sched_routine(void)
 {
 	int ret;
 
@@ -371,7 +379,7 @@ static void unload_sched_routine(void)
 
 	ret = sync_sched_mod(__sync_sched_restore);
 	if (ret)
-		return;
+		return ret;
 
 	restore_sched_domain_sysctl();
 
@@ -381,10 +389,62 @@ static void unload_sched_routine(void)
 
 	main_end = ktime_get();
 	report_detail_time("unload");
+
+	module_put(THIS_MODULE);
+
+	return 0;
 }
+
+static int scheduler_enable_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int last_val, ret;
+
+	last_val = scheduler_enable;
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	scheduler_enable = !!scheduler_enable;
+
+	if (ret || !write || scheduler_enable == last_val)
+		return ret;
+
+	if (scheduler_enable)
+		ret = load_sched_routine();
+	else
+		ret = unload_sched_routine();
+
+	if (ret) {
+		scheduler_enable = last_val;
+		return ret;
+	}
+
+	return 0;
+}
+
+static struct ctl_table enable_scheduler_table[] = {
+	{
+		.procname	= "scheduler_enable",
+		.data		= &scheduler_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= scheduler_enable_handler,
+	},
+	{ }
+};
+
+static struct ctl_table base_enable_scheduler_table[] = {
+	{
+		.procname	= "kernel",
+		.mode		= 0555,
+		.child		= enable_scheduler_table,
+	},
+	{ }
+};
 
 static int __init sched_mod_init(void)
 {
+	int ret;
+
 	printk("Hi, scheduler mod is installing!\n");
 	init_start = ktime_get();
 
@@ -400,13 +460,20 @@ static int __init sched_mod_init(void)
 	printk("scheduler: total initialization time is %-15lld ns\n",
 			ktime_to_ns(ktime_sub(init_end, init_start)));;
 
-	return load_sched_routine();
+	ret = load_sched_routine();
+	if (ret)
+		return ret;
+
+	scheduler_enable_sysctl_hdr =
+		register_sysctl_table(base_enable_scheduler_table);
+
+	return 0;
 }
 
 static void __exit sched_mod_exit(void)
 {
-	unload_sched_routine();
 	sched_mempools_destroy();
+	unregister_sysctl_table(scheduler_enable_sysctl_hdr);
 
 	printk("Bey, scheduler mod has be removed!\n");
 }
