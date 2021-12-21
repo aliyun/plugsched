@@ -69,11 +69,11 @@ elif [ $1 == 2 ];  then
 fi
 
 #uninstall kernel module before remove this rpm-package
-%postun
+%preun
 systemctl daemon-reload
 if [ $1 == 0 ]; then
 	echo "Uninstalling scheduler"
-	/sbin/rmmod scheduler || echo "scheduler module not loaded. Skip rmmod and continue uninstall."
+	/usr/local/bin/scheduler-install uninstall || exit 1
 elif [ $1 == 1 ]; then
 	echo "Upgrading scheduler - uninstall old version."
 	systemctl start scheduler

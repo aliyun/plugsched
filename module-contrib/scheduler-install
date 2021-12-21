@@ -1,14 +1,73 @@
 #!/bin/bash
 
+MAX_LOAD_ATTEMPTS=5
+RETRY_INTERVAL=2
+
 cursys=$(uname -r)
 modfile=/var/plugsched/$cursys/scheduler.ko
+enablefile=/proc/sys/kernel/scheduler_enable
 mod=$(modinfo $modfile | grep vermagic | awk '{print $2}')
 
-if [ "$cursys" == "$mod" ]; then
-	/usr/bin/cp $modfile /run/plugsched/scheduler.ko
-	/usr/local/bin/symbol_resolve /run/plugsched/scheduler.ko /proc/kallsyms
-	/usr/sbin/insmod /run/plugsched/scheduler.ko
+warn() {
+	echo "scheduler: $*" >&2
+}
+
+install_module() {
+	local i=0
+	while true; do
+		out="$(LC_ALL=C insmod "$1" 2>&1)"
+		[[ -z "$out" ]] && break
+		echo "$out" 1>&2
+
+		# Safety check or memory pool allocated failed! Retry in a few seconds.
+		i=$((i+1))
+		if [[ $i -eq $MAX_LOAD_ATTEMPTS ]]; then
+			warn "load module failed! $1"
+			exit 1
+		else
+			warn "retrying..."
+			sleep $RETRY_INTERVAL
+		fi
+	done
+}
+
+uninstall_module() {
+	local i=0
+	if [ -f "$enablefile" ]; then
+		while true; do
+			out="$(export LC_ALL=C; sh -c "echo 0 > $enablefile" 2>&1)"
+			[[ -z "$out" ]] && break
+			echo "$out" 1>&2
+
+			# Safety check failed! Retry in a few seconds.
+			i=$((i+1))
+			if [[ $i -eq $MAX_LOAD_ATTEMPTS ]]; then
+				warn "disable module failed!"
+				exit 1
+			else
+				warn "retrying..."
+				sleep $RETRY_INTERVAL
+			fi
+		done
+		rmmod scheduler
+	else
+		echo "scheduler: scheduler module has been removed! Skip ..."
+		exit
+	fi
+}
+
+if [ $1 == "install" ]; then
+	if [ "$cursys" == "$mod" ]; then
+		/usr/bin/cp $modfile /run/plugsched/scheduler.ko
+		/usr/local/bin/symbol_resolve /run/plugsched/scheduler.ko /proc/kallsyms
+		install_module /run/plugsched/scheduler.ko
+	else
+		warn "Error: kernel version is not same as plugsched version!"
+		exit 1
+	fi
+elif [ $1 == "uninstall" ]; then
+	uninstall_module
 else
-	echo "Error: kernel version is not same as plugsched version!"
+	warn "Error: Unknown operation"
 	exit 1
 fi
