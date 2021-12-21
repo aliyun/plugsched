@@ -49,6 +49,14 @@ extern void init_sched_rebuild(void);
 extern void clear_sched_state(bool mod);
 extern void rebuild_sched_state(bool mod);
 
+static inline void process_id_init(void)
+{
+	int cpu, idx = 0;
+
+	for_each_online_cpu(cpu)
+		process_id[cpu] = idx++;
+}
+
 static bool is_first_process(void)
 {
 	return process_id[smp_processor_id()] == 0;
@@ -309,8 +317,10 @@ static void report_detail_time(char *ops)
 	printk("plugsched %s: stack check time is   %-15lld ns\n", ops,
 			ktime_to_ns(ktime_sub(stop_time_p1, stop_time_p0)));
 
-	printk("plugsched %s: %s init time is       %-15lld ns\n", ops, ops,
-			ktime_to_ns(ktime_sub(main_time_p1, main_time_p0)));
+	if (!strcmp(ops, "install"))
+		printk("plugsched %s: %s init time is       %-15lld ns\n", ops, ops,
+				ktime_to_ns(ktime_sub(main_time_p1, main_time_p0)));
+
 	printk("plugsched %s: %s all time is        %-15lld ns\n", ops, ops,
 			ktime_to_ns(ktime_sub(main_time_p2, main_time_p0)));
 }
@@ -328,7 +338,7 @@ static int __init sched_mod_init(void)
 
 	jump_init_all();
 	/* This must after jump_init_all function !!! */
-	stack_check_insmod_init();
+	stack_check_init();
 	main_time_p1 = ktime_get();
 
 retry:
@@ -345,6 +355,7 @@ retry:
 	atomic_set(&cpu_finished, num_online_cpus());
 	atomic_set(&global_error, 0);
 	atomic_set(&redirect_done, 0);
+	process_id_init();
 
 	if (sync_sched_mod(__sync_sched_install)) {
 		sched_mempools_destroy();
@@ -375,13 +386,11 @@ static void __exit sched_mod_exit(void)
 	printk("Bye, plugsched mod is unloading\n");
 
 	main_time_p0 = ktime_get();
-	stack_check_rmmod_init();
-
-	main_time_p1 = ktime_get();
 retry:
 	atomic_set(&cpu_finished, num_online_cpus());
 	atomic_set(&global_error, 0);
 	atomic_set(&redirect_done, 0);
+	process_id_init();
 
 	if (sync_sched_mod(__sync_sched_restore)) {
 		cond_resched();

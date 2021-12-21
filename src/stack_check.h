@@ -50,13 +50,8 @@ void addr_sort(unsigned long *addr, unsigned long *size, int n) {
 	}
 }
 
-static void stack_check_insmod_init(void)
+static void stack_check_init(void)
 {
-	int cpu, idx = 0;
-
-	for_each_online_cpu(cpu)
-		process_id[cpu] = idx++;
-
 	#define PLUGSCHED_FN_PTR EXPORT_PLUGSCHED
 	#define EXPORT_PLUGSCHED(fn, ...) 				\
 		kallsyms_lookup_size_offset(orig_##fn, 			\
@@ -68,14 +63,6 @@ static void stack_check_insmod_init(void)
 	#undef PLUGSCHED_FN_PTR
 
 	addr_sort(vm_func_addr, vm_func_size, NR_INTERFACE_FN);
-}
-
-static void stack_check_rmmod_init(void)
-{
-	int cpu, idx = 0;
-
-	for_each_online_cpu(cpu)
-		process_id[cpu] = idx++;
 
 	#define PLUGSCHED_FN_PTR(fn, ...) 				\
 		get_ksymbol(THIS_MODULE,(unsigned long)__mod_##fn, 	\
