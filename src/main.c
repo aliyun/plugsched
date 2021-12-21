@@ -12,10 +12,7 @@
 #include "head_jump.h"
 #include "stack_check.h"
 
-#define RETRY_CNT 5
 #define MAX_CPU_NR		1024
-
-static int retry_count;
 
 int process_id[MAX_CPU_NR];
 atomic_t cpu_finished;
@@ -49,6 +46,13 @@ extern void init_sched_rebuild(void);
 extern void clear_sched_state(bool mod);
 extern void rebuild_sched_state(bool mod);
 
+static inline void parallel_state_check_init(void)
+{
+	atomic_set(&cpu_finished, num_online_cpus());
+	atomic_set(&global_error, 0);
+	atomic_set(&redirect_done, 0);
+}
+
 static inline void process_id_init(void)
 {
 	int cpu, idx = 0;
@@ -62,14 +66,13 @@ static bool is_first_process(void)
 	return process_id[smp_processor_id()] == 0;
 }
 
-static void print_error(int error, int retry_count)
+static void print_error(int error)
 {
 	if (is_first_process()) {
 		if (error == -ENOMEM) {
-			printk("scheduler: Error: not enough memory for mempool! Retrying...X%d\n", retry_count);
+			printk("scheduler: Error: not enough memory for mempool!\n");
 		} else if(error == -EBUSY) {
-			printk("scheduler: Error: Device or resources busy! Retrying...X%d\n",
-					retry_count);
+			printk("scheduler: Error: Device or resources busy!\n");
 		} else {
 			printk("scheduler: Error: Unknown\n");
 		}
@@ -143,7 +146,7 @@ static int __sync_sched_install(void *arg)
 	atomic_cond_read_relaxed(&cpu_finished, !VAL);
 
 	if (error = atomic_read(&global_error)) {
-		print_error(error, retry_count);
+		print_error(error);
 		return error;
 	}
 
@@ -186,7 +189,7 @@ static int __sync_sched_restore(void *arg)
 	atomic_cond_read_relaxed(&cpu_finished, !VAL);
 
 	if (error = atomic_read(&global_error)) {
-		print_error(error, ++retry_count);
+		print_error(error);
 		return error;
 	}
 
@@ -322,32 +325,23 @@ static void report_detail_time(char *ops)
 
 static int load_sched_routine(void)
 {
-	retry_count = 0;
+	int ret;
 
 	printk("scheduler: module is loading\n");
 	main_start = ktime_get();
 
-retry:
-	if (retry_count == RETRY_CNT)
-		return -EBUSY;
-	retry_count++;
-
 	if (sched_mempools_create()) {
-		printk("scheduler: Error: create mempools failed! Retrying...X%d\n",
-				retry_count);
-		goto retry;
+		printk("scheduler: Error: create mempools failed!\n");
+		return -ENOMEM;
 	}
 
-	atomic_set(&cpu_finished, num_online_cpus());
-	atomic_set(&global_error, 0);
-	atomic_set(&redirect_done, 0);
+	parallel_state_check_init();
 	process_id_init();
 
-	if (sync_sched_mod(__sync_sched_install)) {
+	ret = sync_sched_mod(__sync_sched_install);
+	if (ret) {
 		sched_mempools_destroy();
-
-		cond_resched();
-		goto retry;
+		return ret;
 	}
 
 	install_sched_domain_sysctl();
@@ -367,21 +361,17 @@ retry:
 
 static void unload_sched_routine(void)
 {
-	retry_count = 0;
+	int ret;
 
 	printk("scheduler: module is unloading\n");
 	main_start = ktime_get();
 
-retry:
-	atomic_set(&cpu_finished, num_online_cpus());
-	atomic_set(&global_error, 0);
-	atomic_set(&redirect_done, 0);
+	parallel_state_check_init();
 	process_id_init();
 
-	if (sync_sched_mod(__sync_sched_restore)) {
-		cond_resched();
-		goto retry;
-	}
+	ret = sync_sched_mod(__sync_sched_restore);
+	if (ret)
+		return;
 
 	restore_sched_domain_sysctl();
 
