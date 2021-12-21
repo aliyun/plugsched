@@ -66,12 +66,12 @@ static void print_error(int error, int retry_count)
 {
 	if (is_first_process()) {
 		if (error == -ENOMEM) {
-			printk("plugsched: Error: not enough memory for mempool! Retrying...X%d\n", retry_count);
+			printk("scheduler: Error: not enough memory for mempool! Retrying...X%d\n", retry_count);
 		} else if(error == -EBUSY) {
-			printk("plugsched: Error: Device or resources busy! Retrying...X%d\n",
+			printk("scheduler: Error: Device or resources busy! Retrying...X%d\n",
 					retry_count);
 		} else {
-			printk("plugsched: Error: Unknown\n");
+			printk("scheduler: Error: Unknown\n");
 		}
 	}
 }
@@ -304,20 +304,19 @@ int restore_proc_schedstat(void)
 
 static void report_cur_status(char *ops)
 {
-	printk("plugsched %s: current cpu number is  %-15d ns\n", ops, nr_cpu_ids);
-	printk("plugsched %s: current thread number is  %-15d ns\n", ops, nr_threads);
+	printk("scheduler %s: current cpu number is  %-15d\n", ops, nr_cpu_ids);
+	printk("scheduler %s: current thread number is  %-15d\n", ops, nr_threads);
 }
 
 static void report_detail_time(char *ops)
 {
 	report_cur_status(ops);
-	printk("plugsched %s: stop machine time is  %-15lld ns\n", ops, stop_time);
-	printk("plugsched %s: stop handler time is  %-15lld ns\n", ops,
+	printk("scheduler %s: stop machine time is  %-15lld ns\n", ops, stop_time);
+	printk("scheduler %s: stop handler time is  %-15lld ns\n", ops,
 			ktime_to_ns(ktime_sub(stop_time_p2, stop_time_p0)));
-	printk("plugsched %s: stack check time is   %-15lld ns\n", ops,
+	printk("scheduler %s: stack check time is   %-15lld ns\n", ops,
 			ktime_to_ns(ktime_sub(stop_time_p1, stop_time_p0)));
-
-	printk("plugsched %s: the %s time is        %-15lld ns\n", ops, ops,
+	printk("scheduler %s: the %s time is        %-15lld ns\n", ops, ops,
 			ktime_to_ns(ktime_sub(main_end, main_start)));
 }
 
@@ -325,7 +324,7 @@ static int load_sched_routine(void)
 {
 	retry_count = 0;
 
-	printk("plugsched: module is loading\n");
+	printk("scheduler: module is loading\n");
 	main_start = ktime_get();
 
 retry:
@@ -334,7 +333,7 @@ retry:
 	retry_count++;
 
 	if (sched_mempools_create()) {
-		printk("plugsched: Error: create mempools failed! Retrying...X%d\n",
+		printk("scheduler: Error: create mempools failed! Retrying...X%d\n",
 				retry_count);
 		goto retry;
 	}
@@ -370,7 +369,7 @@ static void unload_sched_routine(void)
 {
 	retry_count = 0;
 
-	printk("plugsched: module is unloading\n");
+	printk("scheduler: module is unloading\n");
 	main_start = ktime_get();
 
 retry:
@@ -396,7 +395,7 @@ retry:
 
 static int __init sched_mod_init(void)
 {
-	printk("Hi, plugsched mod is installing!\n");
+	printk("Hi, scheduler mod is installing!\n");
 	init_start = ktime_get();
 
 	sched_springboard = kallsyms_lookup_name("__schedule") + SPRINGBOARD;
@@ -408,7 +407,7 @@ static int __init sched_mod_init(void)
 	stack_check_init();
 
 	init_end = ktime_get();
-	printk("plugsched: total initialization time is %-15lld ns\n",
+	printk("scheduler: total initialization time is %-15lld ns\n",
 			ktime_to_ns(ktime_sub(init_end, init_start)));;
 
 	return load_sched_routine();
@@ -419,7 +418,7 @@ static void __exit sched_mod_exit(void)
 	unload_sched_routine();
 	sched_mempools_destroy();
 
-	printk("Bey, plugsched mod has be removed!\n");
+	printk("Bey, scheduler mod has be removed!\n");
 }
 
 module_init(sched_mod_init);
