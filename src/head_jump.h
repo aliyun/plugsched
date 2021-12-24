@@ -4,6 +4,7 @@
 #include <linux/cpu.h>
 #include <linux/kallsyms.h>
 
+#define EXPORT_SIDECAR(fn, file, ...) EXPORT_PLUGSCHED(fn, __VA_ARGS__)
 #define PLUGSCHED_FN_PTR EXPORT_PLUGSCHED
 #define EXPORT_PLUGSCHED(fn, ...) NR_##fn,
 enum {

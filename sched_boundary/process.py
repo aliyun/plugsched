@@ -202,8 +202,10 @@ if __name__ == '__main__':
     with open('sched_boundary_extract.yaml', 'w') as f:
         dump(config, f, Dumper)
     with open('tainted_functions.h', 'w') as f:
+        f.write('#include "tainted_functions_sidecar.h"\n')
         f.write('\n'.join(["TAINTED_FUNCTION({fn},{sympos})".format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in func_class['tainted']]))
     with open('undefined_functions.h', 'w') as f:
+        f.write('#include "undefined_functions_sidecar.h"\n')
         array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in func_class['undefined']])
         f.write('{%s}' % array)
     with open('interface_fn_ptrs', 'w') as f:

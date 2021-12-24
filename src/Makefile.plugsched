@@ -2,10 +2,13 @@ include Makefile
 
 all: plugsched
 
-plugsched: scripts prepare
+plugsched: scripts prepare sidecar
 	$(MAKE) CFLAGS_MODULE=-fkeep-static-functions -C $(srctree) M=$(abspath $(srctree))/kernel/sched/mod modules
 
-PHONY += plugsched
+sidecar: kernel/sched/mod/export_jump_sidecar.h
+	python2 sidecar.py $< ./vmlinux
+
+PHONY += plugsched sidecar
 
 ifdef SCHED_MOD_STAGE
 PHONY += sched_mod sched_mod_$(SCHED_MOD_STAGE)

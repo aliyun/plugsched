@@ -53,6 +53,7 @@ class Plugsched(object):
             'src/*.[ch]': 'kernel/sched/mod',
             'src/.gitignore': './',
             'src/Makefile': 'kernel/sched/mod/',
+            'src/sidecar.py': '.',
             'src/scheduler.lds': 'kernel/sched/mod/',
             'src/Makefile.plugsched': './'
         }
@@ -102,6 +103,7 @@ class Plugsched(object):
                   objs            = self.mod_objs)
         with open(os.path.join(self.mod_path, 'kernel/sched/mod/export_jump.h'), 'w') as f:
             sh.sort(glob('kernel/sched/*.export_jump.h', _cwd=self.mod_path), _out=f)
+            f.write('#include "export_jump_sidecar.h"')
 
     def create_mod(self, kernel_src):
         logging.info('Creating mod build directory structure')

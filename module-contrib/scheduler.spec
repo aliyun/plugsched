@@ -30,11 +30,11 @@ cp %{_outdir}/plugsched.service %{_sourcedir}
 cp %{_outdir}/version %{_sourcedir}
 
 %build
-# Build symbol resolve tool
-make -C %{_kerneldir}/symbol_resolve
-
 # Build sched_mod
 make -C %{_kerneldir} -f Makefile.plugsched plugsched -j %{threads}
+
+# Build symbol resolve tool
+make -C %{_kerneldir}/symbol_resolve
 
 #%pre
 # TODO: confict check
