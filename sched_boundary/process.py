@@ -157,7 +157,7 @@ if __name__ == '__main__':
 
         for edge in meta['edge']:
             (from_n, from_f), (to_n, to_f) = edge['from'], edge['to']
-            to_f = lookup_if_global(to_n, to_f)
+            edge['to'] = (to_n, lookup_if_global(to_n, to_f))
             if to_f:    # edge_to might be gcc builtin functions
                 edges.append(edge)
 
