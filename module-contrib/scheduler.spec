@@ -31,12 +31,10 @@ cp %{_outdir}/version %{_sourcedir}
 
 %build
 # Build symbol resolve tool
-cd %{_dependdir}/tools/symbol_resolve
-make srctree=%{_kerneldir}
+make -C %{_kerneldir}/symbol_resolve
 
 # Build sched_mod
-cd %{_kerneldir}
-make -f Makefile.plugsched plugsched -j %{threads}
+make -C %{_kerneldir} -f Makefile.plugsched plugsched -j %{threads}
 
 #%pre
 # TODO: confict check
@@ -48,7 +46,7 @@ mkdir -p %{buildroot}%{_prefix}/lib/systemd/system
 mkdir -p %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
 mkdir -p %{buildroot}%{_rundir}/plugsched
 
-install -m 755 %{_dependdir}/tools/symbol_resolve/symbol_resolve %{buildroot}%{_bindir}/symbol_resolve
+install -m 755 %{_kerneldir}/symbol_resolve/symbol_resolve %{buildroot}%{_bindir}/symbol_resolve
 install -m 755 %{_kerneldir}/kernel/sched/mod/scheduler.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
 install -m 755 %{_kerneldir}/tainted_functions %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
 

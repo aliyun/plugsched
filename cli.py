@@ -48,6 +48,7 @@ class Plugsched(object):
             'sched_boundary/sched_boundary.py': './',
             'sched_boundary/process.py': './',
             'sched_boundary/sched_boundary.yaml': './',
+            'tools/symbol_resolve': './',
             'src/*.[ch]': 'kernel/sched/mod',
             'src/.gitignore': './',
             'src/Makefile': 'kernel/sched/mod/',
@@ -101,7 +102,7 @@ class Plugsched(object):
         self.mod_sh.mkdir('kernel/sched/mod', parents=True)
 
         for f, t in self.file_mapping.items():
-            self.mod_sh.cp(glob(f, _cwd=self.plugsched_path), t)
+            self.mod_sh.cp(glob(f, _cwd=self.plugsched_path), t, recursive=True)
 
 
     def cmd_init(self, kernel_src, system_map, sym_vers, kernel_config, makefile):

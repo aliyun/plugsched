@@ -139,7 +139,7 @@ int main(int argc, const char **argv)
 {
         kallsym_collection kallsyms;
         sympos_collection sched_outsider = {
-                #include "sched_outsider.h"
+                #include "../sched_outsider.h"
         };
 
         load_kallsyms(argv[2], kallsyms);
