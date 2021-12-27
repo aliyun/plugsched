@@ -20,11 +20,9 @@ mod_files:
     - kernel/sched/sched-pelt.h
     - kernel/sched/stats.h
 interface_prefix:
-    - __se_sys_
     - __ia32_sys_
     - __x64_sys_
     - __x32_compat_
-    - __se_compat_sys_
     - __ia32_compat_sys_
 function:
     interface:
