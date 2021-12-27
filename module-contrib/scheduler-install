@@ -5,7 +5,7 @@ RETRY_INTERVAL=2
 
 cursys=$(uname -r)
 modfile=/var/plugsched/$cursys/scheduler.ko
-enablefile=/proc/sys/kernel/scheduler_enable
+enablefile=/sys/kernel/plugsched/plugsched/enable
 mod=$(modinfo $modfile | grep vermagic | awk '{print $2}')
 
 warn() {

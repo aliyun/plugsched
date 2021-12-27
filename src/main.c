@@ -6,6 +6,7 @@
 #include <linux/namei.h>
 #include <linux/livepatch.h>
 #include <linux/sched/task.h>
+#include <linux/sysfs.h>
 #include "../sched.h"
 #include "helper.h"
 #include "mempool.h"
@@ -46,8 +47,8 @@ extern void init_sched_rebuild(void);
 extern void clear_sched_state(bool mod);
 extern void rebuild_sched_state(bool mod);
 
-static int scheduler_enable = 1;
-struct ctl_table_header *scheduler_enable_sysctl_hdr;
+static int scheduler_enable = 0;
+struct kobject *plugsched_dir, *plugsched_subdir;
 
 static inline void parallel_state_check_init(void)
 {
@@ -363,6 +364,7 @@ static int load_sched_routine(void)
 
 	main_end = ktime_get();
 	report_detail_time("load");
+	scheduler_enable = 1;
 
 	return 0;
 }
@@ -391,55 +393,76 @@ static int unload_sched_routine(void)
 	report_detail_time("unload");
 
 	module_put(THIS_MODULE);
+	scheduler_enable = 0;
 
 	return 0;
 }
 
-static int scheduler_enable_handler(struct ctl_table *table, int write,
-		void __user *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t plugsched_enabled_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	int last_val, ret;
+	int ret;
+	unsigned long val;
 
-	last_val = scheduler_enable;
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
-
-	scheduler_enable = !!scheduler_enable;
-
-	if (ret || !write || scheduler_enable == last_val)
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
 		return ret;
 
-	if (scheduler_enable)
+	val = !!val;
+
+	if (scheduler_enable == val)
+		return count;
+
+	if (val)
 		ret = load_sched_routine();
 	else
 		ret = unload_sched_routine();
 
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static ssize_t plugsched_enable_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", scheduler_enable);
+}
+
+static struct kobj_attribute plugsched_enable_attr =
+	__ATTR(enable, 0644, plugsched_enable_show, plugsched_enabled_store);
+
+static int register_plugsched_enable(void)
+{
+	int ret;
+
+	plugsched_dir = kobject_create_and_add("plugsched", kernel_kobj);
+	if (!plugsched_dir)
+		return -ENOMEM;
+
+	plugsched_subdir = kobject_create_and_add("plugsched", plugsched_dir);
+	if (!plugsched_subdir) {
+		kobject_put(plugsched_dir);
+		return -ENOMEM;
+	}
+
+	ret = sysfs_create_file(plugsched_subdir, &plugsched_enable_attr.attr);
 	if (ret) {
-		scheduler_enable = last_val;
+		kobject_put(plugsched_subdir);
+		kobject_put(plugsched_dir);
 		return ret;
 	}
 
 	return 0;
 }
 
-static struct ctl_table enable_scheduler_table[] = {
-	{
-		.procname	= "scheduler_enable",
-		.data		= &scheduler_enable,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= scheduler_enable_handler,
-	},
-	{ }
-};
-
-static struct ctl_table base_enable_scheduler_table[] = {
-	{
-		.procname	= "kernel",
-		.mode		= 0555,
-		.child		= enable_scheduler_table,
-	},
-	{ }
-};
+static void unregister_plugsched_enable(void)
+{
+	sysfs_remove_file(plugsched_subdir, &plugsched_enable_attr.attr);
+	kobject_put(plugsched_subdir);
+	kobject_put(plugsched_dir);
+}
 
 static int __init sched_mod_init(void)
 {
@@ -456,16 +479,20 @@ static int __init sched_mod_init(void)
 	/* This must after jump_init_all function !!! */
 	stack_check_init();
 
+	if (register_plugsched_enable()) {
+		printk("scheduler: Error: Register plugsched sysfs failed!\n");
+		return -ENOMEM;
+	}
+
 	init_end = ktime_get();
 	printk("scheduler: total initialization time is %-15lld ns\n",
 			ktime_to_ns(ktime_sub(init_end, init_start)));;
 
 	ret = load_sched_routine();
-	if (ret)
+	if (ret) {
+		unregister_plugsched_enable();
 		return ret;
-
-	scheduler_enable_sysctl_hdr =
-		register_sysctl_table(base_enable_scheduler_table);
+	}
 
 	return 0;
 }
@@ -473,7 +500,7 @@ static int __init sched_mod_init(void)
 static void __exit sched_mod_exit(void)
 {
 	sched_mempools_destroy();
-	unregister_sysctl_table(scheduler_enable_sysctl_hdr);
+	unregister_plugsched_enable();
 
 	printk("Bye, scheduler mod has be removed!\n");
 }
