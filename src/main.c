@@ -475,7 +475,7 @@ static void __exit sched_mod_exit(void)
 	sched_mempools_destroy();
 	unregister_sysctl_table(scheduler_enable_sysctl_hdr);
 
-	printk("Bey, scheduler mod has be removed!\n");
+	printk("Bye, scheduler mod has be removed!\n");
 }
 
 module_init(sched_mod_init);
