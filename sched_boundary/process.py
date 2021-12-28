@@ -169,33 +169,33 @@ if __name__ == '__main__':
     # Inflect outsider functions
     fn_symbol_classify['insider'] = inflect(fn_symbol_classify['initial_insider'], edges)
     fn_symbol_classify['outsider'] = fn_symbol_classify['initial_insider'] - fn_symbol_classify['insider']
+    fn_symbol_classify['public_user'] = fn_symbol_classify['fn'] - fn_symbol_classify['insider']
     fn_symbol_classify['optimized_out'] = fn_symbol_classify['outsider'] - fn_symbol_classify['in_vmlinux']
     fn_symbol_classify['tainted'] = (fn_symbol_classify['interface'] | fn_symbol_classify['fn_ptr'] | fn_symbol_classify['insider']) & fn_symbol_classify['in_vmlinux']
 
     for output_item in ['outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out']:
         config['function'][output_item] = fn_symbol_classify[output_item]
 
-#    # Handle Struct public fields. The right hand side gives an example
-#    struct_properties = {
-#        struct: {                                                                          # cfs_rq:
-#            'public_fields': set(chain(                                                         #   public_fields:
-#                [field for field, users in m['struct'][struct]['public_fields'].iteritems()     #   - nr_uninterruptible
-#                       if any(user['file'] not in config['mod_files'] for user in users)        #   # ca_uninterruptible (in cpuacct.c) referenced it.
-#                       or set(map(Symbol.get, users)) & fn_symbol_classify['outsider']]         #   # maybe some outsider (in scheduler c files) referenced it.
-#                for m in metas                                                                  ## for all files output by SchedBoundaryCollect
-#                if struct in m['struct']                                                        ## and only if this file has structure information
-#             )),
-#            'all_fields': set(chain(
-#                m['struct'][struct]['all_fields']
-#                for m in metas
-#                if struct in m['struct']
-#            ))
-#        }
-#        for struct in set(chain(m['struct'].keys() for m in metas))
-#    }
-#
-#    with open('sched_boundary_doc.yaml', 'w') as f:
-#        dump(struct_properties, f, Dumper)
+    # Handle Struct public fields. The right hand side gives an example
+    struct_properties = {
+        struct: {                                                                          # cfs_rq:
+            'public_fields': set(chain(                                                         #   public_fields:
+                [field for field, users in m['struct'][struct]['public_fields'].iteritems()     #   - nr_uninterruptible
+                       if set(map(lookup_if_global, users)) & fn_symbol_classify['public_user']]#
+                for m in metas                                                                  ## for all files output by SchedBoundaryCollect
+                if struct in m['struct']                                                        ## and only if this file has structure information
+             )),
+            'all_fields': set(chain(
+                m['struct'][struct]['all_fields']
+                for m in metas
+                if struct in m['struct']
+            ))
+        }
+        for struct in set(chain(m['struct'].keys() for m in metas))
+    }
+
+    with open('sched_boundary_doc.yaml', 'w') as f:
+        dump(struct_properties, f, Dumper)
     with open('sched_boundary_extract.yaml', 'w') as f:
         dump(config, f, Dumper)
     with open('tainted_functions.h', 'w') as f:

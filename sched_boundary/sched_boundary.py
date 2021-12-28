@@ -343,10 +343,7 @@ class SchedBoundaryCollect(SchedBoundary):
                 "all_fields": [f.name for f in struct.fields if f.name],
                 "public_fields": groupby(user_fields,
                                          grouper=lambda (user, field): field.name,
-                                         selector=lambda (user, field): {
-                                            'name': user.name,
-                                            'file': os.path.relpath(user.location.file)
-                                         })
+                                         selector=lambda (user, field): (user.name, user.location.file))
             }
 
     def collect_edges(self):
