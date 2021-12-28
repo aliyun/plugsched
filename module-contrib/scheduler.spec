@@ -48,7 +48,7 @@ mkdir -p %{buildroot}%{_rundir}/plugsched
 
 install -m 755 %{_kerneldir}/symbol_resolve/symbol_resolve %{buildroot}%{_bindir}/symbol_resolve
 install -m 755 %{_kerneldir}/kernel/sched/mod/scheduler.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
-install -m 755 %{_kerneldir}/tainted_functions %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
+install -m 444 %{_kerneldir}/tainted_functions.h %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
 
 install -m 755 %{SOURCE1} %{buildroot}%{_bindir}
 install -m 755 %{SOURCE2} %{buildroot}%{_prefix}/lib/systemd/system

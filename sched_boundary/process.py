@@ -196,8 +196,8 @@ if __name__ == '__main__':
 #        dump(struct_properties, f, Dumper)
     with open('sched_boundary_extract.yaml', 'w') as f:
         dump(config, f, Dumper)
-    with open('tainted_functions', 'w') as f:
-        f.write('\n'.join(["{fn} {sympos}".format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in fn_symbol_classify['tainted']]))
+    with open('tainted_functions.h', 'w') as f:
+        f.write('\n'.join(["TAINTED_FUNCTION({fn},{sympos})".format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in fn_symbol_classify['tainted']]))
     with open('sched_outsider.h', 'w') as f:
         sched_outsider_array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in fn_symbol_classify['outsider']])
         f.write('{%s}' % sched_outsider_array)
