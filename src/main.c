@@ -506,6 +506,28 @@ static void unregister_tainted_functions(void)
 	}
 }
 
+static inline void unregister_plugsched_sysfs(void)
+{
+	unregister_tainted_functions();
+	unregister_plugsched_enable();
+}
+
+static int register_plugsched_sysfs(void)
+{
+	if (register_plugsched_enable()) {
+		printk("scheduler: Error: Register plugsched sysfs failed!\n");
+		return -ENOMEM;
+	}
+
+	if (register_tainted_functions()) {
+		printk("scheduler: Error: Register taint functions failed!\n");
+		unregister_plugsched_sysfs();
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int __init sched_mod_init(void)
 {
 	int ret;
@@ -521,16 +543,9 @@ static int __init sched_mod_init(void)
 	/* This must after jump_init_all function !!! */
 	stack_check_init();
 
-	if (register_plugsched_enable()) {
-		printk("scheduler: Error: Register plugsched sysfs failed!\n");
-		return -ENOMEM;
-	}
-
-	ret = register_tainted_functions();
-	if (ret) {
-		printk("scheduler: Error: Register taint functions failed!\n");
-		goto error;
-	}
+	ret = register_plugsched_sysfs();
+	if (ret)
+		return ret;
 
 	init_end = ktime_get();
 	printk("scheduler: total initialization time is %-15lld ns\n",
@@ -538,13 +553,7 @@ static int __init sched_mod_init(void)
 
 	ret = load_sched_routine();
 	if (ret)
-		goto error;
-
-	return 0;
-
-error:
-	unregister_tainted_functions();
-	unregister_plugsched_enable();
+		unregister_plugsched_sysfs();
 
 	return ret;
 }
@@ -552,8 +561,7 @@ error:
 static void __exit sched_mod_exit(void)
 {
 	sched_mempools_destroy();
-	unregister_tainted_functions();
-	unregister_plugsched_enable();
+	unregister_plugsched_sysfs();
 
 	printk("Bye, scheduler mod has be removed!\n");
 }
