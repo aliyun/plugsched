@@ -48,6 +48,7 @@ class Plugsched(object):
             'sched_boundary/sched_boundary.py': './',
             'sched_boundary/process.py': './',
             'sched_boundary/sched_boundary.yaml': './',
+            'sched_boundary/fake.c': './',
             'tools/symbol_resolve': './',
             'src/*.[ch]': 'kernel/sched/mod',
             'src/.gitignore': './',
