@@ -50,6 +50,22 @@ extern void rebuild_sched_state(bool mod);
 static int scheduler_enable = 0;
 struct kobject *plugsched_dir, *plugsched_subdir;
 
+struct tainted_function {
+	char *name;
+	struct kobject *kobj;
+};
+
+#undef TAINTED_FUNCTION
+#define TAINTED_FUNCTION(func,sympos) 		\
+	{ 					\
+		.name = #func "," #sympos,	\
+		.kobj = NULL,			\
+	},
+
+struct tainted_function tainted_functions[] = {
+	#include "../../../tainted_functions.h"
+};
+
 static inline void parallel_state_check_init(void)
 {
 	atomic_set(&cpu_finished, num_online_cpus());
@@ -464,6 +480,32 @@ static void unregister_plugsched_enable(void)
 	kobject_put(plugsched_dir);
 }
 
+static int register_tainted_functions(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tainted_functions); i++) {
+		tainted_functions[i].kobj =
+			kobject_create_and_add(tainted_functions[i].name, plugsched_subdir);
+		if (!(tainted_functions[i].kobj))
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void unregister_tainted_functions(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tainted_functions); i++) {
+		if (!(tainted_functions[i].kobj))
+			return;
+
+		kobject_put(tainted_functions[i].kobj);
+	}
+}
+
 static int __init sched_mod_init(void)
 {
 	int ret;
@@ -484,22 +526,33 @@ static int __init sched_mod_init(void)
 		return -ENOMEM;
 	}
 
+	ret = register_tainted_functions();
+	if (ret) {
+		printk("scheduler: Error: Register taint functions failed!\n");
+		goto error;
+	}
+
 	init_end = ktime_get();
 	printk("scheduler: total initialization time is %-15lld ns\n",
 			ktime_to_ns(ktime_sub(init_end, init_start)));;
 
 	ret = load_sched_routine();
-	if (ret) {
-		unregister_plugsched_enable();
-		return ret;
-	}
+	if (ret)
+		goto error;
 
 	return 0;
+
+error:
+	unregister_tainted_functions();
+	unregister_plugsched_enable();
+
+	return ret;
 }
 
 static void __exit sched_mod_exit(void)
 {
 	sched_mempools_destroy();
+	unregister_tainted_functions();
 	unregister_plugsched_enable();
 
 	printk("Bye, scheduler mod has be removed!\n");
