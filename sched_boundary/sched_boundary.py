@@ -63,21 +63,26 @@ class GccBugs(object):
 class SchedBoundaryExtract(SchedBoundary):
     def __init__(self):
         super().__init__('sched_boundary_extract.yaml')
-        assert gcc.get_main_input_filename() in self.sched_mod_source_files
-        self.fn_list = []
+        self.fn_dict = {}
         self.fn_ptr_list = []
         self.interface_list = []
         self.var_list = []
+        self.fake = 'fake.c'
 
     # TODO use gcc.get_callgraph_nodes is okay too. Are there any difference ?
     def function_define(self, decl, _):
         # only func definition will trigger PLUGIN_FINISH_PARSE_FUNCTION
         loc = gcc.get_location()
+        src_file = gcc.get_main_input_filename()
 
-        # filter out *.h
-        if loc.file != gcc.get_main_input_filename():
+        # filter out *.h in *.c but excluding fake.c
+        if src_file != self.fake and loc.file != src_file:
+            return
+        # filter out *.h in fake.c but excluding mod headers
+        if src_file == self.fake and loc.file not in self.sched_mod_header_files:
             return
 
+        self.fn_dict.setdefault(loc.file, list())
         assert(isinstance(decl, gcc.FunctionDecl))
 
         obj = (decl.name, loc.file)
@@ -86,7 +91,7 @@ class SchedBoundaryExtract(SchedBoundary):
         # translate index to start with 0
         if obj in self.config['function']['outsider'] or \
            obj in self.config['function']['init']:
-            self.fn_list.append([decl,
+            self.fn_dict[loc.file].append([decl,
                 decl.function.start.line - 1,
                 decl.function.start.column - 1,
                 decl.function.end.line - 1,
@@ -140,14 +145,20 @@ class SchedBoundaryExtract(SchedBoundary):
                     loc.line - 1))
 
     def final_work(self):
-        src_fn = gcc.get_main_input_filename()
-        assert src_fn in self.sched_mod_source_files
+        if gcc.get_main_input_filename() == self.fake:
+            # no function definition in sched-pelt.h
+            for header in self.sched_mod_header_files:
+                self.fn_dict.setdefault(header, list())
 
-        with open(src_fn) as in_f, open(src_fn + '.export_jump.h', 'w') as fn_export_jump:
+        for src_f in self.fn_dict.keys():
+            self.extract_file(src_f)
+
+    def extract_file(self, src_f):
+        with open(src_f) as in_f, open(src_f + '.export_jump.h', 'w') as fn_export_jump:
             lines = in_f.readlines()
 
-            for decl, fn_row_start, fn_col_start, fn_row_end, __ in self.fn_list:
-                if 'always_inline' in decl.attributes or decl.inline is True or (decl.name, src_fn) in self.config['function']['optimized_out']:
+            for decl, fn_row_start, fn_col_start, fn_row_end, __ in self.fn_dict[src_f]:
+                if 'always_inline' in decl.attributes or decl.inline is True or (decl.name, src_f) in self.config['function']['optimized_out']:
                     lines[fn_row_end] += " /* DON'T MODIFY FUNCTION {}, IT'S NOT PART OF SCHEDMOD */\n".format(decl.name)
                 else:
                     # convert function body "{}" to ";"
@@ -190,7 +201,7 @@ class SchedBoundaryExtract(SchedBoundary):
                 for i in range(row_start+1, row_end+1):
                     lines[i] = ''
 
-            with open("kernel/sched/mod/" + os.path.basename(src_fn), 'w') as out_f:
+            with open("kernel/sched/mod/" + os.path.basename(src_f), 'w') as out_f:
                 out_f.writelines(lines)
 
 class SchedBoundaryCollect(SchedBoundary):
@@ -217,7 +228,7 @@ class SchedBoundaryCollect(SchedBoundary):
             self.seek_public_field = True
 
     def collect_fn(self):
-        src_fn = gcc.get_main_input_filename()
+        src_f = gcc.get_main_input_filename()
 
         for node in gcc.get_callgraph_nodes():
             decl = node.decl
@@ -241,7 +252,7 @@ class SchedBoundaryCollect(SchedBoundary):
             self.fn_properties.append(properties)
 
             # interface candidates must belongs to module source files
-            if not src_fn in self.sched_mod_source_files:
+            if not src_f in self.sched_mod_source_files:
                 continue
 
             if decl.name in self.config['function']['interface'] or \

@@ -60,7 +60,7 @@ class Plugsched(object):
         self.mod_files = self.config['mod_files']
         self.mod_srcs = [f for f in self.mod_files if f.endswith('.c')]
         self.mod_hdrs = [f for f in self.mod_files if f.endswith('.h')]
-        self.mod_objs = [f[:-2]+'.o' for f in self.mod_srcs]
+        self.mod_objs = [f[:-2]+'.o' for f in self.mod_srcs] + ['fake.o']
         self.extracted_mod_srcs = [os.path.join('kernel/sched/mod', os.path.basename(f)) for f in self.mod_srcs]
         self.extracted_mod_files = self.extracted_mod_srcs + self.mod_hdrs
 
