@@ -6,6 +6,7 @@ import logging
 import json
 import os
 import copy
+import sys
 chain = _chain.from_iterable
 
 config = None
@@ -52,10 +53,10 @@ def get_in_any(key, files):
             break
     return file
 
-def find_in_vmlinux():
+def find_in_vmlinux(vmlinux_elf):
     in_vmlinux = set()
     fn_pos = {}
-    for line in skipline(readelf('vmlinux', syms=True, wide=True, _iter=True), 3, None):
+    for line in skipline(readelf(vmlinux_elf, syms=True, wide=True, _iter=True), 3, None):
         fields = line.split()
         if len(fields) != 8: continue
         symtype, scope, key = fields[3], fields[4], fields[7]
@@ -164,7 +165,7 @@ if __name__ == '__main__':
     # TODO should determine which is of higher priority
     fn_symbol_classify['fn_ptr'] -= fn_symbol_classify['interface']
     fn_symbol_classify['initial_insider'] = fn_symbol_classify['mod_fns'] - fn_symbol_classify['interface'] - fn_symbol_classify['fn_ptr']
-    fn_symbol_classify['in_vmlinux'] = find_in_vmlinux()
+    fn_symbol_classify['in_vmlinux'] = find_in_vmlinux(sys.argv[1])
 
     # Inflect outsider functions
     fn_symbol_classify['insider'] = inflect(fn_symbol_classify['initial_insider'], edges)

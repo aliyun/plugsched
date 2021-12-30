@@ -12,6 +12,6 @@ PHONY += sched_mod sched_mod_$(SCHED_MOD_STAGE)
 sched_mod: prepare sched_mod_$(SCHED_MOD_STAGE) FORCE
 sched_mod_collect: $(core-y) $(core-m) $(drivers-y) $(drivers-m) $(net-y) $(net-m) $(virt-y)
 sched_mod_analyze:
-	python2 process.py $(SYSTEM_MAP)
+	python2 process.py $(VMLINUX)
 sched_mod_extract: $(obj)
 endif

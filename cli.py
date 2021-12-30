@@ -97,7 +97,7 @@ class Plugsched(object):
         logging.info('Extracting scheduler module objs: %s', ' '.join(self.mod_objs))
         self.make(SCHED_MOD_STAGE = 'collect')
         self.make(SCHED_MOD_STAGE = 'analyze',
-                  SYSTEM_MAP      = './System.map')
+                  VMLINUX         = './vmlinux')
         self.make(SCHED_MOD_STAGE = 'extract',
                   objs            = self.mod_objs)
         with open(os.path.join(self.mod_path, 'kernel/sched/mod/export_jump.h'), 'w') as f:
@@ -112,9 +112,8 @@ class Plugsched(object):
             self.mod_sh.cp(glob(f, _cwd=self.plugsched_path), t, recursive=True)
 
 
-    def cmd_init(self, kernel_src, system_map, sym_vers, kernel_config, makefile):
+    def cmd_init(self, kernel_src, sym_vers, kernel_config, makefile):
         self.create_mod(kernel_src)
-        self.plugsched_sh.cp(system_map,    self.mod_path, force=True)
         self.plugsched_sh.cp(sym_vers,      self.mod_path, force=True)
         self.plugsched_sh.cp(kernel_config, self.mod_path + '/.config', force=True)
         self.plugsched_sh.cp(makefile,      self.mod_path, force=True)
@@ -258,7 +257,6 @@ class PlugschedCLI(object):
         if not os.path.exists(vmlinux):
             logging.fatal("%s not found, please install kernel-debuginfo-%s.rpm", vmlinux, release_kernel)
 
-        system_map    = '/usr/src/kernels/' + release_kernel + '/System.map'
         sym_vers      = '/usr/src/kernels/' + release_kernel + '/Module.symvers'
         kernel_config = '/usr/src/kernels/' + release_kernel + '/.config'
         makefile      = '/usr/src/kernels/' + release_kernel + '/Makefile'
@@ -267,7 +265,7 @@ class PlugschedCLI(object):
             logging.fatal("%s not found, please install kernel-devel-%s.rpm", kernel_config, release_kernel)
 
         self.plugsched = Plugsched(mod_path, vmlinux)
-        self.plugsched.cmd_init(kernel_src, system_map, sym_vers, kernel_config, makefile)
+        self.plugsched.cmd_init(kernel_src, sym_vers, kernel_config, makefile)
 
     def dev_init(self, kernel_src, mod_path):
         """ Initialize plugsched development envrionment from kernel source code
@@ -283,7 +281,6 @@ class PlugschedCLI(object):
         if not os.path.exists(vmlinux):
             logging.fatal("%s not found, please execute `make -j %s` firstly", vmlinux, cpu_count())
 
-        system_map    = os.path.join(kernel_src, 'System.map')
         sym_vers      = os.path.join(kernel_src, 'Module.symvers')
         kernel_config = os.path.join(kernel_src, '.config')
         makefile      = os.path.join(kernel_src, 'Makefile')
@@ -292,7 +289,7 @@ class PlugschedCLI(object):
             logging.fatal("kernel config %s not found", kernel_config)
 
         self.plugsched = Plugsched(mod_path, vmlinux)
-        self.plugsched.cmd_init(kernel_src, system_map, sym_vers, kernel_config, makefile)
+        self.plugsched.cmd_init(kernel_src, sym_vers, kernel_config, makefile)
 
     def build(self, mod_path):
         """ Build a scheduler module rpm package for a specific kernel release and product
