@@ -7,7 +7,7 @@
 #include <linux/livepatch.h>
 #include <linux/sched/task.h>
 #include <linux/sysfs.h>
-#include "../sched.h"
+#include "sched.h"
 #include "helper.h"
 #include "mempool.h"
 #include "head_jump.h"

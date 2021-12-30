@@ -1,5 +1,5 @@
 #include <linux/sched.h>
-#include "../sched.h"
+#include "sched.h"
 
 static void (*orig_set_rq_offline)(struct rq *);
 static void (*orig_set_rq_online)(struct rq *);

@@ -17,7 +17,7 @@ index 2dcecfd..0e37f1f 100644
 +++ b/kernel/sched/mod/core.c
 @@ -20,7 +20,6 @@
  
- #include "../pelt.h"
+ #include "pelt.h"
  
 -#define CREATE_TRACE_POINTS
  #include <trace/events/sched.h>

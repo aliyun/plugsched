@@ -61,8 +61,7 @@ class Plugsched(object):
         self.mod_srcs = [f for f in self.mod_files if f.endswith('.c')]
         self.mod_hdrs = [f for f in self.mod_files if f.endswith('.h')]
         self.mod_objs = [f[:-2]+'.o' for f in self.mod_srcs] + ['fake.o']
-        self.extracted_mod_srcs = [os.path.join('kernel/sched/mod', os.path.basename(f)) for f in self.mod_srcs]
-        self.extracted_mod_files = self.extracted_mod_srcs + self.mod_hdrs
+        self.extracted_mod_files = [os.path.join('kernel/sched/mod', os.path.basename(f)) for f in self.mod_files]
 
     def apply_patch(self, f, **kwargs):
         self.mod_sh.patch(input=os.path.join(self.plugsched_path, 'src', f), strip=1, **kwargs)
@@ -84,8 +83,15 @@ class Plugsched(object):
                         "/\<__initdata\>/d;"                + \
                         "/__setup/d;"                       + \
                         "s/struct atomic_t /atomic_t /g",
-                        self.extracted_mod_srcs,
+                        self.extracted_mod_files,
                         in_place=True)
+
+        # mod headers are extracted to mod path, fix their include path.
+        cmd_str = ""
+        for header in self.mod_hdrs:
+            header = os.path.basename(header)
+            cmd_str += "s/#include \"..\/%s/#include \"%s/g;" % (header, header)
+        self.mod_sh.sed(cmd_str, self.extracted_mod_files, in_place=True)
 
     def extract(self):
         logging.info('Extracting scheduler module objs: %s', ' '.join(self.mod_objs))
