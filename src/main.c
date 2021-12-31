@@ -375,9 +375,6 @@ static int load_sched_routine(void)
 	install_proc_schedstat();
 	install_sched_debugfs();
 
-	update_max_interval();
-	sched_init_granularity();
-
 	main_end = ktime_get();
 	report_detail_time("load");
 	scheduler_enable = 1;
