@@ -19,6 +19,7 @@ mod_files:
     - kernel/sched/sched.h
     - kernel/sched/sched-pelt.h
     - kernel/sched/stats.h
+    - kernel/sched/features.h
 interface_prefix:
     - __ia32_sys_
     - __x64_sys_
