@@ -2,6 +2,8 @@ SYMBOL_RESOLVE    := $(OUTPUT)symbol_resolve
 LIBELF_FLAGS := $(shell pkg-config --static libelf --cflags 2>/dev/null)
 LIBELF_LIBS  := $(shell pkg-config --static libelf --libs 2>/dev/null || echo -lelf)
 
+CFLAGS	+= -static
+
 all: $(SYMBOL_RESOLVE)
 
 CPP = g++
