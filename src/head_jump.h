@@ -25,7 +25,12 @@ static unsigned long mod_func_size[NR_INTERFACE_FN];
 #undef EXPORT_PLUGSCHED
 #undef PLUGSCHED_FN_PTR
 
-
+/* Used to declare extern functions defined in vmlinux*/
+#define PLUGSCHED_FN_PTR(fn, ret, ...) extern ret __vmlinux__##fn(__VA_ARGS__);
+#define EXPORT_PLUGSCHED(fn, ret, ...) extern ret __vmlinux__##fn(__VA_ARGS__);
+#include "export_jump.h"
+#undef EXPORT_PLUGSCHED
+#undef PLUGSCHED_FN_PTR
 
 /* They are completely identical unless specified */
 #define PLUGSCHED_FN_PTR EXPORT_PLUGSCHED
@@ -58,7 +63,7 @@ static unsigned long mod_func_size[NR_INTERFACE_FN];
 	static unsigned long mod_##func##_size
 
 #define JUMP_INIT_FUNC(func, prefix) do {		\
-		orig_##func = kallsyms_lookup_name(#func); 	\
+		orig_##func = (unsigned long)__vmlinux__##func; 	\
 		vm_func_addr[NR_##func] = orig_##func; 		\
 		mod_func_addr[NR_##func] = (unsigned long)prefix##func; \
 		memcpy(store_orig_##func, (unsigned char *)orig_##func, HEAD_LEN); \
@@ -129,7 +134,7 @@ static int aarch64_write_insn(void *addr, u32 insn)
 	static unsigned long orig_##func
 
 #define JUMP_INIT_FUNC(func, prefix) do {	\
-		orig_##func = kallsyms_lookup_name(#func);	\
+		orig_##func = (unsigned long)__vmlinux__##func;	\
 		memcpy((void *)&store_orig_##func, (void *)orig_##func, AARCH64_INSN_SIZE); \
 		store_jump_##func = aarch64_insn_gen_branch_imm(orig_##func,	\
 				  (unsigned long)prefix##func, AARCH64_INSN_BRANCH_NOLINK); \

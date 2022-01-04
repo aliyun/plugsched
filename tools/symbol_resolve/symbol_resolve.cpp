@@ -77,6 +77,12 @@ static void resolve_ref(const char *fname, kallsym_collection &kallsyms, sympos_
                         ERROR("elf_strptr", true);
                 if (sym.st_shndx != SHN_UNDEF)
                         continue;
+                /*
+                 * Filter out the "__vmlinux__" prefix, which represents interface
+                 * functions or function pointers defined in vmlinux.
+                 */
+                if (strstr(name, "__vmlinux__"))
+                        name += sizeof("__vmlinux__") - 1;
                 if (kallsyms.find(name) == kallsyms.end())
                         continue;
                 kallsym = &kallsyms[name];
@@ -139,7 +145,7 @@ int main(int argc, const char **argv)
 {
         kallsym_collection kallsyms;
         sympos_collection sched_outsider = {
-                #include "../sched_outsider.h"
+                #include "../undefined_functions.h"
         };
 
         load_kallsyms(argv[2], kallsyms);

@@ -174,6 +174,7 @@ if __name__ == '__main__':
     func_class['optimized_out'] = func_class['sched_outsider'] - func_class['in_vmlinux']
     func_class['public_user'] = func_class['fn'] - func_class['insider'] - func_class['border']
     func_class['tainted'] = (func_class['border'] | func_class['insider']) & func_class['in_vmlinux']
+    func_class['undefined'] = func_class['sched_outsider'] | func_class['border']
 
     for output_item in ['sched_outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out']:
         config['function'][output_item] = func_class[output_item]
@@ -202,8 +203,8 @@ if __name__ == '__main__':
         dump(config, f, Dumper)
     with open('tainted_functions.h', 'w') as f:
         f.write('\n'.join(["TAINTED_FUNCTION({fn},{sympos})".format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in func_class['tainted']]))
-    with open('sched_outsider.h', 'w') as f:
-        array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in func_class['sched_outsider']])
+    with open('undefined_functions.h', 'w') as f:
+        array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in func_class['undefined']])
         f.write('{%s}' % array)
     with open('interface_fn_ptrs', 'w') as f:
         f.write('\n'.join([fn[0] for fn in config['function']['interface']]))
