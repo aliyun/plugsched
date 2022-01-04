@@ -170,8 +170,8 @@ if __name__ == '__main__':
     # Inflect outsider functions
     fn_symbol_classify['insider'] = inflect(fn_symbol_classify['initial_insider'], edges)
     fn_symbol_classify['outsider'] = fn_symbol_classify['initial_insider'] - fn_symbol_classify['insider']
-    fn_symbol_classify['public_user'] = fn_symbol_classify['fn'] - fn_symbol_classify['insider']
     fn_symbol_classify['optimized_out'] = fn_symbol_classify['outsider'] - fn_symbol_classify['in_vmlinux']
+    fn_symbol_classify['public_user'] = fn_symbol_classify['fn'] - fn_symbol_classify['insider'] - fn_symbol_classify['interface'] - fn_symbol_classify['fn_ptr']
     fn_symbol_classify['tainted'] = (fn_symbol_classify['interface'] | fn_symbol_classify['fn_ptr'] | fn_symbol_classify['insider']) & fn_symbol_classify['in_vmlinux']
 
     for output_item in ['outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out']:
