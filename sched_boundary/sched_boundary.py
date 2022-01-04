@@ -333,10 +333,10 @@ class SchedBoundaryCollect(SchedBoundary):
         public_fields = defaultdict(set)
 
         def mark_public_field(op, node):
-            if isinstance(op, gcc.ComponentRef) and \
-               op.field.context.stub.location.file in self.sched_mod_header_files and \
-               op.field.context.name is not None:
-                public_fields[op.field.context].add((node.decl, op.field))
+            if isinstance(op, gcc.ComponentRef):
+                loc_file = os.path.relpath(op.field.context.stub.location.file)
+                if loc_file in self.sched_mod_header_files and op.field.context.name is not None:
+                    public_fields[op.field.context].add((node.decl, op.field))
 
         for node in gcc.get_callgraph_nodes():
             # Ignore alias, it's insignificant at all
@@ -354,7 +354,7 @@ class SchedBoundaryCollect(SchedBoundary):
                 "all_fields": [f.name for f in struct.fields if f.name],
                 "public_fields": groupby(user_fields,
                                          grouper=lambda (user, field): field.name,
-                                         selector=lambda (user, field): (user.name, user.location.file))
+                                         selector=lambda (user, field): (user.name, os.path.relpath(user.location.file)))
             }
 
     def collect_edges(self):
