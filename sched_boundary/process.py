@@ -49,7 +49,7 @@ def read_meta(filename):
 
 def get_in_any(key, files):
     for file in files:
-        if (key, file) in fn_symbol_classify['fn']:
+        if (key, file) in func_class['fn']:
             break
     return file
 
@@ -79,7 +79,7 @@ def find_in_vmlinux(vmlinux_elf):
             if filename not in config['mod_files']: continue
 
             # Disagreement 2
-            if (key, filename) not in fn_symbol_classify['fn']:
+            if (key, filename) not in func_class['fn']:
                 file = get_in_any(key, config['mod_header_files'])
 
             local_sympos[(key, file)] = fn_pos[key]
@@ -99,9 +99,9 @@ def inflect_one(edge):
     if to_sym in __insiders:
         from_sym = tuple(edge['from'])
         if from_sym not in __insiders and \
-           from_sym not in fn_symbol_classify['interface'] and \
-           from_sym not in fn_symbol_classify['fn_ptr'] and \
-           from_sym not in fn_symbol_classify['init']:
+           from_sym not in func_class['interface'] and \
+           from_sym not in func_class['fn_ptr'] and \
+           from_sym not in func_class['init']:
             return to_sym
     return None
 
@@ -128,7 +128,7 @@ if __name__ == '__main__':
     config['mod_header_files'] = [f for f in config['mod_files'] if f.endswith('.h')]
     metas = map(read_meta, all_meta_files())
 
-    fn_symbol_classify = {
+    func_class = {
         'fn':        set(),
         'init':      set(),
         'interface': set(),
@@ -142,49 +142,50 @@ if __name__ == '__main__':
     for meta in metas:
         for fn in meta['fn']:
             init, publ, signature, file, name = fn['init'], fn['public'], tuple(fn['signature']), fn['file'], fn['name']
-            fn_symbol_classify['fn'].add(signature)
+            func_class['fn'].add(signature)
 
-            if file in config['mod_files']: fn_symbol_classify['mod_fns'].add(signature)
-            if init: fn_symbol_classify['init'].add(signature)
+            if file in config['mod_files']: func_class['mod_fns'].add(signature)
+            if init: func_class['init'].add(signature)
             if publ: global_fn_dict[name] = file
 
         for fn in meta['interface']:
-            fn_symbol_classify['interface'].add(tuple(fn))
+            func_class['interface'].add(tuple(fn))
 
     # second pass: fix vague filename, calc fn_ptr and edge set
     for meta in metas:
         for fn_ptr in meta['fn_ptr']:
             fn_ptr = lookup_if_global(fn_ptr)
             if fn_ptr and fn_ptr[1] in config['mod_files']:
-                fn_symbol_classify['fn_ptr'].add(fn_ptr)
+                func_class['fn_ptr'].add(fn_ptr)
 
         for edge in meta['edge']:
             edge['to'] = lookup_if_global(edge['to'])
             if edge['to']:
                 edges.append(edge)
 
-    fn_symbol_classify['fn_ptr'] -= fn_symbol_classify['interface']
-    fn_symbol_classify['initial_insider'] = fn_symbol_classify['mod_fns'] - fn_symbol_classify['interface'] - fn_symbol_classify['fn_ptr']
-    fn_symbol_classify['in_vmlinux'] = find_in_vmlinux(sys.argv[1])
+    func_class['fn_ptr'] -= func_class['interface']
+    func_class['border'] = func_class['interface'] | func_class['fn_ptr']
+    func_class['initial_insider'] = func_class['mod_fns'] - func_class['border']
+    func_class['in_vmlinux'] = find_in_vmlinux(sys.argv[1])
 
     # Inflect outsider functions
-    fn_symbol_classify['insider'] = inflect(fn_symbol_classify['initial_insider'], edges)
-    fn_symbol_classify['outsider'] = fn_symbol_classify['initial_insider'] - fn_symbol_classify['insider']
-    fn_symbol_classify['optimized_out'] = fn_symbol_classify['outsider'] - fn_symbol_classify['in_vmlinux']
-    fn_symbol_classify['public_user'] = fn_symbol_classify['fn'] - fn_symbol_classify['insider'] - fn_symbol_classify['interface'] - fn_symbol_classify['fn_ptr']
-    fn_symbol_classify['tainted'] = (fn_symbol_classify['interface'] | fn_symbol_classify['fn_ptr'] | fn_symbol_classify['insider']) & fn_symbol_classify['in_vmlinux']
+    func_class['insider'] = inflect(func_class['initial_insider'], edges)
+    func_class['sched_outsider'] = func_class['initial_insider'] - func_class['insider']
+    func_class['optimized_out'] = func_class['sched_outsider'] - func_class['in_vmlinux']
+    func_class['public_user'] = func_class['fn'] - func_class['insider'] - func_class['border']
+    func_class['tainted'] = (func_class['border'] | func_class['insider']) & func_class['in_vmlinux']
 
-    for output_item in ['outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out']:
-        config['function'][output_item] = fn_symbol_classify[output_item]
+    for output_item in ['sched_outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out']:
+        config['function'][output_item] = func_class[output_item]
 
     # Handle Struct public fields. The right hand side gives an example
     struct_properties = {
-        struct: {                                                                          # cfs_rq:
-            'public_fields': set(chain(                                                         #   public_fields:
-                [field for field, users in m['struct'][struct]['public_fields'].iteritems()     #   - nr_uninterruptible
-                       if set(map(tuple, users)) & fn_symbol_classify['public_user']]           #
-                for m in metas                                                                  ## for all files output by SchedBoundaryCollect
-                if struct in m['struct']                                                        ## and only if this file has structure information
+        struct: {                                                                           # cfs_rq:
+            'public_fields': set(chain(                                                     #   public_fields:
+                [field for field, users in m['struct'][struct]['public_fields'].iteritems() #   - nr_uninterruptible
+                       if set(map(tuple, users)) & func_class['public_user']]               #
+                for m in metas                                                              ## for all files output by SchedBoundaryCollect
+                if struct in m['struct']                                                    ## and only if this file has structure information
              )),
             'all_fields': set(chain(
                 m['struct'][struct]['all_fields']
@@ -200,10 +201,10 @@ if __name__ == '__main__':
     with open('sched_boundary_extract.yaml', 'w') as f:
         dump(config, f, Dumper)
     with open('tainted_functions.h', 'w') as f:
-        f.write('\n'.join(["TAINTED_FUNCTION({fn},{sympos})".format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in fn_symbol_classify['tainted']]))
+        f.write('\n'.join(["TAINTED_FUNCTION({fn},{sympos})".format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in func_class['tainted']]))
     with open('sched_outsider.h', 'w') as f:
-        sched_outsider_array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in fn_symbol_classify['outsider']])
-        f.write('{%s}' % sched_outsider_array)
+        array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in func_class['sched_outsider']])
+        f.write('{%s}' % array)
     with open('interface_fn_ptrs', 'w') as f:
         f.write('\n'.join([fn[0] for fn in config['function']['interface']]))
         f.write('\n')

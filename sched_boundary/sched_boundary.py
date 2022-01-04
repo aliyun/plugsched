@@ -15,9 +15,9 @@ class SchedBoundary(object):
     def __init__(self, config):
         with open(config) as f:
             self.config = load(f, Loader)
-        self.sched_mod_files = self.config['mod_files']
-        self.sched_mod_source_files = {f for f in self.sched_mod_files if f.endswith('.c')}
-        self.sched_mod_header_files = self.sched_mod_files - self.sched_mod_source_files
+        self.mod_files = self.config['mod_files']
+        self.mod_srcs = {f for f in self.mod_files if f.endswith('.c')}
+        self.mod_hdrs = self.mod_files - self.mod_srcs
 
     def process_passes(self, p, _):
         if p.name != '*free_lang_data':
@@ -79,7 +79,7 @@ class SchedBoundaryExtract(SchedBoundary):
         if src_file != self.fake and loc.file != src_file:
             return
         # filter out *.h in fake.c but excluding mod headers
-        if src_file == self.fake and loc.file not in self.sched_mod_header_files:
+        if src_file == self.fake and loc.file not in self.mod_hdrs:
             return
 
         self.fn_dict.setdefault(loc.file, list())
@@ -89,7 +89,7 @@ class SchedBoundaryExtract(SchedBoundary):
         interface_export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})\n"
         fn_ptr_export_fmt = "PLUGSCHED_FN_PTR({fn}, {ret}, {params})\n"
         # translate index to start with 0
-        if obj in self.config['function']['outsider'] or \
+        if obj in self.config['function']['sched_outsider'] or \
            obj in self.config['function']['init']:
             self.fn_dict[loc.file].append([decl,
                 decl.function.start.line - 1,
@@ -100,8 +100,8 @@ class SchedBoundaryExtract(SchedBoundary):
             fn_ptr_export = fn_ptr_export_fmt.format(
                 fn=decl.name,
                 ret=GccBugs.fix(decl.result, decl.result.type.str_no_uid),
-                params=", ".join(GccBugs.fix(arg, arg.type.str_no_uid) for arg in decl.arguments) if decl.arguments else
-                       "void"
+                params=", ".join(GccBugs.fix(arg, arg.type.str_no_uid) \
+                        for arg in decl.arguments) if decl.arguments else "void"
             )
             self.fn_ptr_list.append([decl,
                 fn_ptr_export,
@@ -113,8 +113,8 @@ class SchedBoundaryExtract(SchedBoundary):
             interface_export = interface_export_fmt.format(
                 fn=decl.name,
                 ret=GccBugs.fix(decl.result, decl.result.type.str_no_uid),
-                params=", ".join(GccBugs.fix(arg, arg.type.str_no_uid) for arg in decl.arguments) if decl.arguments else
-                       "void"
+                params=", ".join(GccBugs.fix(arg, arg.type.str_no_uid) \
+                        for arg in decl.arguments) if decl.arguments else "void"
             )
             self.interface_list.append(interface_export)
 
@@ -147,7 +147,7 @@ class SchedBoundaryExtract(SchedBoundary):
     def final_work(self):
         if gcc.get_main_input_filename() == self.fake:
             # no function definition in sched-pelt.h
-            for header in self.sched_mod_header_files:
+            for header in self.mod_hdrs:
                 self.fn_dict.setdefault(header, list())
 
         for src_f in self.fn_dict.keys():
@@ -158,7 +158,8 @@ class SchedBoundaryExtract(SchedBoundary):
             lines = in_f.readlines()
 
             for decl, fn_row_start, fn_col_start, fn_row_end, __ in self.fn_dict[src_f]:
-                if 'always_inline' in decl.attributes or decl.inline is True or (decl.name, src_f) in self.config['function']['optimized_out']:
+                if 'always_inline' in decl.attributes or decl.inline is True or \
+                        (decl.name, src_f) in self.config['function']['optimized_out']:
                     lines[fn_row_end] += " /* DON'T MODIFY FUNCTION {}, IT'S NOT PART OF SCHEDMOD */\n".format(decl.name)
                 else:
                     # convert function body "{}" to ";"
@@ -224,7 +225,7 @@ class SchedBoundaryCollect(SchedBoundary):
         return False
 
     def include_file(self, header, _):
-        if header in self.sched_mod_header_files:
+        if header in self.mod_hdrs:
             self.seek_public_field = True
 
     def collect_fn(self):
@@ -252,7 +253,7 @@ class SchedBoundaryCollect(SchedBoundary):
             self.fn_properties.append(properties)
 
             # interface candidates must belongs to module source files
-            if not src_f in self.sched_mod_source_files:
+            if not src_f in self.mod_srcs:
                 continue
 
             if decl.name in self.config['function']['interface'] or \
@@ -308,7 +309,7 @@ class SchedBoundaryCollect(SchedBoundary):
             return False
 
         # only take care of function pointers in module source files
-        if not gcc.get_main_input_filename() in self.sched_mod_source_files:
+        if not gcc.get_main_input_filename() in self.mod_srcs:
             return
 
         # Find fn ptrs in function body
@@ -335,7 +336,7 @@ class SchedBoundaryCollect(SchedBoundary):
         def mark_public_field(op, node):
             if isinstance(op, gcc.ComponentRef):
                 loc_file = os.path.relpath(op.field.context.stub.location.file)
-                if loc_file in self.sched_mod_header_files and op.field.context.name is not None:
+                if loc_file in self.mod_hdrs and op.field.context.name is not None:
                     public_fields[op.field.context].add((node.decl, op.field))
 
         for node in gcc.get_callgraph_nodes():
@@ -353,8 +354,8 @@ class SchedBoundaryCollect(SchedBoundary):
             self.struct_properties[struct.name.name] = {
                 "all_fields": [f.name for f in struct.fields if f.name],
                 "public_fields": groupby(user_fields,
-                                         grouper=lambda (user, field): field.name,
-                                         selector=lambda (user, field): (user.name, os.path.relpath(user.location.file)))
+                    grouper=lambda (user, field): field.name,
+                    selector=lambda (user, field): (user.name, os.path.relpath(user.location.file)))
             }
 
     def collect_edges(self):
@@ -378,12 +379,12 @@ class SchedBoundaryCollect(SchedBoundary):
                 assert node.decl.function
                 properties = {
                     "from": (
-                            node.decl.name,
-                            os.path.relpath(node.decl.location.file),
+                        node.decl.name,
+                        os.path.relpath(node.decl.location.file),
                     ),
                     "to": (
-                            stmt.fndecl.name,
-                            os.path.relpath(stmt.fndecl.location.file) if stmt.fndecl.function else '?',
+                        stmt.fndecl.name,
+                        os.path.relpath(stmt.fndecl.location.file) if stmt.fndecl.function else '?',
                     ),
                 }
                 self.edge_properties.append(properties)

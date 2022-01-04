@@ -73,7 +73,7 @@ function:
         - sched_online_group
         - id_nr_invalid
         - finish_task_switch
-    outsider: []
+    sched_outsider: []
     force_outsider:
     - default_wake_function
     - io_schedule_timeout
