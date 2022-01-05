@@ -10,6 +10,7 @@ RUN pip install --upgrade setuptools && \
 		elfutils-libelf-devel.x86_64 openssl-devel \
 		elfutils-devel-static \
 		glibc-static zlib-static \
+		libstdc++-static \
 		gcc-python-plugin \
     		rpm-build rsync bc perl -y && \
     yum clean all
