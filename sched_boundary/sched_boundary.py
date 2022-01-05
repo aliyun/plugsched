@@ -217,11 +217,13 @@ class SchedBoundaryCollect(SchedBoundary):
         self.seek_public_field = False
 
     def is_init_fn(self, fndecl):
-        attr = fndecl.attributes
-        if attr and '__section__' in attr:
-            assert len(attr['__section__']) == 1
-            if attr['__section__'][0].str_no_uid == '".init.text"':
-                return True
+        for name, val in fndecl.attributes.items():
+            # Canonicalized name "section" since gcc-8.1.0, and
+            # Uncanonicalized legacy name "__section__" before 8.1.0
+            if name in ('section', '__section__'):
+                assert len(val) == 1
+                if val[0].str_no_uid == '".init.text"':
+                    return True
         return False
 
     def include_file(self, header, _):
