@@ -134,7 +134,11 @@ class SchedBoundaryExtract(SchedBoundary):
         if not isinstance(decl, gcc.VarDecl):
             return
 
-        if decl.name in self.config['global_var']['public']:
+        if decl.name in self.config['global_var']['force_private']:
+            return
+
+        # share public (non-static) variables by default
+        if decl.public or decl.name in self.config['global_var']['extra_public']:
             if anonymous_type_var(decl):
                 self.var_list.append((decl,
                     decl.type.stub.location.line - 1,

@@ -82,44 +82,14 @@ function:
     - set_numabalancing_state
     - autogroup_destroy
 global_var:
-    public:
+    extra_public:
     - cpu_idle_force_poll
     - task_group_cache
     - preempt_notifier_key
     - tick_work_cpu
     - num_cpus_frozen
-    - kstat
-    - kernel_cpustat
-    - runqueues
-    - root_task_group
-    - sysctl_sched_rt_runtime
-    - sched_numa_balancing
-    - sched_smp_initialized
-    - sysctl_sched_rt_period
-    - task_groups
-    - scheduler_running
-    - cpu_cgrp_subsys
-    - sysctl_sched_nr_migrate
     - __cfs_bandwidth_used
     - max_load_balance_interval
-    - sched_smt_present
-    - sysctl_numa_balancing_scan_size
-    - sysctl_numa_balancing_scan_period_min
-    - sysctl_sched_tunable_scaling
-    - normalized_sysctl_sched_min_granularity
-    - sysctl_sched_min_granularity
-    - normalized_sysctl_sched_latency
-    - normalized_sysctl_sched_wakeup_granularity
-    - sysctl_sched_latency
-    - sysctl_sched_wakeup_granularity
-    - sysctl_numa_balancing_scan_period_max
-    - sysctl_numa_balancing_scan_delay
-    - fair_sched_class
-    - select_idle_mask
-    - sysctl_sched_cfs_bandwidth_slice
-    - sysctl_sched_child_runs_first
-    - sysctl_sched_migration_cost
-    - load_balance_mask
     - sched_domains_curr_level
     - sched_domains_numa_masks
     - default_relax_domain_level
@@ -131,36 +101,19 @@ global_var:
     - doms_cur
     - dattr_cur
     - default_topology
-    - sched_domains_tmpmask
-    - sd_llc_size
-    - sd_llc_id
-    - sd_llc_shared
-    - sched_domain_level_max
-    - sched_domains_tmpmask2
-    - def_root_domain
-    - sched_max_numa_distance
-    - sched_numa_topology_type
-    - sched_domains_mutex
-    - idle_sched_class
     - local_cpu_mask
     - rt_pull_head
     - rt_push_head
-    - sched_rr_timeslice
-    - rt_sched_class
-    - sysctl_sched_rr_timeslice
     - dl_push_head
     - local_cpu_mask_dl
     - dl_pull_head
-    - dl_sched_class
     - sd_sysctl_cpus
-    - sched_debug_enabled
-    - stop_sched_class
-    - sched_schedstats
     - nohz
-    - sd_llc
-    - sd_numa
-    - sd_asym
-    - def_rt_bandwidth
-    - def_dl_bandwidth
     - cfs_constraints_mutex
     - shares_mutex
+    force_private:
+    - sysctl_sched_features
+    - sched_feat_keys
+    - fair_sched_cache_header
+    - __cpuidle_text_start
+    - __cpuidle_text_end
