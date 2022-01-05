@@ -327,19 +327,19 @@ int restore_proc_schedstat(void)
 
 static void report_cur_status(char *ops)
 {
-	printk("scheduler %s: current cpu number is  %-15d\n", ops, nr_cpu_ids);
-	printk("scheduler %s: current thread number is  %-15d\n", ops, nr_threads);
+	printk("scheduler %s: %-25s %12d\n", ops, "current cpu number is", nr_cpu_ids);
+	printk("scheduler %s: %-25s %12d\n", ops, "current thread number is", nr_threads);
 }
 
 static void report_detail_time(char *ops)
 {
 	report_cur_status(ops);
-	printk("scheduler %s: stop machine time is  %-15lld ns\n", ops, stop_time);
-	printk("scheduler %s: stop handler time is  %-15lld ns\n", ops,
+	printk("scheduler %s: %-25s %12lld ns\n", ops, "stop machine time is", stop_time);
+	printk("scheduler %s: %-25s %12lld ns\n", ops, "stop handler time is",
 			ktime_to_ns(ktime_sub(stop_time_p2, stop_time_p0)));
-	printk("scheduler %s: stack check time is   %-15lld ns\n", ops,
+	printk("scheduler %s: %-25s %12lld ns\n", ops, "stack check time is",
 			ktime_to_ns(ktime_sub(stop_time_p1, stop_time_p0)));
-	printk("scheduler %s: the %s time is        %-15lld ns\n", ops, ops,
+	printk("scheduler %s: %-25s %12lld ns\n", ops, "all the time is",
 			ktime_to_ns(ktime_sub(main_end, main_start)));
 }
 
@@ -350,7 +350,7 @@ static int load_sched_routine(void)
 	/* Add refcnt to avoid rmmod before disable. */
 	__module_get(THIS_MODULE);
 
-	printk("scheduler: module is loading\n");
+	printk("scheduler module is loading\n");
 	main_start = ktime_get();
 
 	if (sched_mempools_create()) {
@@ -386,7 +386,7 @@ static int unload_sched_routine(void)
 {
 	int ret;
 
-	printk("scheduler: module is unloading\n");
+	printk("scheduler module is unloading\n");
 	main_start = ktime_get();
 
 	parallel_state_check_init();
@@ -545,7 +545,7 @@ static int __init sched_mod_init(void)
 		return ret;
 
 	init_end = ktime_get();
-	printk("scheduler: total initialization time is %-15lld ns\n",
+	printk("scheduler: total initialization time is %14lld ns\n",
 			ktime_to_ns(ktime_sub(init_end, init_start)));;
 
 	ret = load_sched_routine();
