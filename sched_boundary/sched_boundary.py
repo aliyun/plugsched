@@ -310,10 +310,6 @@ class SchedBoundaryCollect(SchedBoundary):
                 return True
             return False
 
-        # only take care of function pointers in module source files
-        if not gcc.get_main_input_filename() in self.mod_srcs:
-            return
-
         # Find fn ptrs in function body
         for node in gcc.get_callgraph_nodes():
             # Ignore alias, it's insignificant at all
