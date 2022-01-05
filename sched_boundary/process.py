@@ -50,8 +50,8 @@ def read_meta(filename):
 def get_in_any(key, files):
     for file in files:
         if (key, file) in func_class['fn']:
-            break
-    return file
+            return file
+    return None
 
 def find_in_vmlinux(vmlinux_elf):
     in_vmlinux = set()
@@ -81,13 +81,15 @@ def find_in_vmlinux(vmlinux_elf):
             # Disagreement 2
             if (key, filename) not in func_class['fn']:
                 file = get_in_any(key, config['mod_header_files'])
+                if file is None: continue
 
             local_sympos[(key, file)] = fn_pos[key]
         else:
             # Disagreement 3
             file = get_in_any(key, config['mod_files'])
+            if file is None: continue
 
-        if file in config['mod_files']: in_vmlinux.add((key, file))
+        in_vmlinux.add((key, file))
 
     return in_vmlinux
 
