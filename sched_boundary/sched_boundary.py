@@ -116,7 +116,12 @@ class SchedBoundaryExtract(SchedBoundary):
                 params=", ".join(GccBugs.fix(arg, arg.type.str_no_uid) \
                         for arg in decl.arguments) if decl.arguments else "void"
             )
-            self.interface_list.append(interface_export)
+            self.interface_list.append([decl,
+                interface_export,
+                decl.location.line - 1,
+                decl.location.column - 1,
+                decl.function.end.line - 1,
+                decl.function.end.column - 1])
 
     def var_declare(self, decl, _):
         def anonymous_type_var(var_decl):
@@ -164,7 +169,7 @@ class SchedBoundaryExtract(SchedBoundary):
             for decl, fn_row_start, fn_col_start, fn_row_end, __ in self.fn_dict[src_f]:
                 if 'always_inline' in decl.attributes or decl.inline is True or \
                         (decl.name, src_f) in self.config['function']['optimized_out']:
-                    lines[fn_row_end] += " /* DON'T MODIFY FUNCTION {}, IT'S NOT PART OF SCHEDMOD */\n".format(decl.name)
+                    lines[fn_row_end] += "/* DON'T MODIFY FUNCTION {}, IT'S NOT PART OF SCHEDMOD */\n".format(decl.name)
                 else:
                     # convert function body "{}" to ";"
                     # only handle normal kernel function definition
@@ -177,13 +182,21 @@ class SchedBoundaryExtract(SchedBoundary):
                 decl.public = True
                 decl.external = True
                 decl.static = False
+                new_name = '__mod_' + decl.name
                 lines[fn_row_start] = lines[fn_row_start][:fn_col_start] + \
-                    lines[fn_row_start][fn_col_start:].replace(decl.name, '__mod_' + decl.name)
+                    lines[fn_row_start][fn_col_start:].replace(decl.name, new_name)
                 lines[fn_row_end] = lines[fn_row_end] + '\n' + \
+                    "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S CALLBACK FUNCTION */\n".format(new_name) + \
                     GccBugs.enum_type_name(decl.result, decl.str_decl) + '\n'
 
-            for export in self.interface_list:
+            for decl, export, fn_row_start, fn_col_start, fn_row_end, fn_col_end in self.interface_list:
                 fn_export_jump.write(export)
+
+                # everyone know that syscall ABI should be consistent
+                if any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']):
+                    continue
+                lines[fn_row_end] += \
+                    "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S INTERFACE FUNCTION */\n".format(decl.name)
 
             for decl, row_start, row_end in self.var_list:
                 decl.static = False
