@@ -26,4 +26,4 @@ if __name__ == '__main__':
             f.write('{"%s", %d},\n' % (fn, pos))
     with open('tainted_functions_sidecar.h', 'w') as f:
         for fn, pos in sympos.iteritems():
-            f.write('TAINTED_FUNCTION(%s, %d)\n' % (fn, pos))
+            f.write('TAINTED_FUNCTION(%s,%d)\n' % (fn, pos if pos else 1))
