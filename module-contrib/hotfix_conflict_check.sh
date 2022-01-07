@@ -1,84 +1,93 @@
 #!/bin/bash
 
-#This is the name of this script itself.
+# input file format:
+#	function sympos module
 #
-script="${0##*/}"
+# valid e.g:
+#	pick_next_task 1 vmlinux
+#	ext4_free_blocks 2 ext4
 
-# The  arguments passed to this script are the parent
-# directories to be searched, e.g: /home/me /usr/local
-# Check if any given. If not, error out.
-#
+if [ "$1" == "" ]; then
+	echo Error: please input files!
+	exit 1
+elif [ ! -e "$1" ]; then
+	echo Error: input file is not exist!
+	exit 1
+else
+	tainted_file=$1
+fi
 
-#if [ -z "$1" ] ; then
-#    echo "Usage: $script" >&2
-#    exit 1
-#fi
+func_list=$(mktemp)
 
-# Create a temporary directory. For accurate results we need
-# to be sure it is empty. This is one way to do this: create
-# an temp dir that is garanteed to not exist yet.
-#
-# If you want to keep the "outputdir" with the results, make sure
-# output dir you use does not contain files you want to keep, because
-# files will be removed from it by this script! Better yet, make
-# sure it is empty before starting this script.
-#
-outputdir=$(mktemp --tmpdir -d "${script}.XXXXXXXXXX")   # ensures new unique directory
-trap "rm -r $outputdir" INT HUP QUIT ABRT ALRM TERM EXIT # ensures it is deleted when script ends
+# Some hotfix do not provide the sympos of patched function, so use a new set
+func_list_nosympos=$(mktemp)
 
-# Search the directories given as arguments, and process
-# the paths of alle files one by one in a loop.
-#
-#find "$@" -type f | while read path ; do
+trap "rm -r $func_list $func_list_nosympos" INT HUP QUIT ABRT ALRM TERM EXIT # ensures it is deleted when script ends
+
+# deal with kpatch prev-0.4 ABI
 find /sys/kernel/kpatch/patches/*/functions -type d -not -path "*/functions" 2>/dev/null | while read path ; do
-#   /sys/kernel/kpatch/patches/kpatch_D689377/functions/blk_mq_update_queue_map -> blk_mq_update_queue_map
-    func="${path##*/}"
-    echo "$path" >>"${outputdir}/${func}.txt"
+	# /sys/kernel/kpatch/patches/kpatch_D689377/functions/blk_mq_update_queue_map -> blk_mq_update_queue_map
+	func="${path##*/}"
+	echo "$func" >> $func_list_nosympos
+done
+
+# deal with kpatch 0.4 ABI
+find /sys/kernel/kpatch/*/ -type d -path "*,[0-9]" 2>/dev/null | while read path ; do
+	# /sys/kernel/kpatch/kpatch_5135717/vmlinux/kernfs_find_ns,1 -> kernfs_find_ns,1
+	func_ver=`echo $path | awk -F / -e '{print $NF}'`
+	mod=`echo $path | awk -F / -e '{print $(NF-1)}'`
+	func=`echo $func_ver | awk -F , '{print $1}'`
+	ver=`echo $func_ver | awk -F , '{print $2}'`
+	echo "$func $ver $mod" >> $func_list
 done
 
 # deal with kernel live patch
 find /sys/kernel/livepatch/*/ -type d -path "*,[0-9]" 2>/dev/null | while read path ; do
 	# /sys/kernel/livepatch/kpatch_5928799/ip6_tables/translate_compat_table,1 -> translate_compat_table,1
-    func="${path##*/}"
-	# translate_compat_table,1 -> translate_compat_table
-	func=`echo $func | awk -F , '{print $1}'`
-    echo "$path" >>"${outputdir}/${func}.txt"
+	func_ver=`echo $path | awk -F / -e '{print $NF}'`
+	mod=`echo $path | awk -F / -e '{print $(NF-1)}'`
+	func=`echo $func_ver | awk -F , '{print $1}'`
+	ver=`echo $func_ver | awk -F , '{print $2}'`
+	echo "$func $ver $mod" >> $func_list
 done
 
 # deal with manual hotfix that has sys directory entry
 find /sys/kernel/manual_*/ -type d -not -path "*manual_*/" 2>/dev/null | while read path ; do
-    func="${path##*/}"
-    echo "$path" >>"${outputdir}/${func}.txt"
+	func="${path##*/}"
+	echo "$func" >> $func_list_nosympos
 done
 
 # deal with manual hotfix that does not have sys directory entry, i.e, the early days implemenation
-for func in `cat /proc/kallsyms | grep '\[kpatch_' | grep -v __kpatch | awk '{print $3}' | grep -v 'patch_'`;
-do
-
-    grep "e9_$func" /proc/kallsyms > ${outputdir}/out
-
-    if [ -s "${outputdir}/out" ]; then
-        cat ${outputdir}/out | awk '{print $4}' >> "${outputdir}/${func}.txt"
-    else
-        :
-    fi
+for func in `cat /proc/kallsyms | grep '\[kpatch_' | grep -v __kpatch | awk '{print $3}' | grep -v 'patch_'`; do
+	if [ $(grep "e9_$func" /proc/kallsyms | wc -l) -gt 0 ]; then
+		echo "$func" >> $func_list_nosympos
+	fi
 done
 
-
-# Finally, if you want to end up with only file names that
-# occur more than once, delete all output files that contain
-# only one line.
-#
-for outputfile in $outputdir/*.txt ; do
-    linecount=$(wc -l "$outputfile" | sed 's/ .*//')  # count lines in it
-    if  [ "$linecount" = "1" ] ; then                 # if only one line
-        rm "$outputfile"                              # remove the file
-    fi
+# deal with plugsched
+find /sys/kernel/plugsched/plugsched/ -type d -path "*,[0-9]" 2>/dev/null | while read path ; do
+	func_ver=`echo $path | awk -F / -e '{print $NF}'`
+	func=`echo $func_ver | awk -F , '{print $1}'`
+	ver=`echo $func_ver | awk -F , '{print $2}'`
+	echo "$func $ver vmlinux" >> $func_list
 done
 
-# Print the final result
-#
-for outputfile in $outputdir/*.txt ; do
-    cat "$outputfile"
-    echo               # empty line to separate groups of same file names
-done
+if [ "$(awk 'END{print NF}' $tainted_file)" != "3" ]; then
+	# tainted_file provided by manual_hotfix or kpatch-pre-0.4 that don't have the sympos
+	conflicts=$(sort <(awk '{print $1}' $tainted_file) <(awk '{print $1}' $func_list) | uniq -d)
+else
+	# Get the conflict functions
+	conflicts=$(sort $tainted_file <(awk '{print $1" "$2" "$3}' $func_list) | uniq -d)
+fi
+
+conflicts_nosympos=$(sort <(awk '{print $1}' $tainted_file) <(awk '{print $1}' $func_list_nosympos) | uniq -d)
+
+if [ "$conflicts" != "" -o "$conflicts_nosympos" != "" ]; then
+	echo Error: confict detected:
+	if [ "$conflicts" != "" ]; then
+		echo $(awk '{print $1}' <(echo $conflicts))
+	elif [ "$conflicts_nosympos" != "" ]; then
+		echo $conflicts_nosympos
+	fi
+	exit 1
+fi
