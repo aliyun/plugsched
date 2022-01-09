@@ -18,7 +18,8 @@ License:	GPLv2
 URL:		None
 Source1:	scheduler-install
 Source2:	plugsched.service
-Source3:	version
+Source3:	hotfix_conflict_check.sh
+Source4:	version
 
 %description
 The scheduler policy rpm-package.
@@ -27,6 +28,7 @@ The scheduler policy rpm-package.
 # copy files to rpmbuild/SOURCE/
 cp %{_outdir}/scheduler-install %{_sourcedir}
 cp %{_outdir}/plugsched.service %{_sourcedir}
+cp %{_outdir}/hotfix_conflict_check.sh %{_sourcedir}
 cp %{_outdir}/version %{_sourcedir}
 
 %build
@@ -55,7 +57,8 @@ install -m 444 %{_kerneldir}/tainted_functions %{buildroot}%{_localstatedir}/plu
 
 install -m 755 %{SOURCE1} %{buildroot}%{_bindir}
 install -m 755 %{SOURCE2} %{buildroot}%{_prefix}/lib/systemd/system
-install -m 755 %{SOURCE3} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
+install -m 755 %{SOURCE3} %{buildroot}%{_bindir}/hotfix_conflict_check
+install -m 755 %{SOURCE4} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
 
 #install kernel module after install this rpm-package
 %post
@@ -83,6 +86,7 @@ fi
 %files
 %{_bindir}/symbol_resolve
 %{_bindir}/scheduler-install
+%{_bindir}/hotfix_conflict_check
 %{_prefix}/lib/systemd/system/plugsched.service
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
