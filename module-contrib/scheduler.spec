@@ -56,7 +56,7 @@ install -m 755 %{_kerneldir}/kernel/sched/mod/scheduler.ko %{buildroot}%{_locals
 install -m 444 %{_kerneldir}/tainted_functions %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
 
 install -m 755 %{SOURCE1} %{buildroot}%{_bindir}
-install -m 755 %{SOURCE2} %{buildroot}%{_prefix}/lib/systemd/system
+install -m 644 %{SOURCE2} %{buildroot}%{_prefix}/lib/systemd/system
 install -m 755 %{SOURCE3} %{buildroot}%{_bindir}/hotfix_conflict_check
 install -m 755 %{SOURCE4} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
 
