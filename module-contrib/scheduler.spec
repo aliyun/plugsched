@@ -20,6 +20,7 @@ Source1:	scheduler-install
 Source2:	plugsched.service
 Source3:	hotfix_conflict_check.sh
 Source4:	version
+Source5:	sched_boundary.yaml
 
 %description
 The scheduler policy rpm-package.
@@ -30,6 +31,7 @@ cp %{_outdir}/scheduler-install %{_sourcedir}
 cp %{_outdir}/plugsched.service %{_sourcedir}
 cp %{_outdir}/hotfix_conflict_check.sh %{_sourcedir}
 cp %{_outdir}/version %{_sourcedir}
+cp %{_kerneldir}/sched_boundary.yaml %{_sourcedir}
 
 %build
 # Build sched_mod
@@ -58,7 +60,8 @@ install -m 444 %{_kerneldir}/tainted_functions %{buildroot}%{_localstatedir}/plu
 install -m 755 %{SOURCE1} %{buildroot}%{_bindir}
 install -m 644 %{SOURCE2} %{buildroot}%{_prefix}/lib/systemd/system
 install -m 755 %{SOURCE3} %{buildroot}%{_bindir}/hotfix_conflict_check
-install -m 755 %{SOURCE4} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
+install -m 644 %{SOURCE4} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
+install -m 644 %{SOURCE5} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/sched_boundary.yaml
 
 #install kernel module after install this rpm-package
 %post
@@ -91,6 +94,7 @@ fi
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
+%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/sched_boundary.yaml
 
 %dir
 %{_rundir}/plugsched
