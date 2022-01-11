@@ -67,10 +67,9 @@ class Plugsched(object):
     def apply_patch(self, f, **kwargs):
         self.mod_sh.patch(input=os.path.join(self.plugsched_path, 'src', f), strip=1, **kwargs)
 
-    def make(self, objs=[], **kwargs):
-        self.mod_sh.make('sched_mod',
-                         'AR="echo"',
-                         objs,
+    def make(self, stage, objs=[], **kwargs):
+        self.mod_sh.make(stage,
+                         'objs=%s' % ' '.join(objs),
                          *['%s=%s' % i for i in kwargs.items()],
                          file='Makefile.plugsched',
                          jobs=self.threads)
@@ -96,11 +95,10 @@ class Plugsched(object):
 
     def extract(self):
         logging.info('Extracting scheduler module objs: %s', ' '.join(self.mod_objs))
-        self.make(SCHED_MOD_STAGE = 'collect')
-        self.make(SCHED_MOD_STAGE = 'analyze',
-                  VMLINUX         = './vmlinux')
-        self.make(SCHED_MOD_STAGE = 'extract',
-                  objs            = self.mod_objs)
+        self.make(stage         = 'collect')
+        self.make(stage         = 'analyze')
+        self.make(stage         = 'extract',
+                  objs          = self.mod_objs)
         with open(os.path.join(self.mod_path, 'kernel/sched/mod/export_jump.h'), 'w') as f:
             sh.sort(glob('kernel/sched/*.export_jump.h', _cwd=self.mod_path), _out=f)
             f.write('#include "export_jump_sidecar.h"')
@@ -122,20 +120,6 @@ class Plugsched(object):
         self.plugsched_sh.cp(self.vmlinux,  self.mod_path, force=True)
 
         logging.info('Patching kernel kbuild system')
-        self.apply_patch('kbuild.patch')
-
-        # precompile some files to avoid ugly building trouble
-        self.mod_sh.make(
-            'scripts/mod/',
-            'arch/x86/platform/',
-            'arch/x86/purgatory/',
-            'arch/x86/realmode/rm/',
-            'arch/x86/entry/vdso/',
-            'arch/x86/lib/',
-            'arch/x86/oprofile/',
-            jobs=self.threads
-        )
-
         self.extract()
         logging.info('Fixing up extracted scheduler module')
         self.fix_up()

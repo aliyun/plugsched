@@ -1,20 +1,22 @@
 include Makefile
 
-all: plugsched
+GCC_PLUGIN_FLAGS := -fplugin=/usr/lib64/gcc-python-plugin/python.so \
+		    -fplugin-arg-python-script=sched_boundary.py \
+		    -fplugin-arg-python-stage=
+
+PHONY += plugsched sidecar collect extract
+
+collect:   CFLAGS_KERNEL = $(GCC_PLUGIN_FLAGS)collect
+extract:   CFLAGS_KERNEL = $(GCC_PLUGIN_FLAGS)extract
+plugsched: CFLAGS_MODULE = -fkeep-static-functions
 
 plugsched: scripts prepare sidecar
-	$(MAKE) CFLAGS_MODULE=-fkeep-static-functions -C $(srctree) M=$(abspath $(srctree))/kernel/sched/mod modules
+	$(MAKE) -C $(srctree) M=$(abspath $(srctree))/kernel/sched/mod modules
 
 sidecar: kernel/sched/mod/export_jump_sidecar.h
 	python2 sidecar.py $< ./vmlinux
 
-PHONY += plugsched sidecar
-
-ifdef SCHED_MOD_STAGE
-PHONY += sched_mod sched_mod_$(SCHED_MOD_STAGE)
-sched_mod: prepare sched_mod_$(SCHED_MOD_STAGE) FORCE
-sched_mod_collect: $(core-y) $(core-m) $(drivers-y) $(drivers-m) $(net-y) $(net-m) $(virt-y)
-sched_mod_analyze:
-	python2 process.py $(VMLINUX)
-sched_mod_extract: $(obj)
-endif
+collect: $(core-y) $(core-m) $(drivers-y) $(drivers-m) $(net-y) $(net-m) $(virt-y)
+analyze:
+	python2 process.py ./vmlinux
+extract: $(objs)

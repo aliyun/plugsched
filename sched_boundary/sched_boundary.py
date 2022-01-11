@@ -23,9 +23,6 @@ class SchedBoundary(object):
         if p.name != '*free_lang_data':
             return
         self.final_work()
-        # Exit early, so no real .o files are created. This speed up whole process a lot.
-        # Also, this allows different stages always compile all files.
-        os._exit(0)
 
     def register_cbs(self):
         if hasattr(self, 'function_define'):
@@ -440,9 +437,6 @@ if __name__ == '__main__':
     import gcc
 
     stage = gcc.argument_dict['stage']
-
-    if gcc.get_main_input_filename() == 'scripts/mod/empty.c':
-        exit(0)
 
     if stage == 'extract':
         sched_boundary = SchedBoundaryExtract()
