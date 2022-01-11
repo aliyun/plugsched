@@ -31,23 +31,23 @@ coloredlogs.install(level='INFO')
 logging.getLogger().addHandler(ShutdownHandler())
 
 class Plugsched(object):
-    def __init__(self, mod_path, vmlinux):
+    def __init__(self, mod_path, vmlinux, makefile):
         self.plugsched_path = os.path.dirname(os.path.realpath(__file__))
         self.mod_path = os.path.abspath(mod_path)
         self.vmlinux = os.path.abspath(vmlinux)
-        self.search_springboard = sh.Command(os.path.join(self.plugsched_path, 'tools/springboard_search.sh'))
-
+        self.makefile = os.path.abspath(makefile)
         plugsched_sh = sh(_cwd=self.plugsched_path)
         mod_sh = sh(_cwd=self.mod_path)
-
         self.plugsched_sh, self.mod_sh = plugsched_sh, mod_sh
+        self.get_kernel_version(self.makefile)
+        self.get_config_dir()
+        self.search_springboard = sh.Command(self.plugsched_path + '/tools/springboard_search.sh')
 
-        with open(os.path.join(self.plugsched_path, 'sched_boundary/sched_boundary.yaml')) as f:
+        with open(os.path.join(self.config_dir, 'sched_boundary.yaml')) as f:
             self.config = load(f, Loader)
         self.file_mapping = {
-            'sched_boundary/sched_boundary.py': './',
-            'sched_boundary/process.py': './',
-            'sched_boundary/sched_boundary.yaml': './',
+            self.config_dir + '/sched_boundary.yaml': './',
+            'sched_boundary/*.py': './',
             'sched_boundary/fake.c': './',
             'tools/symbol_resolve': './',
             'src/*.[ch]': 'kernel/sched/mod',
@@ -64,8 +64,53 @@ class Plugsched(object):
         self.mod_objs = [f[:-2]+'.o' for f in self.mod_srcs] + ['fake.o']
         self.extracted_mod_files = [os.path.join('kernel/sched/mod', os.path.basename(f)) for f in self.mod_files]
 
+    def get_kernel_version(self, makefile):
+        VERSION = self.plugsched_sh.awk('-F=', '/^VERSION/{print $2}', makefile).strip()
+        PATCHLEVEL = self.plugsched_sh.awk('-F=', '/^PATCHLEVEL/{print $2}', makefile).strip()
+        SUBLEVEL = self.plugsched_sh.awk('-F=', '/^SUBLEVEL/{print $2}', makefile).strip()
+        self.KVER = '%s.%s.%s' % (VERSION, PATCHLEVEL, SUBLEVEL)
+
+        KREL = self.plugsched_sh.awk('-F=', '/^EXTRAVERSION/{print $2}', makefile).strip(' \n-')
+        if len(KREL) == 0:
+            logging.fatal('''Maybe you are using plugsched on non-released kernel,
+                          please set EXTRAVERSION in Makefile (%s) before build kernel''',
+                          os.path.join(self.mod_path, 'Makefile'))
+
+        self.major = '%s.%s' % (VERSION, PATCHLEVEL)
+        self.uname_r = '%s-%s' % (self.KVER, KREL)
+
+        # strip ARCH
+        for arch in ['.x86_64', '.aarch64']:
+            idx = KREL.find(arch)
+            if idx != -1: self.KREL = KREL[:idx]
+
+    def get_config_dir(self):
+        def common_prefix_len(s1, s2):
+            for i, (a, b) in enumerate(zip(s1, s2)):
+                if a != b:
+                    return i
+            return len(s1)
+
+        candidates = map(os.path.basename, glob('%s/configs/%s*' % (self.plugsched_path, self.major)))
+        if len(candidates) == 0:
+            logging.fatal('''Can't find config directory, please add config for kernel %s''', self.KVER)
+
+        max_len = 0
+        idx = 0
+        candidates.sort()
+        # longest prefix matching
+        for i, t in enumerate(candidates):
+            curr = common_prefix_len(self.uname_r, t)
+            if curr > max_len:
+                max_len = curr
+                idx = i
+            elif curr == max_len:
+                break
+
+        self.config_dir = os.path.join(self.plugsched_path, 'configs', candidates[idx])
+
     def apply_patch(self, f, **kwargs):
-        self.mod_sh.patch(input=os.path.join(self.plugsched_path, 'src', f), strip=1, **kwargs)
+        self.mod_sh.patch(input=os.path.join(self.config_dir, f), strip=1, **kwargs)
 
     def make(self, stage, objs=[], **kwargs):
         self.mod_sh.make(stage,
@@ -112,11 +157,11 @@ class Plugsched(object):
             self.mod_sh.cp(glob(f, _cwd=self.plugsched_path), t, recursive=True)
 
 
-    def cmd_init(self, kernel_src, sym_vers, kernel_config, makefile):
+    def cmd_init(self, kernel_src, sym_vers, kernel_config):
         self.create_mod(kernel_src)
         self.plugsched_sh.cp(sym_vers,      self.mod_path, force=True)
         self.plugsched_sh.cp(kernel_config, self.mod_path + '/.config', force=True)
-        self.plugsched_sh.cp(makefile,      self.mod_path, force=True)
+        self.plugsched_sh.cp(self.makefile, self.mod_path, force=True)
         self.plugsched_sh.cp(self.vmlinux,  self.mod_path, force=True)
 
         logging.info('Patching kernel kbuild system')
@@ -163,30 +208,14 @@ class Plugsched(object):
         self.plugsched_sh.mkdir('rpmbuild')
         rpmbase_sh = sh(_cwd=rpmbuild_root)
         rpmbase_sh.mkdir(['BUILD','RPMS','SOURCES','SPECS','SRPMS'])
-        VERSION = self.mod_sh.awk('-F=', '/^VERSION/{print $2}', 'Makefile').strip()
-        PATCHLEVEL = self.mod_sh.awk('-F=', '/^PATCHLEVEL/{print $2}', 'Makefile').strip()
-        SUBLEVEL = self.mod_sh.awk('-F=', '/^SUBLEVEL/{print $2}', 'Makefile').strip()
-        KVER = '%s.%s.%s' % (VERSION, PATCHLEVEL, SUBLEVEL)
-
-        KREL = self.mod_sh.awk('-F=', '/^EXTRAVERSION/{print $2}', 'Makefile').strip(' \n-')
-        if len(KREL) == 0:
-            logging.fatal('''Maybe you are using plugsched on non-released kernel,
-                          please set EXTRAVERSION in Makefile (%s) before build kernel''',
-                          os.path.join(self.mod_path, 'Makefile'))
-
-        # strip ARCH
-        for arch in ['.x86_64', '.aarch64']:
-            idx = KREL.find(arch)
-            if idx != -1:
-                KREL = KREL[:idx]
 
         self.plugsched_sh.cp('module-contrib/scheduler.spec', os.path.join(rpmbuild_root, 'SPECS'), force=True)
         rpmbase_sh.rpmbuild('--define', '%%_outdir %s' % os.path.realpath(self.plugsched_path + '/module-contrib'),
                             '--define', '%%_topdir %s' % os.path.realpath(rpmbuild_root),
                             '--define', '%%_dependdir %s' % os.path.realpath(self.plugsched_path),
                             '--define', '%%_kerneldir %s' % os.path.realpath(self.mod_path),
-                            '--define', '%%KVER %s' % KVER,
-                            '--define', '%%KREL %s' % KREL,
+                            '--define', '%%KVER %s' % self.KVER,
+                            '--define', '%%KREL %s' % self.KREL,
                             '--define', '%%threads %d' % self.threads,
                             '-bb', 'SPECS/scheduler.spec')
         logging.info("Succeed!")
@@ -250,8 +279,8 @@ class PlugschedCLI(object):
         if not os.path.exists(kernel_config):
             logging.fatal("%s not found, please install kernel-devel-%s.rpm", kernel_config, release_kernel)
 
-        self.plugsched = Plugsched(mod_path, vmlinux)
-        self.plugsched.cmd_init(kernel_src, sym_vers, kernel_config, makefile)
+        self.plugsched = Plugsched(mod_path, vmlinux, makefile)
+        self.plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
 
     def dev_init(self, kernel_src, mod_path):
         """ Initialize plugsched development envrionment from kernel source code
@@ -274,8 +303,8 @@ class PlugschedCLI(object):
         if not os.path.exists(kernel_config):
             logging.fatal("kernel config %s not found", kernel_config)
 
-        self.plugsched = Plugsched(mod_path, vmlinux)
-        self.plugsched.cmd_init(kernel_src, sym_vers, kernel_config, makefile)
+        self.plugsched = Plugsched(mod_path, vmlinux, makefile)
+        self.plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
 
     def build(self, mod_path):
         """ Build a scheduler module rpm package for a specific kernel release and product
@@ -284,7 +313,8 @@ class PlugschedCLI(object):
         """
 
         vmlinux = os.path.join(mod_path, 'vmlinux')
-        self.plugsched = Plugsched(mod_path, vmlinux)
+        makefile = os.path.join(mod_path, 'Makefile')
+        self.plugsched = Plugsched(mod_path, vmlinux, makefile)
         self.plugsched.cmd_build()
 
     def self_debug(self, func, *args, **kwargs):
