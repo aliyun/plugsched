@@ -110,7 +110,9 @@ class Plugsched(object):
         self.config_dir = os.path.join(self.plugsched_path, 'configs', candidates[idx])
 
     def apply_patch(self, f, **kwargs):
-        self.mod_sh.patch(input=os.path.join(self.config_dir, f), strip=1, **kwargs)
+        path = os.path.join(self.config_dir, f)
+        if os.path.exists(path):
+            self.mod_sh.patch(input=path, strip=1, **kwargs)
 
     def make(self, stage, objs=[], **kwargs):
         self.mod_sh.make(stage,
@@ -164,7 +166,8 @@ class Plugsched(object):
         self.plugsched_sh.cp(self.makefile, self.mod_path, force=True)
         self.plugsched_sh.cp(self.vmlinux,  self.mod_path, force=True)
 
-        logging.info('Patching kernel kbuild system')
+        logging.info('Patching old kernel to use newer gcc')
+        self.apply_patch('future_gcc.patch')
         self.extract()
         logging.info('Fixing up extracted scheduler module')
         self.fix_up()

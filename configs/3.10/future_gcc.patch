@@ -1,0 +1,634 @@
+From 26c61554a7829dde08ed4913b941d3ea16fe3e55 Mon Sep 17 00:00:00 2001
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Fri, 26 Feb 2016 13:46:27 +0100
+Subject: [PATCH] Adapt to gcc-6.5.1
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+lib/mpi: use "static inline" instead of "extern inline"
+
+When we use CONFIG_PROFILE_ALL_BRANCHES, every 'if()' introduces
+a static variable, but that is not allowed in 'extern inline'
+functions:
+
+mpi-inline.h:116:204: warning: '______f' is static but declared in inline function 'mpihelp_sub' which is not static
+mpi-inline.h:113:184: warning: '______f' is static but declared in inline function 'mpihelp_sub' which is not static
+mpi-inline.h:70:184: warning: '______f' is static but declared in inline function 'mpihelp_add' which is not static
+mpi-inline.h:56:204: warning: '______f' is static but declared in inline function 'mpihelp_add_1' which is not static
+
+This changes the MPI code to use 'static inline' instead, to get
+rid of hundreds of warnings.
+
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Signed-off-by: Herbert Xu <herbert@gondor.apana.org.au>
+
+pch_gbe: remove inline keyword for exported functions
+
+There is no much sense to mark functions inline that are going to be used in
+the other compile modules.
+
+Signed-off-by: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+
+x86: LLVMLinux: Fix "incomplete type const struct x86cpu_device_id"
+
+commit c4586256f0c440bc2bdb29d2cbb915f0ca785d26 upstream.
+
+Similar to the fix in 40413dcb7b273bda681dca38e6ff0bbb3728ef11
+
+MODULE_DEVICE_TABLE(x86cpu, ...) expects the struct to be called struct
+x86cpu_device_id, and not struct x86_cpu_id which is what is used in the rest
+of the kernel code.  Although gcc seems to ignore this error, clang fails
+without this define to fix the name.
+
+Code from drivers/thermal/x86_pkg_temp_thermal.c
+static const struct x86_cpu_id __initconst pkg_temp_thermal_ids[] = { ... };
+MODULE_DEVICE_TABLE(x86cpu, pkg_temp_thermal_ids);
+
+Error from clang:
+drivers/thermal/x86_pkg_temp_thermal.c:577:1: error: variable has
+      incomplete type 'const struct x86cpu_device_id'
+MODULE_DEVICE_TABLE(x86cpu, pkg_temp_thermal_ids);
+^
+include/linux/module.h:145:3: note: expanded from macro
+      'MODULE_DEVICE_TABLE'
+  MODULE_GENERIC_TABLE(type##_device, name)
+  ^
+include/linux/module.h:87:32: note: expanded from macro
+      'MODULE_GENERIC_TABLE'
+extern const struct gtype##_id __mod_##gtype##_table            \
+                               ^
+<scratch space>:143:1: note: expanded from here
+__mod_x86cpu_device_table
+^
+drivers/thermal/x86_pkg_temp_thermal.c:577:1: note: forward declaration of
+      'struct x86cpu_device_id'
+include/linux/module.h:145:3: note: expanded from macro
+      'MODULE_DEVICE_TABLE'
+  MODULE_GENERIC_TABLE(type##_device, name)
+  ^
+include/linux/module.h:87:21: note: expanded from macro
+      'MODULE_GENERIC_TABLE'
+extern const struct gtype##_id __mod_##gtype##_table            \
+                    ^
+<scratch space>:141:1: note: expanded from here
+x86cpu_device_id
+^
+1 error generated.
+
+Signed-off-by: Behan Webster <behanw@converseincode.com>
+Signed-off-by: Jan-Simon Möller <dl9pf@gmx.de>
+Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Signed-off-by: philm@manjaro.org
+Signed-off-by: Willy Tarreau <w@1wt.eu>
+
+mm: Fix memcontrol inline bug
+
+Fixes: f25c6a06ba1b ("mm: memcontrol: customize file page charge strategy for opensearch")
+Signed-off-by: Yihao Wu <wuyihao@linux.alibaba.com>
+
+drivers/scsi/megaraid: remove expensive inline from megasas_return_cmd
+
+Remove an inline from a fairly big function that is used often.  It's
+unlikely that calling or not calling it makes a lot of difference.
+
+Saves around 8k text in my kernel.
+
+     text    data     bss     dec     hex filename
+  9047801 5367568 11116544        25531913        1859609 vmlinux-before-megasas
+  9039417 5367568 11116544        25523529        1857549 vmlinux-megasas
+
+Link: http://lkml.kernel.org/r/20170315021431.13107-7-andi@firstfloor.org
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+Cc: Kashyap Desai <kashyap.desai@avagotech.com>
+Cc: Sumit Saxena <sumit.saxena@avagotech.com>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+
+staging, rtl8192e, LLVMLinux: Change extern inline to static inline
+
+With compilers which follow the C99 standard (like modern versions of gcc and
+clang), "extern inline" does the opposite thing from older versions of gcc
+(emits code for an externally linkable version of the inline function).
+
+"static inline" does the intended behavior in all cases instead.
+
+Signed-off-by: Behan Webster <behanw@converseincode.com>
+Suggested-by: Arnd Bergmann <arnd@arndb.de>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+staging: rtl8712, rtl8712: avoid lots of build warnings
+
+commit 0c9f3a65c5eb7fe1fc611a22eb8a8b71ea865998 upstream.
+
+The rtl8712 driver has an 'extern inline' function that contains an
+'if', which causes lots of warnings with CONFIG_PROFILE_ALL_BRANCHES
+overriding the definition of 'if':
+
+drivers/staging/rtl8712/ieee80211.h:759:229: warning: '______f' is static but declared in inline function 'ieee80211_get_hdrlen' which is not static [enabled by default]
+
+This changes the driver to use 'static inline' instead, which happens
+to be the correct annotation anyway.
+
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Cc: Larry Finger <Larry.Finger@lwfinger.net>
+Cc: Florian Schilhabel <florian.c.schilhabel@googlemail.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+staging, rtl8192e, LLVMLinux: Remove unused inline prototype
+
+rtllib_probe_req is defined as "static inline" in rtllib_softmac.c however it
+is declared differently as "extern inline" in rtllib_softmac.h. Since it isn't
+used outside of the scope of rtllib_softmac, it makes sense to remove the
+incorrect declaration.
+
+Signed-off-by: Behan Webster <behanw@converseincode.com>
+Suggested-by: Arnd Bergmann <arnd@arndb.de>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+add compiler-gcc6.h
+
+Signed-off-by: Yihao Wu <wuyihao@linux.alibaba.com>
+---
+ .../ethernet/oki-semi/pch_gbe/pch_gbe_api.c   | 21 +++---
+ .../ethernet/oki-semi/pch_gbe/pch_gbe_main.c  |  2 +-
+ .../ethernet/oki-semi/pch_gbe/pch_gbe_phy.c   |  3 +-
+ drivers/scsi/megaraid/megaraid_sas_base.c  |  2 +-
+ .../staging/rtl8187se/ieee80211/ieee80211.h   |  4 +-
+ drivers/staging/rtl8192e/rtllib.h          |  5 +-
+ drivers/staging/rtl8192e/rtllib_softmac.c  |  2 +-
+ .../staging/rtl8192u/ieee80211/ieee80211.h    | 10 +--
+ drivers/staging/rtl8712/ieee80211.h        |  4 +-
+ include/linux/compiler-gcc6.h              | 66 +++++++++++++++++++
+ include/linux/memcontrol.h                 |  4 +-
+ include/linux/mod_devicetable.h            |  7 ++
+ lib/mpi/mpi-inline.h                       |  2 +-
+ lib/mpi/mpi-internal.h                     |  8 +--
+ mm/memcontrol.c                            |  4 +-
+ 15 files changed, 108 insertions(+), 36 deletions(-)
+ create mode 100644 include/linux/compiler-gcc6.h
+
+diff --git a/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_api.c b/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_api.c
+index 5ae03e815..82e72b21a 100644
+--- a/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_api.c
++++ b/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_api.c
+@@ -19,6 +19,7 @@
+  */
+ #include "pch_gbe.h"
+ #include "pch_gbe_phy.h"
++#include "pch_gbe_api.h"
+ 
+ /* bus type values */
+ #define pch_gbe_bus_type_unknown	0
+@@ -112,7 +113,7 @@ static void pch_gbe_plat_init_function_pointers(struct pch_gbe_hw *hw)
+  *	0:	Successfully
+  *	ENOSYS:	Function is not registered
+  */
+-inline s32 pch_gbe_hal_setup_init_funcs(struct pch_gbe_hw *hw)
++s32 pch_gbe_hal_setup_init_funcs(struct pch_gbe_hw *hw)
+ {
+ 	if (!hw->reg) {
+ 		pr_err("ERROR: Registers not mapped\n");
+@@ -126,7 +127,7 @@ inline s32 pch_gbe_hal_setup_init_funcs(struct pch_gbe_hw *hw)
+  * pch_gbe_hal_get_bus_info - Obtain bus information for adapter
+  * @hw:	Pointer to the HW structure
+  */
+-inline void pch_gbe_hal_get_bus_info(struct pch_gbe_hw *hw)
++void pch_gbe_hal_get_bus_info(struct pch_gbe_hw *hw)
+ {
+ 	if (!hw->func->get_bus_info)
+ 		pr_err("ERROR: configuration\n");
+@@ -141,7 +142,7 @@ inline void pch_gbe_hal_get_bus_info(struct pch_gbe_hw *hw)
+  *	0:	Successfully
+  *	ENOSYS:	Function is not registered
+  */
+-inline s32 pch_gbe_hal_init_hw(struct pch_gbe_hw *hw)
++s32 pch_gbe_hal_init_hw(struct pch_gbe_hw *hw)
+ {
+ 	if (!hw->func->init_hw) {
+ 		pr_err("ERROR: configuration\n");
+@@ -159,7 +160,7 @@ inline s32 pch_gbe_hal_init_hw(struct pch_gbe_hw *hw)
+  *	0:	Successfully
+  *	Negative value:	Failed
+  */
+-inline s32 pch_gbe_hal_read_phy_reg(struct pch_gbe_hw *hw, u32 offset,
++s32 pch_gbe_hal_read_phy_reg(struct pch_gbe_hw *hw, u32 offset,
+ 					u16 *data)
+ {
+ 	if (!hw->func->read_phy_reg)
+@@ -176,7 +177,7 @@ inline s32 pch_gbe_hal_read_phy_reg(struct pch_gbe_hw *hw, u32 offset,
+  *	0:	Successfully
+  *	Negative value:	Failed
+  */
+-inline s32 pch_gbe_hal_write_phy_reg(struct pch_gbe_hw *hw, u32 offset,
++s32 pch_gbe_hal_write_phy_reg(struct pch_gbe_hw *hw, u32 offset,
+ 					u16 data)
+ {
+ 	if (!hw->func->write_phy_reg)
+@@ -188,7 +189,7 @@ inline s32 pch_gbe_hal_write_phy_reg(struct pch_gbe_hw *hw, u32 offset,
+  * pch_gbe_hal_phy_hw_reset - Hard PHY reset
+  * @hw:	    Pointer to the HW structure
+  */
+-inline void pch_gbe_hal_phy_hw_reset(struct pch_gbe_hw *hw)
++void pch_gbe_hal_phy_hw_reset(struct pch_gbe_hw *hw)
+ {
+ 	if (!hw->func->reset_phy)
+ 		pr_err("ERROR: configuration\n");
+@@ -200,7 +201,7 @@ inline void pch_gbe_hal_phy_hw_reset(struct pch_gbe_hw *hw)
+  * pch_gbe_hal_phy_sw_reset - Soft PHY reset
+  * @hw:	    Pointer to the HW structure
+  */
+-inline void pch_gbe_hal_phy_sw_reset(struct pch_gbe_hw *hw)
++void pch_gbe_hal_phy_sw_reset(struct pch_gbe_hw *hw)
+ {
+ 	if (!hw->func->sw_reset_phy)
+ 		pr_err("ERROR: configuration\n");
+@@ -215,7 +216,7 @@ inline void pch_gbe_hal_phy_sw_reset(struct pch_gbe_hw *hw)
+  *	0:	Successfully
+  *	ENOSYS:	Function is not registered
+  */
+-inline s32 pch_gbe_hal_read_mac_addr(struct pch_gbe_hw *hw)
++s32 pch_gbe_hal_read_mac_addr(struct pch_gbe_hw *hw)
+ {
+ 	if (!hw->func->read_mac_addr) {
+ 		pr_err("ERROR: configuration\n");
+@@ -228,7 +229,7 @@ inline s32 pch_gbe_hal_read_mac_addr(struct pch_gbe_hw *hw)
+  * pch_gbe_hal_power_up_phy - Power up PHY
+  * @hw:	Pointer to the HW structure
+  */
+-inline void pch_gbe_hal_power_up_phy(struct pch_gbe_hw *hw)
++void pch_gbe_hal_power_up_phy(struct pch_gbe_hw *hw)
+ {
+ 	if (hw->func->power_up_phy)
+ 		hw->func->power_up_phy(hw);
+@@ -238,7 +239,7 @@ inline void pch_gbe_hal_power_up_phy(struct pch_gbe_hw *hw)
+  * pch_gbe_hal_power_down_phy - Power down PHY
+  * @hw:	Pointer to the HW structure
+  */
+-inline void pch_gbe_hal_power_down_phy(struct pch_gbe_hw *hw)
++void pch_gbe_hal_power_down_phy(struct pch_gbe_hw *hw)
+ {
+ 	if (hw->func->power_down_phy)
+ 		hw->func->power_down_phy(hw);
+diff --git a/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_main.c b/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_main.c
+index cc221715c..14e287808 100644
+--- a/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_main.c
++++ b/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_main.c
+@@ -287,7 +287,7 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+ 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+ }
+ 
+-inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
++static inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
+ {
+ 	iowrite32(0x01, &hw->reg->MAC_ADDR_LOAD);
+ }
+diff --git a/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_phy.c b/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_phy.c
+index 28bb9603d..b97c6575e 100644
+--- a/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_phy.c
++++ b/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_phy.c
+@@ -235,7 +235,7 @@ void pch_gbe_phy_power_down(struct pch_gbe_hw *hw)
+  * pch_gbe_phy_set_rgmii - RGMII interface setting
+  * @hw:	            Pointer to the HW structure
+  */
+-inline void pch_gbe_phy_set_rgmii(struct pch_gbe_hw *hw)
++void pch_gbe_phy_set_rgmii(struct pch_gbe_hw *hw)
+ {
+ 	pch_gbe_phy_sw_reset(hw);
+ }
+@@ -270,5 +270,4 @@ void pch_gbe_phy_init_setting(struct pch_gbe_hw *hw)
+ 	pch_gbe_phy_read_reg_miic(hw, PHY_PHYSP_CONTROL, &mii_reg);
+ 	mii_reg |= PHYSP_CTRL_ASSERT_CRS_TX;
+ 	pch_gbe_phy_write_reg_miic(hw, PHY_PHYSP_CONTROL, mii_reg);
+-
+ }
+diff --git a/drivers/scsi/megaraid/megaraid_sas_base.c b/drivers/scsi/megaraid/megaraid_sas_base.c
+index 8c6105222..b06eecd8c 100644
+--- a/drivers/scsi/megaraid/megaraid_sas_base.c
++++ b/drivers/scsi/megaraid/megaraid_sas_base.c
+@@ -228,7 +228,7 @@ struct megasas_cmd *megasas_get_cmd(struct megasas_instance
+  * @instance:		Adapter soft state
+  * @cmd:		Command packet to be returned to free command pool
+  */
+-inline void
++void
+ megasas_return_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
+ {
+ 	unsigned long flags;
+diff --git a/drivers/staging/rtl8187se/ieee80211/ieee80211.h b/drivers/staging/rtl8187se/ieee80211/ieee80211.h
+index 8fc9f588b..9fdd566e8 100644
+--- a/drivers/staging/rtl8187se/ieee80211/ieee80211.h
++++ b/drivers/staging/rtl8187se/ieee80211/ieee80211.h
+@@ -1447,12 +1447,12 @@ extern void ieee80211_sta_ps_send_null_frame(struct ieee80211_device *ieee, shor
+ 
+ extern const long ieee80211_wlan_frequencies[];
+ 
+-extern inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
++static inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
+ {
+ 	ieee->scans++;
+ }
+ 
+-extern inline int ieee80211_get_scans(struct ieee80211_device *ieee)
++static inline int ieee80211_get_scans(struct ieee80211_device *ieee)
+ {
+ 	return ieee->scans;
+ }
+diff --git a/drivers/staging/rtl8192e/rtllib.h b/drivers/staging/rtl8192e/rtllib.h
+index 3485ef1df..f35948ec5 100644
+--- a/drivers/staging/rtl8192e/rtllib.h
++++ b/drivers/staging/rtl8192e/rtllib.h
+@@ -2761,7 +2761,6 @@ extern void rtllib_stop_scan(struct rtllib_device *ieee);
+ extern bool rtllib_act_scanning(struct rtllib_device *ieee, bool sync_scan);
+ extern void rtllib_stop_scan_syncro(struct rtllib_device *ieee);
+ extern void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);
+-extern inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee);
+ extern u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee);
+ extern void rtllib_sta_ps_send_null_frame(struct rtllib_device *ieee,
+ 					  short pwr);
+@@ -2943,12 +2942,12 @@ void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);
+ 
+ extern const long rtllib_wlan_frequencies[];
+ 
+-extern inline void rtllib_increment_scans(struct rtllib_device *ieee)
++static inline void rtllib_increment_scans(struct rtllib_device *ieee)
+ {
+ 	ieee->scans++;
+ }
+ 
+-extern inline int rtllib_get_scans(struct rtllib_device *ieee)
++static inline int rtllib_get_scans(struct rtllib_device *ieee)
+ {
+ 	return ieee->scans;
+ }
+diff --git a/drivers/staging/rtl8192e/rtllib_softmac.c b/drivers/staging/rtl8192e/rtllib_softmac.c
+index 4feecec86..0e4e83758 100644
+--- a/drivers/staging/rtl8192e/rtllib_softmac.c
++++ b/drivers/staging/rtl8192e/rtllib_softmac.c
+@@ -341,7 +341,7 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb,
+ 	}
+ }
+ 
+-inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
++static inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
+ {
+ 	unsigned int len, rate_len;
+ 	u8 *tag;
+diff --git a/drivers/staging/rtl8192u/ieee80211/ieee80211.h b/drivers/staging/rtl8192u/ieee80211/ieee80211.h
+index 210898c8e..e1339c338 100644
+--- a/drivers/staging/rtl8192u/ieee80211/ieee80211.h
++++ b/drivers/staging/rtl8192u/ieee80211/ieee80211.h
+@@ -2250,7 +2250,7 @@ static inline void *ieee80211_priv(struct net_device *dev)
+ 	return ((struct ieee80211_device *)netdev_priv(dev))->priv;
+ }
+ 
+-extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
++static inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
+ {
+ 	/* Single white space is for Linksys APs */
+ 	if (essid_len == 1 && essid[0] == ' ')
+@@ -2266,7 +2266,7 @@ extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
+ 	return 1;
+ }
+ 
+-extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mode)
++static inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mode)
+ {
+ 	/*
+ 	 * It is possible for both access points and our device to support
+@@ -2292,7 +2292,7 @@ extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mod
+ 	return 0;
+ }
+ 
+-extern inline int ieee80211_get_hdrlen(u16 fc)
++static inline int ieee80211_get_hdrlen(u16 fc)
+ {
+ 	int hdrlen = IEEE80211_3ADDR_LEN;
+ 
+@@ -2578,12 +2578,12 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee);
+ 
+ extern const long ieee80211_wlan_frequencies[];
+ 
+-extern inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
++static inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
+ {
+ 	ieee->scans++;
+ }
+ 
+-extern inline int ieee80211_get_scans(struct ieee80211_device *ieee)
++static inline int ieee80211_get_scans(struct ieee80211_device *ieee)
+ {
+ 	return ieee->scans;
+ }
+diff --git a/drivers/staging/rtl8712/ieee80211.h b/drivers/staging/rtl8712/ieee80211.h
+index da4000e49..8269be804 100644
+--- a/drivers/staging/rtl8712/ieee80211.h
++++ b/drivers/staging/rtl8712/ieee80211.h
+@@ -734,7 +734,7 @@ enum ieee80211_state {
+ #define IEEE_G            (1<<2)
+ #define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
+ 
+-extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
++static inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
+ {
+ 	/* Single white space is for Linksys APs */
+ 	if (essid_len == 1 && essid[0] == ' ')
+@@ -748,7 +748,7 @@ extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
+ 	return 1;
+ }
+ 
+-extern inline int ieee80211_get_hdrlen(u16 fc)
++static inline int ieee80211_get_hdrlen(u16 fc)
+ {
+ 	int hdrlen = 24;
+ 
+diff --git a/include/linux/compiler-gcc6.h b/include/linux/compiler-gcc6.h
+new file mode 100644
+index 000000000..cdd1cc202
+--- /dev/null
++++ b/include/linux/compiler-gcc6.h
+@@ -0,0 +1,66 @@
++#ifndef __LINUX_COMPILER_H
++#error "Please don't include <linux/compiler-gcc5.h> directly, include <linux/compiler.h> instead."
++#endif
++
++#define __used				__attribute__((__used__))
++#define __must_check			__attribute__((warn_unused_result))
++#define __compiler_offsetof(a, b)	__builtin_offsetof(a, b)
++
++/* Mark functions as cold. gcc will assume any path leading to a call
++   to them will be unlikely.  This means a lot of manual unlikely()s
++   are unnecessary now for any paths leading to the usual suspects
++   like BUG(), printk(), panic() etc. [but let's keep them for now for
++   older compilers]
++
++   Early snapshots of gcc 4.3 don't support this and we can't detect this
++   in the preprocessor, but we can live with this because they're unreleased.
++   Maketime probing would be overkill here.
++
++   gcc also has a __attribute__((__hot__)) to move hot functions into
++   a special section, but I don't see any sense in this right now in
++   the kernel context */
++#define __cold			__attribute__((__cold__))
++
++#define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
++
++#ifndef __CHECKER__
++# define __compiletime_warning(message) __attribute__((warning(message)))
++# define __compiletime_error(message) __attribute__((error(message)))
++#endif /* __CHECKER__ */
++
++/*
++ * Mark a position in code as unreachable.  This can be used to
++ * suppress control flow warnings after asm blocks that transfer
++ * control elsewhere.
++ *
++ * Early snapshots of gcc 4.5 don't support this and we can't detect
++ * this in the preprocessor, but we can live with this because they're
++ * unreleased.  Really, we need to have autoconf for the kernel.
++ */
++#define unreachable() __builtin_unreachable()
++
++/* Mark a function definition as prohibited from being cloned. */
++#define __noclone	__attribute__((__noclone__))
++
++/*
++ * Tell the optimizer that something else uses this function or variable.
++ */
++#define __visible __attribute__((externally_visible))
++
++/*
++ * GCC 'asm goto' miscompiles certain code sequences:
++ *
++ *   http://gcc.gnu.org/bugzilla/show_bug.cgi?id=58670
++ *
++ * Work it around via a compiler barrier quirk suggested by Jakub Jelinek.
++ * Fixed in GCC 4.8.2 and later versions.
++ *
++ * (asm goto is automatically volatile - the naming reflects this.)
++ */
++#define asm_volatile_goto(x...)	do { asm goto(x); asm (""); } while (0)
++
++#ifdef CONFIG_ARCH_USE_BUILTIN_BSWAP
++#define __HAVE_BUILTIN_BSWAP32__
++#define __HAVE_BUILTIN_BSWAP64__
++#define __HAVE_BUILTIN_BSWAP16__
++#endif /* CONFIG_ARCH_USE_BUILTIN_BSWAP */
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 39067574d..c0844a9eb 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -215,9 +215,9 @@ static inline bool mem_cgroup_disabled(void)
+ 	return false;
+ }
+ 
+-inline void mem_cgroup_begin_update_page_stat(struct page *page);
++void mem_cgroup_begin_update_page_stat(struct page *page);
+ 
+-inline void mem_cgroup_end_update_page_stat(struct page *page);
++void mem_cgroup_end_update_page_stat(struct page *page);
+ 
+ void mem_cgroup_update_page_stat(struct page *page,
+ 				 enum mem_cgroup_page_stat_item idx,
+diff --git a/include/linux/mod_devicetable.h b/include/linux/mod_devicetable.h
+index b3bd7e737..d31364857 100644
+--- a/include/linux/mod_devicetable.h
++++ b/include/linux/mod_devicetable.h
+@@ -397,6 +397,7 @@ struct virtio_device_id {
+ /*
+  * For Hyper-V devices we use the device guid as the id.
+  */
++#define vmbus_device_id hv_vmbus_device_id
+ struct hv_vmbus_device_id {
+ 	__u8 guid[16];
+ 	kernel_ulong_t driver_data;	/* Data private to the driver */
+@@ -547,6 +548,11 @@ struct amba_id {
+  * See documentation of "x86_match_cpu" for details.
+  */
+ 
++/*
++ * MODULE_DEVICE_TABLE expects this struct to be called x86cpu_device_id.
++ * Although gcc seems to ignore this error, clang fails without this define.
++ */
++#define x86cpu_device_id x86_cpu_id
+ struct x86_cpu_id {
+ 	__u16 vendor;
+ 	__u16 family;
+@@ -574,6 +580,7 @@ struct ipack_device_id {
+ #define MEI_CL_MODULE_PREFIX "mei:"
+ #define MEI_CL_NAME_SIZE 32
+ 
++#define mei_device_id mei_cl_device_id
+ struct mei_cl_device_id {
+ 	char name[MEI_CL_NAME_SIZE];
+ 	kernel_ulong_t driver_info;
+diff --git a/lib/mpi/mpi-inline.h b/lib/mpi/mpi-inline.h
+index e2b39852b..c245ea31f 100644
+--- a/lib/mpi/mpi-inline.h
++++ b/lib/mpi/mpi-inline.h
+@@ -30,7 +30,7 @@
+ #define G10_MPI_INLINE_H
+ 
+ #ifndef G10_MPI_INLINE_DECL
+-#define G10_MPI_INLINE_DECL  extern inline
++#define G10_MPI_INLINE_DECL  static inline
+ #endif
+ 
+ G10_MPI_INLINE_DECL mpi_limb_t
+diff --git a/lib/mpi/mpi-internal.h b/lib/mpi/mpi-internal.h
+index 60cf76562..c502dd2e1 100644
+--- a/lib/mpi/mpi-internal.h
++++ b/lib/mpi/mpi-internal.h
+@@ -168,19 +168,19 @@ void mpi_rshift_limbs(MPI a, unsigned int count);
+ int mpi_lshift_limbs(MPI a, unsigned int count);
+ 
+ /*-- mpihelp-add.c --*/
+-mpi_limb_t mpihelp_add_1(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr,
++static inline mpi_limb_t mpihelp_add_1(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr,
+ 			 mpi_size_t s1_size, mpi_limb_t s2_limb);
+ mpi_limb_t mpihelp_add_n(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr,
+ 			 mpi_ptr_t s2_ptr, mpi_size_t size);
+-mpi_limb_t mpihelp_add(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr, mpi_size_t s1_size,
++static inline mpi_limb_t mpihelp_add(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr, mpi_size_t s1_size,
+ 		       mpi_ptr_t s2_ptr, mpi_size_t s2_size);
+ 
+ /*-- mpihelp-sub.c --*/
+-mpi_limb_t mpihelp_sub_1(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr,
++static inline mpi_limb_t mpihelp_sub_1(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr,
+ 			 mpi_size_t s1_size, mpi_limb_t s2_limb);
+ mpi_limb_t mpihelp_sub_n(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr,
+ 			 mpi_ptr_t s2_ptr, mpi_size_t size);
+-mpi_limb_t mpihelp_sub(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr, mpi_size_t s1_size,
++static inline mpi_limb_t mpihelp_sub(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr, mpi_size_t s1_size,
+ 		       mpi_ptr_t s2_ptr, mpi_size_t s2_size);
+ 
+ /*-- mpihelp-cmp.c --*/
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b69b2f562..09f6cb4f6 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2702,7 +2702,7 @@ cleanup:
+ 	return true;
+ }
+ 
+-inline void mem_cgroup_begin_update_page_stat(struct page *page)
++void mem_cgroup_begin_update_page_stat(struct page *page)
+ {
+ 	struct page_cgroup *pc;
+ 
+@@ -2712,7 +2712,7 @@ inline void mem_cgroup_begin_update_page_stat(struct page *page)
+ 	lock_page_cgroup(pc);
+ }
+ 
+-inline void mem_cgroup_end_update_page_stat(struct page *page)
++void mem_cgroup_end_update_page_stat(struct page *page)
+ {
+ 	struct page_cgroup *pc;
+ 
+-- 
+2.32.0.604.gb1f3e1269
+
