@@ -31,24 +31,16 @@ find /sys/kernel/kpatch/patches/*/functions -type d -not -path "*/functions" 2>/
 	echo "$func" >> $func_list_nosympos
 done
 
-# deal with kpatch 0.4 ABI
-find /sys/kernel/kpatch/*/ -type d -path "*,[0-9]" 2>/dev/null | while read path ; do
-	# /sys/kernel/kpatch/kpatch_5135717/vmlinux/kernfs_find_ns,1 -> kernfs_find_ns,1
-	func_ver=`echo $path | awk -F / -e '{print $NF}'`
-	mod=`echo $path | awk -F / -e '{print $(NF-1)}'`
-	func=`echo $func_ver | awk -F , '{print $1}'`
-	ver=`echo $func_ver | awk -F , '{print $2}'`
-	echo "$func $ver $mod" >> $func_list
-done
-
-# deal with kernel live patch
-find /sys/kernel/livepatch/*/ -type d -path "*,[0-9]" 2>/dev/null | while read path ; do
-	# /sys/kernel/livepatch/kpatch_5928799/ip6_tables/translate_compat_table,1 -> translate_compat_table,1
-	func_ver=`echo $path | awk -F / -e '{print $NF}'`
-	mod=`echo $path | awk -F / -e '{print $(NF-1)}'`
-	func=`echo $func_ver | awk -F , '{print $1}'`
-	ver=`echo $func_ver | awk -F , '{print $2}'`
-	echo "$func $ver $mod" >> $func_list
+# deal with kpatch 0.4 ABI, livepatch and plugsched
+for subdir in kpatch livepatch plugsched; do
+	find /sys/kernel/$subdir/*/ -type d -path "*,[0-9]" 2>/dev/null | while read path ; do
+		# /sys/kernel/kpatch/kpatch_5135717/vmlinux/kernfs_find_ns,1 -> kernfs_find_ns,1
+		func_ver=`echo $path | awk -F / -e '{print $NF}'`
+		mod=`echo $path | awk -F / -e '{print $(NF-1)}'`
+		func=`echo $func_ver | awk -F , '{print $1}'`
+		ver=`echo $func_ver | awk -F , '{print $2}'`
+		echo "$func $ver $mod" >> $func_list
+	done
 done
 
 # deal with manual hotfix that has sys directory entry
@@ -62,14 +54,6 @@ for func in `cat /proc/kallsyms | grep '\[kpatch_' | grep -v __kpatch | awk '{pr
 	if [ $(grep "e9_$func" /proc/kallsyms | wc -l) -gt 0 ]; then
 		echo "$func" >> $func_list_nosympos
 	fi
-done
-
-# deal with plugsched
-find /sys/kernel/plugsched/plugsched/ -type d -path "*,[0-9]" 2>/dev/null | while read path ; do
-	func_ver=`echo $path | awk -F / -e '{print $NF}'`
-	func=`echo $func_ver | awk -F , '{print $1}'`
-	ver=`echo $func_ver | awk -F , '{print $2}'`
-	echo "$func $ver vmlinux" >> $func_list
 done
 
 if [ "$(awk 'END{print NF}' $tainted_file)" != "3" ]; then
