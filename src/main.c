@@ -48,7 +48,7 @@ extern void clear_sched_state(bool mod);
 extern void rebuild_sched_state(bool mod);
 
 static int scheduler_enable = 0;
-struct kobject *plugsched_dir, *plugsched_subdir;
+struct kobject *plugsched_dir, *plugsched_subdir, *vmlinux_moddir;
 
 struct tainted_function {
 	char *name;
@@ -448,31 +448,37 @@ static struct kobj_attribute plugsched_enable_attr =
 
 static int register_plugsched_enable(void)
 {
-	int ret;
+	int ret = -ENOMEM;
 
 	plugsched_dir = kobject_create_and_add("plugsched", kernel_kobj);
 	if (!plugsched_dir)
 		return -ENOMEM;
 
 	plugsched_subdir = kobject_create_and_add("plugsched", plugsched_dir);
-	if (!plugsched_subdir) {
-		kobject_put(plugsched_dir);
-		return -ENOMEM;
-	}
+	if (!plugsched_subdir)
+		goto error;
+
+	vmlinux_moddir = kobject_create_and_add("vmlinux", plugsched_subdir);
+	if (!vmlinux_moddir)
+		goto error;
 
 	ret = sysfs_create_file(plugsched_subdir, &plugsched_enable_attr.attr);
-	if (ret) {
-		kobject_put(plugsched_subdir);
-		kobject_put(plugsched_dir);
-		return ret;
-	}
+	if (ret)
+		goto error;
 
 	return 0;
+
+error:
+	kobject_put(vmlinux_moddir);
+	kobject_put(plugsched_subdir);
+	kobject_put(plugsched_dir);
+	return ret;
 }
 
 static void unregister_plugsched_enable(void)
 {
 	sysfs_remove_file(plugsched_subdir, &plugsched_enable_attr.attr);
+	kobject_put(vmlinux_moddir);
 	kobject_put(plugsched_subdir);
 	kobject_put(plugsched_dir);
 }
@@ -483,7 +489,7 @@ static int register_tainted_functions(void)
 
 	for (i = 0; i < ARRAY_SIZE(tainted_functions); i++) {
 		tainted_functions[i].kobj =
-			kobject_create_and_add(tainted_functions[i].name, plugsched_subdir);
+			kobject_create_and_add(tainted_functions[i].name, vmlinux_moddir);
 		if (!(tainted_functions[i].kobj))
 			return -ENOMEM;
 	}
