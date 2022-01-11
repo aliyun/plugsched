@@ -7,7 +7,7 @@ RUN pip install --upgrade setuptools && \
     pip install six pyyaml sh coloredlogs future fire jinja2 docopt && \
     yum install make bison flex \
 		gcc-plugin-devel.x86_64 python2-devel \
-		elfutils-libelf-devel.x86_64 openssl-devel \
+		elfutils-libelf-devel.x86_64 openssl openssl-devel \
 		elfutils-devel-static \
 		glibc-static zlib-static \
 		libstdc++-static \
