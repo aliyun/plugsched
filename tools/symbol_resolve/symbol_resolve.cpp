@@ -145,7 +145,7 @@ int main(int argc, const char **argv)
 {
 	kallsym_collection kallsyms;
 	sympos_collection sched_outsider = {
-		#include "../undefined_functions.h"
+		#include "undefined_functions.h"
 	};
 
 	load_kallsyms(argv[2], kallsyms);

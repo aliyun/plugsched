@@ -63,7 +63,7 @@ struct tainted_function {
 	},
 
 struct tainted_function tainted_functions[] = {
-	#include "../../../tainted_functions.h"
+	#include "tainted_functions.h"
 };
 
 static inline void parallel_state_check_init(void)

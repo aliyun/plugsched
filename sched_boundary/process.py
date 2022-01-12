@@ -203,13 +203,15 @@ if __name__ == '__main__':
         dump(struct_properties, f, Dumper)
     with open('sched_boundary_extract.yaml', 'w') as f:
         dump(config, f, Dumper)
-    with open('tainted_functions.h', 'w') as f:
+    with open('kernel/sched/mod/tainted_functions.h', 'w') as f:
         f.write('#include "tainted_functions_sidecar.h"\n')
         # Consistent with kpatch and livepatch: set global symbol's sympos to 1 in sysfs
-        f.write('\n'.join(["TAINTED_FUNCTION({fn},{val})".format(fn=fn[0], val=local_sympos.get(fn, 0) if local_sympos.get(fn, 0) else 1) for fn in func_class['tainted']]))
-    with open('undefined_functions.h', 'w') as f:
+        f.write('\n'.join(["TAINTED_FUNCTION({fn},{val})".format(fn=fn[0], val=local_sympos.get(fn, 0) \
+                if local_sympos.get(fn, 0) else 1) for fn in func_class['tainted']]))
+    with open('symbol_resolve/undefined_functions.h', 'w') as f:
         f.write('#include "undefined_functions_sidecar.h"\n')
-        array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) for fn in func_class['undefined']])
+        array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) \
+                for fn in func_class['undefined']])
         f.write('{%s}' % array)
     with open('interface_fn_ptrs', 'w') as f:
         f.write('\n'.join([fn[0] for fn in config['function']['interface']]))

@@ -41,7 +41,7 @@ make -C %{_kerneldir} -f Makefile.plugsched plugsched -j %{threads}
 make -C %{_kerneldir}/symbol_resolve
 
 # Generate the tainted_functions file
-awk -F '[(,)]' '$2!=""{print $2" "$3" vmlinux"}' %{_kerneldir}/tainted_functions{.h,_sidecar.h} > %{_sourcedir}/tainted_functions
+awk -F '[(,)]' '$2!=""{print $2" "$3" vmlinux"}' %{_kerneldir}/kernel/sched/mod/tainted_functions{.h,_sidecar.h} > %{_sourcedir}/tainted_functions
 
 #%pre
 # TODO: confict check
