@@ -185,6 +185,7 @@ static int __sync_sched_install(void *arg)
 		atomic_set(&redirect_done, 1);
 	}
 
+	atomic_cond_read_relaxed(&redirect_done, VAL);
 	rebuild_sched_state(true);
 
 	if (is_first_process())
