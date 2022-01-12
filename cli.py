@@ -31,13 +31,13 @@ coloredlogs.install(level='INFO')
 logging.getLogger().addHandler(ShutdownHandler())
 
 class Plugsched(object):
-    def __init__(self, mod_path, vmlinux, makefile):
+    def __init__(self, work_dir, vmlinux, makefile):
         self.plugsched_path = os.path.dirname(os.path.realpath(__file__))
-        self.mod_path = os.path.abspath(mod_path)
+        self.work_dir = os.path.abspath(work_dir)
         self.vmlinux = os.path.abspath(vmlinux)
         self.makefile = os.path.abspath(makefile)
         plugsched_sh = sh(_cwd=self.plugsched_path)
-        mod_sh = sh(_cwd=self.mod_path)
+        mod_sh = sh(_cwd=self.work_dir)
         self.plugsched_sh, self.mod_sh = plugsched_sh, mod_sh
         self.get_kernel_version(self.makefile)
         self.get_config_dir()
@@ -74,7 +74,7 @@ class Plugsched(object):
         if len(KREL) == 0:
             logging.fatal('''Maybe you are using plugsched on non-released kernel,
                           please set EXTRAVERSION in Makefile (%s) before build kernel''',
-                          os.path.join(self.mod_path, 'Makefile'))
+                          os.path.join(self.work_dir, 'Makefile'))
 
         self.major = '%s.%s' % (VERSION, PATCHLEVEL)
         self.uname_r = '%s-%s' % (self.KVER, KREL)
@@ -146,13 +146,13 @@ class Plugsched(object):
         self.make(stage         = 'analyze')
         self.make(stage         = 'extract',
                   objs          = self.mod_objs)
-        with open(os.path.join(self.mod_path, 'kernel/sched/mod/export_jump.h'), 'w') as f:
-            sh.sort(glob('kernel/sched/*.export_jump.h', _cwd=self.mod_path), _out=f)
+        with open(os.path.join(self.work_dir, 'kernel/sched/mod/export_jump.h'), 'w') as f:
+            sh.sort(glob('kernel/sched/*.export_jump.h', _cwd=self.work_dir), _out=f)
             f.write('#include "export_jump_sidecar.h"')
 
-    def create_mod(self, kernel_src):
+    def create_sandbox(self, kernel_src):
         logging.info('Creating mod build directory structure')
-        rsync(kernel_src + '/', self.mod_path + '/', archive=True, verbose=True, delete=True, exclude='.git', filter=':- .gitignore')
+        rsync(kernel_src + '/', self.work_dir + '/', archive=True, verbose=True, delete=True, exclude='.git', filter=':- .gitignore')
         self.mod_sh.mkdir('kernel/sched/mod', parents=True)
 
         for f, t in self.file_mapping.items():
@@ -160,11 +160,11 @@ class Plugsched(object):
 
 
     def cmd_init(self, kernel_src, sym_vers, kernel_config):
-        self.create_mod(kernel_src)
-        self.plugsched_sh.cp(sym_vers,      self.mod_path, force=True)
-        self.plugsched_sh.cp(kernel_config, self.mod_path + '/.config', force=True)
-        self.plugsched_sh.cp(self.makefile, self.mod_path, force=True)
-        self.plugsched_sh.cp(self.vmlinux,  self.mod_path, force=True)
+        self.create_sandbox(kernel_src)
+        self.plugsched_sh.cp(sym_vers,      self.work_dir, force=True)
+        self.plugsched_sh.cp(kernel_config, self.work_dir + '/.config', force=True)
+        self.plugsched_sh.cp(self.makefile, self.work_dir, force=True)
+        self.plugsched_sh.cp(self.vmlinux,  self.work_dir, force=True)
 
         logging.info('Patching old kernel to use newer gcc')
         self.apply_patch('future_gcc.patch')
@@ -176,7 +176,7 @@ class Plugsched(object):
 
         # special handle for builtin springboard kernel version
         try:
-            sh.grep('label_recover', os.path.join(self.mod_path, 'kernel/sched/core.c'))
+            sh.grep('label_recover', os.path.join(self.work_dir, 'kernel/sched/core.c'))
         except:
             logging.info('Patching dynamic springboard')
             self.apply_patch('dynamic_springboard.patch')
@@ -192,7 +192,7 @@ class Plugsched(object):
             springboard[0] is the value of sched_springboard var.
             springboard[1] is the stack size of __schedule in vmlinux.
             """
-            with open(os.path.join(self.mod_path, 'kernel/sched/mod/Makefile'), 'a') as f:
+            with open(os.path.join(self.work_dir, 'kernel/sched/mod/Makefile'), 'a') as f:
                 f.write('ccflags-y += -DSPRINGBOARD=' + str(springboard[0]))
                 f.write('ccflags-y += -DSTACKSIZE_SCHEDULE=' + str(springboard[1]))
 
@@ -203,8 +203,8 @@ class Plugsched(object):
         logging.info("Succeed!")
 
     def cmd_build(self):
-        if not os.path.exists(self.mod_path):
-            logging.fatal("plugsched: Can't find %s", self.mod_path)
+        if not os.path.exists(self.work_dir):
+            logging.fatal("plugsched: Can't find %s", self.work_dir)
         logging.info("Preparing rpmbuild environment")
         rpmbuild_root = os.path.join(self.plugsched_path, 'rpmbuild')
         self.plugsched_sh.rm('rpmbuild', recursive=True, force=True)
@@ -216,7 +216,7 @@ class Plugsched(object):
         rpmbase_sh.rpmbuild('--define', '%%_outdir %s' % os.path.realpath(self.plugsched_path + '/module-contrib'),
                             '--define', '%%_topdir %s' % os.path.realpath(rpmbuild_root),
                             '--define', '%%_dependdir %s' % os.path.realpath(self.plugsched_path),
-                            '--define', '%%_kerneldir %s' % os.path.realpath(self.mod_path),
+                            '--define', '%%_kerneldir %s' % os.path.realpath(self.work_dir),
                             '--define', '%%KVER %s' % self.KVER,
                             '--define', '%%KREL %s' % self.KREL,
                             '--define', '%%threads %d' % self.threads,
@@ -263,12 +263,12 @@ class PlugschedCLI(object):
 
         sh.rm(rpmbuild_root, recursive=True, force=True)
 
-    def init(self, release_kernel, kernel_src, mod_path):
+    def init(self, release_kernel, kernel_src, work_dir):
         """ Initialize a scheduler module for a specific kernel release and product
 
         :param kernel_release: `uname -r` of target kernel to be hotpluged
         :param kernel_src: kernel source code directory
-        :param mod_path: target working directory to develop new scheduler module
+        :param work_dir: target working directory to develop new scheduler module
         """
 
         vmlinux = '/usr/lib/debug/lib/modules/' + release_kernel + '/vmlinux'
@@ -282,14 +282,14 @@ class PlugschedCLI(object):
         if not os.path.exists(kernel_config):
             logging.fatal("%s not found, please install kernel-devel-%s.rpm", kernel_config, release_kernel)
 
-        self.plugsched = Plugsched(mod_path, vmlinux, makefile)
+        self.plugsched = Plugsched(work_dir, vmlinux, makefile)
         self.plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
 
-    def dev_init(self, kernel_src, mod_path):
+    def dev_init(self, kernel_src, work_dir):
         """ Initialize plugsched development envrionment from kernel source code
 
         :param kernel_src: kernel source code directory
-        :param mod_path: target working directory to develop new scheduler module
+        :param work_dir: target working directory to develop new scheduler module
         """
 
         if not os.path.exists(kernel_src):
@@ -306,18 +306,18 @@ class PlugschedCLI(object):
         if not os.path.exists(kernel_config):
             logging.fatal("kernel config %s not found", kernel_config)
 
-        self.plugsched = Plugsched(mod_path, vmlinux, makefile)
+        self.plugsched = Plugsched(work_dir, vmlinux, makefile)
         self.plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
 
-    def build(self, mod_path):
+    def build(self, work_dir):
         """ Build a scheduler module rpm package for a specific kernel release and product
 
-        :param mod_path: target working directory to develop new scheduler module
+        :param work_dir: target working directory to develop new scheduler module
         """
 
-        vmlinux = os.path.join(mod_path, 'vmlinux')
-        makefile = os.path.join(mod_path, 'Makefile')
-        self.plugsched = Plugsched(mod_path, vmlinux, makefile)
+        vmlinux = os.path.join(work_dir, 'vmlinux')
+        makefile = os.path.join(work_dir, 'Makefile')
+        self.plugsched = Plugsched(work_dir, vmlinux, makefile)
         self.plugsched.cmd_build()
 
     def self_debug(self, func, *args, **kwargs):
