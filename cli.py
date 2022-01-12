@@ -36,6 +36,8 @@ class Plugsched(object):
         self.work_dir = os.path.abspath(work_dir)
         self.vmlinux = os.path.abspath(vmlinux)
         self.makefile = os.path.abspath(makefile)
+        self.mod_path = os.path.join(self.work_dir, 'kernel/sched/mod/')
+        self.tmp_dir = os.path.join(self.work_dir, 'working/')
         plugsched_sh = sh(_cwd=self.plugsched_path)
         mod_sh = sh(_cwd=self.work_dir)
         self.plugsched_sh, self.mod_sh = plugsched_sh, mod_sh
@@ -46,23 +48,23 @@ class Plugsched(object):
         with open(os.path.join(self.config_dir, 'sched_boundary.yaml')) as f:
             self.config = load(f, Loader)
         self.file_mapping = {
-            self.config_dir + '/sched_boundary.yaml': './',
-            'sched_boundary/*.py': './',
-            'sched_boundary/fake.c': './',
-            'tools/symbol_resolve': './',
-            'src/*.[ch]': 'kernel/sched/mod',
-            'src/.gitignore': './',
-            'src/Makefile': 'kernel/sched/mod/',
-            'src/sidecar.py': '.',
-            'src/scheduler.lds': 'kernel/sched/mod/',
-            'src/Makefile.plugsched': './'
+            self.config_dir + '/*':     self.tmp_dir,
+            'sched_boundary/*.py':      self.tmp_dir,
+            'tools/symbol_resolve':     self.tmp_dir,
+            'src/sidecar.py':           self.tmp_dir,
+            'src/Makefile.plugsched':   self.tmp_dir,
+            'src/*.[ch]':               self.mod_path,
+            'src/Makefile':             self.mod_path,
+            'src/scheduler.lds':        self.mod_path,
+            'src/.gitignore':           './',
+            'sched_boundary/fake.c':    './',
         }
         self.threads = cpu_count()
         self.mod_files = self.config['mod_files']
         self.mod_srcs = [f for f in self.mod_files if f.endswith('.c')]
         self.mod_hdrs = [f for f in self.mod_files if f.endswith('.h')]
         self.mod_objs = [f[:-2]+'.o' for f in self.mod_srcs] + ['fake.o']
-        self.extracted_mod_files = [os.path.join('kernel/sched/mod', os.path.basename(f)) for f in self.mod_files]
+        self.extracted_mod_files = [os.path.join(self.mod_path, os.path.basename(f)) for f in self.mod_files]
 
     def get_kernel_version(self, makefile):
         VERSION = self.plugsched_sh.awk('-F=', '/^VERSION/{print $2}', makefile).strip()
@@ -107,10 +109,10 @@ class Plugsched(object):
             elif curr == max_len:
                 break
 
-        self.config_dir = os.path.join(self.plugsched_path, 'configs', candidates[idx])
+        self.config_dir = os.path.join(self.plugsched_path, 'configs/', candidates[idx])
 
     def apply_patch(self, f, **kwargs):
-        path = os.path.join(self.config_dir, f)
+        path = os.path.join(self.tmp_dir, f)
         if os.path.exists(path):
             self.mod_sh.patch(input=path, strip=1, **kwargs)
 
@@ -118,7 +120,7 @@ class Plugsched(object):
         self.mod_sh.make(stage,
                          'objs=%s' % ' '.join(objs),
                          *['%s=%s' % i for i in kwargs.items()],
-                         file='Makefile.plugsched',
+                         file=os.path.join(self.tmp_dir, 'Makefile.plugsched'),
                          jobs=self.threads)
 
     def fix_up(self):
@@ -142,18 +144,19 @@ class Plugsched(object):
 
     def extract(self):
         logging.info('Extracting scheduler module objs: %s', ' '.join(self.mod_objs))
-        self.make(stage         = 'collect')
-        self.make(stage         = 'analyze')
-        self.make(stage         = 'extract',
-                  objs          = self.mod_objs)
+        self.make(stage = 'collect', plugsched_tmpdir = self.tmp_dir, plugsched_modpath = self.mod_path)
+        self.make(stage = 'analyze', plugsched_tmpdir = self.tmp_dir, plugsched_modpath = self.mod_path)
+        self.make(stage = 'extract', plugsched_tmpdir = self.tmp_dir, plugsched_modpath = self.mod_path,
+                  objs = self.mod_objs)
         with open(os.path.join(self.work_dir, 'kernel/sched/mod/export_jump.h'), 'w') as f:
             sh.sort(glob('kernel/sched/*.export_jump.h', _cwd=self.work_dir), _out=f)
             f.write('#include "export_jump_sidecar.h"')
 
     def create_sandbox(self, kernel_src):
         logging.info('Creating mod build directory structure')
-        rsync(kernel_src + '/', self.work_dir + '/', archive=True, verbose=True, delete=True, exclude='.git', filter=':- .gitignore')
-        self.mod_sh.mkdir('kernel/sched/mod', parents=True)
+        rsync(kernel_src + '/', self.work_dir, archive=True, verbose=True, delete=True, exclude='.git', filter=':- .gitignore')
+        self.mod_sh.mkdir(self.mod_path, parents=True)
+        self.mod_sh.mkdir(self.tmp_dir, parents=True)
 
         for f, t in self.file_mapping.items():
             self.mod_sh.cp(glob(f, _cwd=self.plugsched_path), t, recursive=True)
@@ -192,7 +195,7 @@ class Plugsched(object):
             springboard[0] is the value of sched_springboard var.
             springboard[1] is the stack size of __schedule in vmlinux.
             """
-            with open(os.path.join(self.work_dir, 'kernel/sched/mod/Makefile'), 'a') as f:
+            with open(os.path.join(self.mod_path, 'Makefile'), 'a') as f:
                 f.write('ccflags-y += -DSPRINGBOARD=' + str(springboard[0]))
                 f.write('ccflags-y += -DSTACKSIZE_SCHEDULE=' + str(springboard[1]))
 
@@ -217,6 +220,8 @@ class Plugsched(object):
                             '--define', '%%_topdir %s' % os.path.realpath(rpmbuild_root),
                             '--define', '%%_dependdir %s' % os.path.realpath(self.plugsched_path),
                             '--define', '%%_kerneldir %s' % os.path.realpath(self.work_dir),
+                            '--define', '%%_tmpdir %s' % self.tmp_dir,
+                            '--define', '%%_modpath %s' % self.mod_path,
                             '--define', '%%KVER %s' % self.KVER,
                             '--define', '%%KREL %s' % self.KREL,
                             '--define', '%%threads %d' % self.threads,

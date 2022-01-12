@@ -13,7 +13,7 @@ ifneq ($(CONFIG_SCHED_OMIT_FRAME_POINTER),y)
 CFLAGS_core.o := $(PROFILING) -fno-omit-frame-pointer
 endif
 
-OBJCOPYFLAGS := --globalize-symbols interface_fn_ptrs
+OBJCOPYFLAGS := --globalize-symbols $(plugsched_tmpdir)/interface_fn_ptrs
 
 objs-y += core.o
 objs-y += idle.o fair.o rt.o deadline.o
@@ -36,5 +36,5 @@ obj-stubs := $(patsubst %.o,%.stub.o,$(objs-y))
 
 scheduler-objs := $(obj-stubs) main.o sched_rebuild.o
 
-ldflags-y += -T $(srctree)/kernel/sched/mod/scheduler.lds
+ldflags-y += -T $(plugsched_modpath)/scheduler.lds
 ccflags-n += -DSCHEDMOD_MEMPOOL

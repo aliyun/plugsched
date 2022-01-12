@@ -31,20 +31,18 @@ cp %{_outdir}/scheduler-install %{_sourcedir}
 cp %{_outdir}/plugsched.service %{_sourcedir}
 cp %{_outdir}/hotfix_conflict_check.sh %{_sourcedir}
 cp %{_outdir}/version %{_sourcedir}
-cp %{_kerneldir}/sched_boundary.yaml %{_sourcedir}
+cp %{_tmpdir}/sched_boundary.yaml %{_sourcedir}
 
 %build
 # Build sched_mod
-make -C %{_kerneldir} -f Makefile.plugsched plugsched -j %{threads}
+make plugsched_tmpdir=%{_tmpdir} plugsched_modpath=%{_modpath} -C %{_kerneldir} \
+		-f %{_tmpdir}/Makefile.plugsched plugsched -j %{threads}
 
 # Build symbol resolve tool
-make -C %{_kerneldir}/symbol_resolve
+make -C %{_tmpdir}/symbol_resolve
 
 # Generate the tainted_functions file
-awk -F '[(,)]' '$2!=""{print $2" "$3" vmlinux"}' %{_kerneldir}/kernel/sched/mod/tainted_functions{.h,_sidecar.h} > %{_sourcedir}/tainted_functions
-
-#%pre
-# TODO: confict check
+awk -F '[(,)]' '$2!=""{print $2" "$3" vmlinux"}' %{_modpath}/tainted_functions{.h,_sidecar.h} > %{_sourcedir}/tainted_functions
 
 %install
 #install tool, module and systemd service
@@ -53,8 +51,8 @@ mkdir -p %{buildroot}%{_prefix}/lib/systemd/system
 mkdir -p %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
 mkdir -p %{buildroot}%{_rundir}/plugsched
 
-install -m 755 %{_kerneldir}/symbol_resolve/symbol_resolve %{buildroot}%{_bindir}/symbol_resolve
-install -m 755 %{_kerneldir}/kernel/sched/mod/scheduler.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
+install -m 755 %{_tmpdir}/symbol_resolve/symbol_resolve %{buildroot}%{_bindir}/symbol_resolve
+install -m 755 %{_modpath}/scheduler.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
 install -m 444 %{_sourcedir}/tainted_functions %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
 
 install -m 755 %{SOURCE1} %{buildroot}%{_bindir}

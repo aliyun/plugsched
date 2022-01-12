@@ -11,6 +11,12 @@ Loader.add_constructor(resolver.BaseResolver.DEFAULT_SEQUENCE_TAG,
                      lambda loader, node: set(loader.construct_sequence(node)))
 Dumper.add_representer(set, lambda dumper, node: dumper.represent_list(node))
 
+# tmp directory to store middle files
+tmpdir = None
+
+# directory to store schedule module source code
+modpath = None
+
 class SchedBoundary(object):
     def __init__(self, config):
         with open(config) as f:
@@ -59,7 +65,7 @@ class GccBugs(object):
 
 class SchedBoundaryExtract(SchedBoundary):
     def __init__(self):
-        super().__init__('sched_boundary_extract.yaml')
+        super().__init__(tmpdir + 'sched_boundary_extract.yaml')
         self.fn_dict = {}
         self.fn_ptr_list = []
         self.interface_list = []
@@ -216,12 +222,12 @@ class SchedBoundaryExtract(SchedBoundary):
                 for i in range(row_start+1, row_end+1):
                     lines[i] = ''
 
-            with open("kernel/sched/mod/" + os.path.basename(src_f), 'w') as out_f:
+            with open(modpath + os.path.basename(src_f), 'w') as out_f:
                 out_f.writelines(lines)
 
 class SchedBoundaryCollect(SchedBoundary):
     def __init__(self):
-        super().__init__('sched_boundary.yaml')
+        super().__init__(tmpdir + 'sched_boundary.yaml')
         self.fn_properties = []
         self.var_properties = []
         self.edge_properties = []
@@ -437,6 +443,8 @@ if __name__ == '__main__':
     import gcc
 
     stage = gcc.argument_dict['stage']
+    tmpdir = gcc.argument_dict['tmpdir']
+    modpath = gcc.argument_dict['modpath']
 
     if stage == 'extract':
         sched_boundary = SchedBoundaryExtract()

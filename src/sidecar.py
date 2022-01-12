@@ -21,9 +21,12 @@ if __name__ == '__main__':
     sympos = process.local_sympos
     sympos = {fn[0]: 0 if fn not in sympos else sympos[fn] for fn in functions}
 
-    with open('symbol_resolve/undefined_functions_sidecar.h', 'w') as f:
+    tmpdir = sys.argv[3]
+    modpath = sys.argv[4]
+
+    with open(tmpdir + 'symbol_resolve/undefined_functions_sidecar.h', 'w') as f:
         for fn, pos in sympos.iteritems():
             f.write('{"%s", %d},\n' % (fn, pos))
-    with open('kernel/sched/mod/tainted_functions_sidecar.h', 'w') as f:
+    with open(modpath + 'tainted_functions_sidecar.h', 'w') as f:
         for fn, pos in sympos.iteritems():
             f.write('TAINTED_FUNCTION(%s,%d)\n' % (fn, pos if pos else 1))
