@@ -24,6 +24,7 @@ class SchedBoundary(object):
         self.mod_files = self.config['mod_files']
         self.mod_srcs = {f for f in self.mod_files if f.endswith('.c')}
         self.mod_hdrs = self.mod_files - self.mod_srcs
+        self.fake = 'fake.c'
 
     def process_passes(self, p, _):
         if p.name != '*free_lang_data':
@@ -31,6 +32,8 @@ class SchedBoundary(object):
         self.final_work()
 
     def register_cbs(self):
+        if gcc.get_main_input_filename() not in self.mod_srcs | {self.fake}:
+            return
         if hasattr(self, 'function_define'):
             gcc.register_callback(gcc.PLUGIN_FINISH_PARSE_FUNCTION, self.function_define)
         if hasattr(self, 'var_declare'):
@@ -70,7 +73,6 @@ class SchedBoundaryExtract(SchedBoundary):
         self.fn_ptr_list = []
         self.interface_list = []
         self.var_list = []
-        self.fake = 'fake.c'
 
     # TODO use gcc.get_callgraph_nodes is okay too. Are there any difference ?
     def function_define(self, decl, _):
