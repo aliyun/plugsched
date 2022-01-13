@@ -120,7 +120,7 @@ static int heavy_stack_check_fn_rmmod(struct stack_trace *trace)
 /* This is basically copied from klp_check_stack */
 static int stack_check_task(struct task_struct *task, bool install)
 {
-	static unsigned long entries[MAX_STACK_ENTRIES];
+	unsigned long entries[MAX_STACK_ENTRIES];
 	struct stack_trace trace;
 
 	trace.skip = 0;
