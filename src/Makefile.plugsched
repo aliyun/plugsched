@@ -10,10 +10,9 @@ PHONY += plugsched sidecar collect extract
 
 collect:   CFLAGS_KERNEL = $(GCC_PLUGIN_FLAGS)collect
 extract:   CFLAGS_KERNEL = $(GCC_PLUGIN_FLAGS)extract
-plugsched: CFLAGS_MODULE = -fkeep-static-functions
 
 plugsched: scripts prepare sidecar
-	$(MAKE) -C $(srctree) M=$(plugsched_modpath) modules
+	$(MAKE) CFLAGS_MODULE=-fkeep-static-functions -C $(srctree) M=$(plugsched_modpath) modules
 
 sidecar: $(plugsched_modpath)/export_jump_sidecar.h
 	python2 $(plugsched_tmpdir)/sidecar.py $< ./vmlinux $(plugsched_tmpdir) $(plugsched_modpath)
