@@ -87,8 +87,6 @@ static void resolve_ref(const char *fname, kallsym_collection &kallsyms, sympos_
 			continue;
 		kallsym = &kallsyms[name];
 
-		if (!strcmp(name, "kern_path") && kallsym->type != 'T')
-			continue;
 		if (symposes.find(name) != symposes.end())
 			sympos = symposes[name];
 		else /* Symbols which dont appear in sched_outsider should be global symbols */
@@ -133,6 +131,8 @@ static void load_kallsyms(const char *fname, kallsym_collection &kallsyms)
 	while (getline(f, line)) {
 		std::istringstream line_stream(line);
 		line_stream >> std::hex >> addr >> type >> name;
+		if (name == "kern_path" && type != 'T')
+			continue;
 		/* Reached modules */
 		if (!line_stream.eof()) break;
 		kallsyms[name].addr.push_back(addr);
