@@ -169,13 +169,13 @@ class Plugsched(object):
         self.plugsched_sh.cp(self.makefile, self.work_dir, force=True)
         self.plugsched_sh.cp(self.vmlinux,  self.work_dir, force=True)
 
-        logging.info('Patching old kernel to use newer gcc')
-        self.apply_patch('future_gcc.patch')
+        logging.info('Patching kernel with pre_extract patch')
+        self.apply_patch('pre_extract.patch')
         self.extract()
         logging.info('Fixing up extracted scheduler module')
         self.fix_up()
-        logging.info('Patching extracted scheduler module')
-        self.apply_patch('module.patch')
+        logging.info('Patching extracted scheduler module with post_extractd patch')
+        self.apply_patch('post_extract.patch')
 
         # special handle for builtin springboard kernel version
         try:
