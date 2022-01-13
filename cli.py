@@ -151,7 +151,7 @@ class Plugsched(object):
         self.mod_sh.mkdir(self.tmp_dir, parents=True)
 
         for f, t in self.file_mapping.items():
-            self.mod_sh.cp(glob(f, _cwd=self.plugsched_path), t, recursive=True)
+            self.mod_sh.cp(glob(f, _cwd=self.plugsched_path), t, recursive=True, dereference=True)
 
 
     def cmd_init(self, kernel_src, sym_vers, kernel_config):
