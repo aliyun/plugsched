@@ -90,25 +90,17 @@ class Plugsched(object):
         def common_prefix_len(s1, s2):
             for i, (a, b) in enumerate(zip(s1, s2)):
                 if a != b:
-                    return i
-            return len(s1)
+                    break
+            return i
 
         candidates = map(os.path.basename, glob('%s/configs/%s*' % (self.plugsched_path, self.major)))
         if len(candidates) == 0:
             logging.fatal('''Can't find config directory, please add config for kernel %s''', self.KVER)
 
-        max_len = 0
-        idx = 0
-        candidates.sort()
-        # longest prefix matching
-        for i, t in enumerate(candidates):
-            curr = common_prefix_len(self.uname_r, t)
-            if curr > max_len:
-                max_len = curr
-                idx = i
-            elif curr == max_len:
-                break
+        candidates.sort(reverse=True)
+        _, idx = max((common_prefix_len(self.uname_r, t), i) for i, t in enumerate(candidates))
 
+        logging.info("Choose config dir %s/" % candidates[idx])
         self.config_dir = os.path.join(self.plugsched_path, 'configs/', candidates[idx])
 
     def apply_patch(self, f, **kwargs):
