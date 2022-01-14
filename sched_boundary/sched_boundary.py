@@ -74,7 +74,6 @@ class SchedBoundaryExtract(SchedBoundary):
         self.interface_list = []
         self.var_list = []
 
-    # TODO use gcc.get_callgraph_nodes is okay too. Are there any difference ?
     def function_define(self, decl, _):
         # only func definition will trigger PLUGIN_FINISH_PARSE_FUNCTION
         loc = gcc.get_location()
