@@ -60,9 +60,15 @@ class GccBugs(object):
         else:
             return str
 
+    # extern type array[<unknown>] -> extern type array[]
+    @staticmethod
+    def array_size(decl, str):
+        return str.replace('[<unknown>]', '[]')
+
     @staticmethod
     def fix(decl, str):
-        for bugfix in [GccBugs.array_pointer, GccBugs.enum_type_name]:
+        for bugfix in [GccBugs.array_pointer, GccBugs.enum_type_name,
+                       GccBugs.array_size]:
             str = bugfix(decl, str)
         return str
 
