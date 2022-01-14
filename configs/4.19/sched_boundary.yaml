@@ -111,6 +111,3 @@ global_var:
     force_private:
     - sysctl_sched_features
     - sched_feat_keys
-    - fair_sched_cache_header
-    - __cpuidle_text_start
-    - __cpuidle_text_end
