@@ -223,19 +223,6 @@ class Plugsched(object):
 class PlugschedCLI(object):
     """ A command line interface for plugsched """
 
-    def dep(self, j=1):
-        """ Building dependencies (gcc-python-plugin)
-
-        :param j: Number of threads. "-j N" is okay while "-jN" is not allowed.
-        """
-        root_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)))
-        plugsched_sh = sh(_cwd = root_dir)
-        plugsched_sh.git.submodule.update(init = True)
-        depsh = sh(_cwd = os.path.join(root_dir, 'gcc-python-plugin'))
-        with sh.contrib.sudo:
-            sh.yum.install('python-devel', 'gcc', 'gcc-plugin-devel', _fg=True)
-        depsh.make(jobs=j)
-
     def extract_src(self, kernel_src_rpm, target_dir):
         """ extract kernel source code from kernel-src rpm
 
@@ -316,16 +303,6 @@ class PlugschedCLI(object):
         makefile = os.path.join(work_dir, 'Makefile')
         self.plugsched = Plugsched(work_dir, vmlinux, makefile)
         self.plugsched.cmd_build()
-
-    def self_debug(self, func, *args, **kwargs):
-        """ Debug plugsched tool itself
-
-        :param func: The process of plugsched to be debugged
-        :param args: Any arguments to be passed to func
-        :param kwargs: Any positional arguments to be passed to func
-        """
-        self.plugsched = Plugsched(*args, **kwargs)
-        getattr(self.plugsched, func)(*args, **kwargs)
 
 if __name__ == '__main__':
     fire.Fire(PlugschedCLI)
