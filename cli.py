@@ -13,7 +13,19 @@ Usage:
 
 Options:
   -h --help     Show help.
-  --version     Show version
+
+Available subcommands:
+  init          Initialize a scheduler module for a specific kernel release and product
+  dev_init      Initialize plugsched development envrionment from kernel source code
+  extrat_src    extract kernel source code from kernel-src rpm
+  build         Build a scheduler module rpm package for a specific kernel release and product
+
+Subcommand arguments:
+  release_kernel      `uname -r` of target kernel to be hotpluged
+  kernel_src          kernel source code directory
+  kernel_src_rpm      path of kernel source rpm
+  work_dir            target working directory to develop new scheduler module
+  target_dir          directory to place kernel source code
 """
 
 import sys
