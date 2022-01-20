@@ -1,4 +1,17 @@
 #!/usr/bin/env python2
+"""cli.py - A command line interface for plugsched
+
+Usage:
+  plugsched-cli init        <release_kernel> <kernel_src> <work_dir>
+  plugsched-cli dev_init    <kernel_src> <work_dir>
+  plugsched-cli extract_src <kernel_src_rpm> <target_dir>
+  plugsched-cli build       <work_dir>
+  plugsched-cli (-h | --help)
+
+Options:
+  -h --help     Show help.
+  --version     Show version
+"""
 
 import sys
 from yaml import load, dump
@@ -7,6 +20,7 @@ try:
 except ImportError:
     print >> sys.stderr, "WARNING: YAML CLoader is not presented, it can be slow."
     from yaml import Loader, Dumper
+from docopt import docopt
 import sh
 from sh import rsync, cp, glob as _glob
 from sched_boundary import check_sym_duplicy
@@ -16,7 +30,6 @@ import coloredlogs
 import logging
 import uuid
 import stat
-import fire
 import os
 
 def glob(pattern, _cwd='.'):
@@ -220,15 +233,12 @@ class Plugsched(object):
                             '-bb', 'SPECS/scheduler.spec')
         logging.info("Succeed!")
 
-class PlugschedCLI(object):
-    """ A command line interface for plugsched """
+if __name__ == '__main__':
+    arguments = docopt(__doc__)
 
-    def extract_src(self, kernel_src_rpm, target_dir):
-        """ extract kernel source code from kernel-src rpm
-
-        :param kernel_src_rpm: path of kernel source rpm
-        :param target_dir: directory to place kernel source code
-        """
+    if arguments['extract_src']:
+        kernel_src_rpm = arguments['<kernel_src_rpm>']
+        target_dir = arguments['<target_dir>']
 
         rpmbuild_root = mkdtemp()
         sh.rpmbuild('--define', '%%_topdir %s' % rpmbuild_root,
@@ -247,13 +257,10 @@ class PlugschedCLI(object):
 
         sh.rm(rpmbuild_root, recursive=True, force=True)
 
-    def init(self, release_kernel, kernel_src, work_dir):
-        """ Initialize a scheduler module for a specific kernel release and product
-
-        :param kernel_release: `uname -r` of target kernel to be hotpluged
-        :param kernel_src: kernel source code directory
-        :param work_dir: target working directory to develop new scheduler module
-        """
+    elif arguments['init']:
+        release_kernel = arguments['<release_kernel>']
+        kernel_src = arguments['<kernel_src>']
+        work_dir = arguments['<work_dir>']
 
         vmlinux = '/usr/lib/debug/lib/modules/' + release_kernel + '/vmlinux'
         if not os.path.exists(vmlinux):
@@ -266,15 +273,12 @@ class PlugschedCLI(object):
         if not os.path.exists(kernel_config):
             logging.fatal("%s not found, please install kernel-devel-%s.rpm", kernel_config, release_kernel)
 
-        self.plugsched = Plugsched(work_dir, vmlinux, makefile)
-        self.plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
+        plugsched = Plugsched(work_dir, vmlinux, makefile)
+        plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
 
-    def dev_init(self, kernel_src, work_dir):
-        """ Initialize plugsched development envrionment from kernel source code
-
-        :param kernel_src: kernel source code directory
-        :param work_dir: target working directory to develop new scheduler module
-        """
+    elif arguments['dev_init']:
+        kernel_src = arguments['<kernel_src>']
+        work_dir = arguments['<work_dir>']
 
         if not os.path.exists(kernel_src):
             logging.fatal("Kernel source directory not exists")
@@ -290,19 +294,14 @@ class PlugschedCLI(object):
         if not os.path.exists(kernel_config):
             logging.fatal("kernel config %s not found", kernel_config)
 
-        self.plugsched = Plugsched(work_dir, vmlinux, makefile)
-        self.plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
+        plugsched = Plugsched(work_dir, vmlinux, makefile)
+        plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
 
-    def build(self, work_dir):
-        """ Build a scheduler module rpm package for a specific kernel release and product
-
-        :param work_dir: target working directory to develop new scheduler module
-        """
+    elif arguments['build']:
+        work_dir = arguments['<work_dir>']
 
         vmlinux = os.path.join(work_dir, 'vmlinux')
         makefile = os.path.join(work_dir, 'Makefile')
-        self.plugsched = Plugsched(work_dir, vmlinux, makefile)
-        self.plugsched.cmd_build()
+        plugsched = Plugsched(work_dir, vmlinux, makefile)
+        plugsched.cmd_build()
 
-if __name__ == '__main__':
-    fire.Fire(PlugschedCLI)

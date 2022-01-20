@@ -4,7 +4,7 @@ from yaml import load, dump
 from yaml import CLoader as Loader, CDumper as Dumper
 import coloredlogs
 import logging
-import fire
+import sys
 coloredlogs.install(level='INFO')
 
 def YamlDiff(old_file, new_file):
@@ -30,4 +30,4 @@ def YamlDiff(old_file, new_file):
     logging.info("Bye: analyze the DIFF and remember to update sched_boundary.yaml")
 
 if __name__ == '__main__':
-    fire.Fire(YamlDiff)
+    YamlDiff(sys.argv[1], sys.argv[2])
