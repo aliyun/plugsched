@@ -1,3 +1,6 @@
+# Copyright 2019-2022 Alibaba Group Holding Limited.
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
 SYMBOL_RESOLVE    := $(OUTPUT)symbol_resolve
 LIBELF_FLAGS := $(shell pkg-config --static libelf --cflags 2>/dev/null)
 LIBELF_LIBS  := $(shell pkg-config --static libelf --libs 2>/dev/null || echo -lelf)

@@ -1,3 +1,8 @@
+/**
+ * Copyright 2019-2022 Alibaba Group Holding Limited.
+ * SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+ */
+
 #ifndef __HEAD_JUMP_H
 #define __HEAD_JUMP_H
 

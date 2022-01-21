@@ -1,0 +1,39 @@
+========================================================
+plugsched is a linux kernel hotplugable scheduler SDK
+Copyright (c) 2019-2022, Alibaba Group Holding Limited.
+Licensed under the GPLv2+ License or BSD-3-Clause License.
+========================================================
+This product reads and patches kernel/ folder linux kernel.
+All files in kernel/ are licensed under GPLv2 License.
+========================================================
+This product contains various third-party components under other open source licenses.
+This section summarizes those components and their licenses.
+----------------------------------
+elfutils/libelf
+Licensed under GPLv2+/LGPLv3+ License
+----------------------------------
+sh
+Copyright (C) 2011-2012 by Andrew Moffat
+Licensed under the MIT License
+----------------------------------
+docopt
+Copyright (c) 2012 Vladimir Keleshev, <vladimir@keleshev.com>
+Licensed under the MIT License
+----------------------------------
+gcc-python-plugin
+Copyright 2011-2019 David Malcolm <dmalcolm@redhat.com>
+Copyright 2011-2019 Red Hat, Inc.
+Licensed under the GPLv3+ License
+----------------------------------
+PyYAML
+Copyright (c) 2017-2021 Ingy döt Net
+Copyright (c) 2006-2016 Kirill Simonov
+Licensed under the MIT License
+----------------------------------
+coloredlogs
+Copyright (c) 2020 Peter Odding
+Licensed under the MIT License
+----------------------------------
+jinja
+Copyright 2007 Pallets
+Licensed under the BSD-3-Clause License

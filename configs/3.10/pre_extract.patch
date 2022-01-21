@@ -1,3 +1,6 @@
+// Copyright 2019-2022 Alibaba Group Holding Limited.
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
 From 26c61554a7829dde08ed4913b941d3ea16fe3e55 Mon Sep 17 00:00:00 2001
 From: Arnd Bergmann <arnd@arndb.de>
 Date: Fri, 26 Feb 2016 13:46:27 +0100

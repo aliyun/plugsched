@@ -1,3 +1,6 @@
+// Copyright 2019-2022 Alibaba Group Holding Limited.
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
 From d627ff8250fdb7a092a75729b02c90cc75191640 Mon Sep 17 00:00:00 2001
 From: Yihao Wu <wuyihao@linux.alibaba.com>
 Date: Sun, 28 Mar 2021 01:59:28 +0800

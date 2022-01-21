@@ -1,3 +1,6 @@
+# Copyright 2019-2022 Alibaba Group Holding Limited.
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
 from collections import defaultdict
 from builtins import super
 from itertools import izip, groupby as _groupby

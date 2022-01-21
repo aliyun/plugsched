@@ -1,8 +1,4 @@
-This repo contains:
-
-1. Definition of the scheduler module
-2. Tool to extract the closure of a scheduler module
-3. Examples for scheduler developers
-4. Scheduler module builder
-
-NOTE: This repo works with customized linux kernel for plugsched.
+plugsched is a linux kernel hotpluggable scheduler SDK developed by Alibaba
+and licensed under the GPLv3+ License or BSD-3-Clause License. This product
+contains various third-party components under other open source licenses.
+See the NOTICE file for more information.

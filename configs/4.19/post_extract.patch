@@ -1,3 +1,6 @@
+// Copyright 2019-2022 Alibaba Group Holding Limited.
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
 diff --git a/include/linux/preempt.h b/include/linux/preempt.h
 index c01813c..574977b 100644
 --- a/include/linux/preempt.h

@@ -1,3 +1,5 @@
+# Copyright 2019-2022 Alibaba Group Holding Limited.
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 From openanolis/anolisos:8.4-x86_64
 
 RUN yum install python2 gcc gcc-c++ wget -y && \

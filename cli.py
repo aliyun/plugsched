@@ -1,4 +1,7 @@
 #!/usr/bin/env python2
+# Copyright 2019-2022 Alibaba Group Holding Limited.
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
 """cli.py - A command line interface for plugsched
 
 Usage:
