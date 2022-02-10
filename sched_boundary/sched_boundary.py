@@ -248,14 +248,13 @@ class SchedBoundaryCollect(SchedBoundary):
         self.interface_properties = []
         self.seek_public_field = False
 
-    def is_init_fn(self, fndecl):
-        for name, val in fndecl.attributes.items():
+    def decl_in_section(self, decl, section):
+        for name, val in decl.attributes.items():
             # Canonicalized name "section" since gcc-8.1.0, and
             # Uncanonicalized legacy name "__section__" before 8.1.0
             if name in ('section', '__section__'):
                 assert len(val) == 1
-                if val[0].str_no_uid == '".init.text"':
-                    return True
+                return val[0].constant == section
         return False
 
     def include_file(self, header, _):
@@ -274,7 +273,7 @@ class SchedBoundaryCollect(SchedBoundary):
                 continue
             properties = {
                 "name": decl.name,
-                "init": self.is_init_fn(decl),
+                "init": self.decl_in_section(decl, '.init.text'),
                 "file": os.path.relpath(decl.location.file),
                 "l_brace_loc": (decl.function.start.line, decl.function.start.column),
                 "r_brace_loc": (decl.function.end.line, decl.function.end.column),
@@ -331,16 +330,10 @@ class SchedBoundaryCollect(SchedBoundary):
     def collect_fn_ptrs(self):
         # return True means we stop walk subtree
         def mark_fn_ptr(op, caller):
-            if isinstance(op, gcc.FunctionDecl) and not self.is_init_fn(op):
+            if isinstance(op, gcc.FunctionDecl) and not self.decl_in_section(op, '.init.text'):
                 self.fn_ptr_properties.append(
                     [op.name, os.path.relpath(op.location.file) if op.function else '?']
                 )
-
-        def temporary_var(var):
-            if 'section' in var.attributes and var.attributes['section'][0].constant == '.discard.addressable':
-                assert len(var.attributes['section']) == 1
-                return True
-            return False
 
         # Find fn ptrs in function body
         for node in gcc.get_callgraph_nodes():
@@ -357,7 +350,7 @@ class SchedBoundaryCollect(SchedBoundary):
 
         # Find fn ptrs in variable init value
         for var in gcc.get_variables():
-            if var.decl.initial and not temporary_var(var.decl):
+            if var.decl.initial and not self.decl_in_section(var.decl, '.discard.addressable'):
                 var.decl.initial.walk_tree(mark_fn_ptr, var.decl)
 
     def collect_struct(self):
@@ -390,7 +383,7 @@ class SchedBoundaryCollect(SchedBoundary):
 
     def collect_edges(self):
         for node in gcc.get_callgraph_nodes():
-            if self.is_init_fn(node.decl):
+            if self.decl_in_section(node.decl, '.init.text'):
                 continue
 
             # alias function
