@@ -38,7 +38,6 @@ except ImportError:
 from docopt import docopt
 import sh
 from sh import rsync, cp, glob as _glob
-from sched_boundary import check_sym_duplicy
 from multiprocessing import cpu_count
 from tempfile import mkdtemp
 import coloredlogs
