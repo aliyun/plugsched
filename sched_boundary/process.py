@@ -194,22 +194,26 @@ if __name__ == '__main__':
         config['function'][output_item] = func_class[output_item]
 
     # Handle Struct public fields. The right hand side gives an example
-    struct_properties = {
-        struct: {                                                                           # cfs_rq:
-            'public_fields': set(chain(                                                     #   public_fields:
-                [field for field, users in m['struct'][struct]['public_fields'].iteritems() #   - nr_uninterruptible
-                       if set(map(tuple, users)) & func_class['public_user']]               #
-                for m in metas                                                              ## for all files output by SchedBoundaryCollect
-                if struct in m['struct']                                                    ## and only if this file has structure information
-             )),
-            'all_fields': set(chain(
-                m['struct'][struct]['all_fields']
-                for m in metas
-                if struct in m['struct']
-            ))
-        }
-        for struct in set(chain(m['struct'].keys() for m in metas))
-    }
+    struct_properties = dict()
+    for struct in set(chain(m['struct'].keys() for m in metas)):
+        struct_properties[struct] = dict()
+        all_set = set()
+        field_set = set()
+        user_set = set()
+
+        for m in metas:
+            if struct not in m['struct']: continue
+            all_set |= set(m['struct'][struct]['all_fields'])
+
+            for field, users in m['struct'][struct]['public_fields'].iteritems():
+                p_user = set(map(tuple, users)) & func_class['public_user']
+                if p_user:
+                    user_set |= p_user
+                    field_set.add(field)
+
+        struct_properties[struct]['all_fields'] = all_set
+        struct_properties[struct]['public_fields'] = field_set
+        struct_properties[struct]['public_users'] = user_set
 
     with open(tmpdir + 'sched_boundary_doc.yaml', 'w') as f:
         dump(struct_properties, f, Dumper)
