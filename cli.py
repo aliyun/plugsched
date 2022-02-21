@@ -256,7 +256,7 @@ if __name__ == '__main__':
 
         rpmbuild_root = mkdtemp()
         sh.rpmbuild('--define', '%%_topdir %s' % rpmbuild_root,
-                    '-rp', kernel_src_rpm)
+                    '-rp', '--nodeps', kernel_src_rpm)
 
         src = glob('kernel*/linux*', rpmbuild_root + '/BUILD/')
 
