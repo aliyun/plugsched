@@ -34,10 +34,6 @@ unsigned long sched_springboard;
 extern struct mutex cgroup_mutex;
 extern struct mutex cpuset_mutex;
 extern cpumask_var_t sd_sysctl_cpus;
-extern int __mod_sched_cpu_activate(unsigned int cpu);
-extern int __mod_sched_cpu_deactivate(unsigned int cpu);
-extern void __mod_run_rebalance_domains(struct softirq_action *h);
-extern void run_rebalance_domains(struct softirq_action *h);
 extern const struct file_operations sched_feat_fops;
 extern const struct seq_operations sched_debug_sops;
 extern const struct seq_operations schedstat_sops;
@@ -183,9 +179,6 @@ static int __sync_sched_install(void *arg)
 	if (is_first_process()) {
 		JUMP_OPERATION(install);
 		sched_alloc_extrapad();
-
-		/* should call in stop machine context */
-		open_softirq(SCHED_SOFTIRQ, __mod_run_rebalance_domains);
 		reset_balance_callback();
 		atomic_set(&redirect_done, 1);
 	}
@@ -226,9 +219,6 @@ static int __sync_sched_restore(void *arg)
 
 	if (is_first_process()) {
 		JUMP_OPERATION(remove);
-
-		/* should call in stop machine context */
-		open_softirq(SCHED_SOFTIRQ, run_rebalance_domains);
 		reset_balance_callback();
 		sched_free_extrapad();
 		atomic_set(&redirect_done, 1);
