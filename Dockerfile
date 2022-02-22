@@ -13,8 +13,8 @@ RUN pip install --upgrade setuptools && \
 		elfutils-devel-static \
 		glibc-static zlib-static \
 		libstdc++-static \
-		gcc-python-plugin \
     		rpm-build rsync bc perl -y && \
+    yum install gcc-python-plugin --enablerepo=Plus -y && \
     yum clean all
 
 COPY . /usr/local/lib/plugsched/
