@@ -1,0 +1,13 @@
+name: PR Review
+on: pull_request_review
+jobs:
+  review:
+    name: Reviewed-by Trailer
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug
+        uses: mheap/reviewed-by-trailer-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+        with:
+          states: approved,changed_requested
