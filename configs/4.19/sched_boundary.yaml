@@ -26,6 +26,8 @@ interface_prefix:
     - __x64_sys_
     - __x32_compat_
     - __ia32_compat_sys_
+    - __arm64_sys_
+    - __arm64_compat_sys_
 function:
     interface:
         - do_set_cpus_allowed
