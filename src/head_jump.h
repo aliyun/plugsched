@@ -139,10 +139,12 @@ static int aarch64_write_insn(void *addr, u32 insn)
 	return 0;
 }
 
-#define DEFINE_JUMP_FUNC(func)  \
-	static u32 store_orig_##func; \
-	static u32 store_jump_##func; \
-	static unsigned long orig_##func
+#define DEFINE_JUMP_FUNC(func)				\
+	static u32 store_orig_##func;			\
+	static u32 store_jump_##func;			\
+	static unsigned long orig_##func;		\
+	static unsigned long orig_##func##_size;	\
+	static unsigned long mod_##func##_size
 
 #define JUMP_INIT_FUNC(func, prefix) do {	\
 		orig_##func = (unsigned long)__vmlinux__##func;	\
