@@ -100,45 +100,6 @@ static inline void do_write_cr0(unsigned long val)
 	} while(0)
 
 #else /* For ARM64 */
-
-#include <asm/insn.h>
-#include <asm/fixmap.h>
-#include <asm/memory.h>
-#include <asm/cacheflush.h>
-
-static void *patch_map(void *addr, int fixmap)
-{
-	unsigned long uintaddr = (uintptr_t) addr;
-	struct page *page;
-
-	page = phys_to_page(__pa_symbol(addr));
-
-	return (void *)set_fixmap_offset(fixmap, page_to_phys(page) +
-			(uintaddr & ~PAGE_MASK));
-}
-
-static void patch_unmap(int fixmap)
-{
-	clear_fixmap(fixmap);
-}
-
-static int aarch64_write_insn(void *addr, u32 insn)
-{
-	void *waddr = addr;
-
-	/* A64 instructions must be word aligned */
-	if ((uintptr_t)addr & 0x3)
-		return -EINVAL;
-
-	waddr = patch_map(addr, FIX_TEXT_POKE0);
-	memcpy((unsigned char *)waddr, (unsigned char *)&insn, AARCH64_INSN_SIZE);
-	patch_unmap(FIX_TEXT_POKE0);
-
-	__flush_icache_range((uintptr_t)addr,
-			(uintptr_t)addr + AARCH64_INSN_SIZE);
-	return 0;
-}
-
 #define DEFINE_JUMP_FUNC(func)				\
 	static u32 store_orig_##func;			\
 	static u32 store_jump_##func;			\
@@ -154,10 +115,10 @@ static int aarch64_write_insn(void *addr, u32 insn)
 	} while(0)
 
 #define JUMP_INSTALL_FUNC(func) \
-	aarch64_write_insn((void *)orig_##func, store_jump_##func)
+	aarch64_insn_patch_text_nosync((void *)orig_##func, store_jump_##func)
 
 #define JUMP_REMOVE_FUNC(func)  \
-	aarch64_write_insn((void *)orig_##func, store_orig_##func)
+	aarch64_insn_patch_text_nosync((void *)orig_##func, store_orig_##func)
 
 #define JUMP_OPERATION(ops) do {	\
 		jump_##ops();	\
