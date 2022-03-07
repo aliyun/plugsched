@@ -1,0 +1,31 @@
+// Copyright 2019-2022 Alibaba Group Holding Limited.
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 675a2d5189b8..9d492e1ab9c7 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -11905,8 +11905,7 @@ static void __free_fair_sched_group(void **ptr)
+ 	kfree(se);
+ }
+ 
+-CACHE_HEADER(fair_sched_cache_header, DEFAULT_CACHE_SIZE,
+-		fair_sched_clean_up, __free_fair_sched_group);
++CACHE_HEADER(fair_sched_cache_header, DEFAULT_CACHE_SIZE, fair_sched_clean_up, __free_fair_sched_group);
+ 
+ void free_fair_sched_group(struct task_group *tg)
+ {
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index 3b88244d0fa7..4c47c83a0365 100644
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -193,8 +193,7 @@ static void __free_rt_sched_group(void **ptr)
+ 	kfree(rt_se);
+ }
+ 
+-CACHE_HEADER(rt_sched_cache_header, DEFAULT_CACHE_SIZE,
+-		rt_sched_clean_up, __free_rt_sched_group);
++CACHE_HEADER(rt_sched_cache_header, DEFAULT_CACHE_SIZE, rt_sched_clean_up, __free_rt_sched_group);
+ 
+ void free_rt_sched_group(struct task_group *tg)
+ {
