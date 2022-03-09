@@ -244,12 +244,13 @@ class SchedBoundaryExtract(SchedBoundary):
                 lines[fn_row_end] += \
                     "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S INTERFACE FUNCTION */\n".format(decl.name)
 
+            # General handling all shared variables
             for decl, row_start, row_end in self.var_list:
-                decl.static = False
-                decl.external = True
-                decl.public = True
-                decl.initial = 0
+                for i in range(row_start+1, row_end+1):
+                    lines[i] = ''
 
+            # Specially handling shared per_cpu and static_key variables to improve readability
+            for decl, row_start, row_end in list(self.var_list):
                 line = lines[row_start]
                 if 'DEFINE_PER_CPU(' in line:
                     line = line.replace('DEFINE_PER_CPU(', 'DECLARE_PER_CPU(').replace('static ', '')
@@ -260,10 +261,20 @@ class SchedBoundaryExtract(SchedBoundary):
                 elif 'DEFINE_STATIC_KEY_TRUE(' in line:
                     line = line.replace('DEFINE_STATIC_KEY_TRUE(', 'DECLARE_STATIC_KEY_TRUE(').replace('static ', '')
                 else:
-                    line = GccBugs.fix(decl, decl.str_decl) + '\n'
+                    lines[row_start] = ''
+                    continue
                 lines[row_start] = line
-                for i in range(row_start+1, row_end+1):
-                    lines[i] = ''
+                self.var_list.remove((decl, row_start, row_end))
+
+            # General handling shared variables
+            for decl, row_start, row_end in self.var_list:
+                decl.static = False
+                decl.external = True
+                decl.public = True
+                decl.initial = 0
+
+                line = GccBugs.fix(decl, decl.str_decl) + '\n'
+                lines[row_start] += line
 
             with open(modpath + os.path.basename(src_f), 'w') as out_f:
                 out_f.writelines(lines)
