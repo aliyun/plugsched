@@ -90,9 +90,14 @@ static void resolve_ref(const char *fname, kallsym_collection &kallsyms, sympos_
 			continue;
 		kallsym = &kallsyms[name];
 
+		/*
+		 * Symbols which don't appear in sched_outsider may be
+		 * 1. Global symbols => sympos should be 0
+		 * 2. Optimized, all prefixed with .isra, .constprop. => should fail
+		 */
 		if (symposes.find(name) != symposes.end())
 			sympos = symposes[name];
-		else /* Symbols which dont appear in sched_outsider should be global symbols */
+		else
 			sympos = 0;
 		if (sympos == 0 && kallsym->addr.size() > 1)
 			ERROR("global symbol ambigouos is unresolvable.", false, name);
@@ -135,6 +140,8 @@ static void load_kallsyms(const char *fname, kallsym_collection &kallsyms)
 		std::istringstream line_stream(line);
 		line_stream >> std::hex >> addr >> type >> name;
 		if (name == "kern_path" && type != 'T')
+			continue;
+		if (name.find('.') != name.npos)
 			continue;
 		/* Reached modules */
 		if (!line_stream.eof()) break;

@@ -54,7 +54,7 @@ def read_meta(filename):
 # Disagreement 1: vmlinux thinks XXX is in core.c, plugsched thinks it's in kernel/sched/core.c
 # Disagreement 2: vmlinux thinks XXX is in core.c, plugsched thinks it's in sched.h
 # Disagreement 3: vmlinux thinks XXX is in usercopy_64.c, plugsched thinks it's in core.c
-# Disagrement: 4: vmlinux optimizes XXX to XXX.isra.1, plugsched remains XXX.
+# Disagrement: 4: vmlinux optimizes XXX to XXX.isra.1, XXX.constprop.1, etc. plugsched remains XXX.
 
 def get_in_any(key, files):
     for file in files:
@@ -81,7 +81,7 @@ def find_in_vmlinux(vmlinux_elf):
 
         file = filename
         # Disagreement 4
-        if '.' in key: key = key[:key.index('.')]
+        if '.' in key: continue
 
         if scope == 'LOCAL':
             fn_pos[key] = fn_pos.get(key, 0) + 1
@@ -92,6 +92,8 @@ def find_in_vmlinux(vmlinux_elf):
                 file = get_in_any(key, config['mod_header_files'])
                 if file is None: continue
 
+            # Avoid potential bugs that sympos gets overwritten in the future.
+            assert (key, file) not in local_sympos
             local_sympos[(key, file)] = fn_pos[key]
         else:
             # Disagreement 3
