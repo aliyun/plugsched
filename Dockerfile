@@ -14,7 +14,8 @@ RUN pip install --upgrade setuptools && \
 		elfutils-devel-static \
 		glibc-static zlib-static \
 		libstdc++-static \
-    		rpm-build rsync bc perl -y && \
+		platform-python-devel \
+		rpm-build rsync bc perl -y && \
     yum install gcc-python-plugin --enablerepo=Plus -y && \
     yum clean all
 
