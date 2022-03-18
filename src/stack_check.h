@@ -43,7 +43,7 @@ static void stack_check_init(void)
 	addr_sort(mod_func_addr, mod_func_size, NR_INTERFACE_FN);
 }
 
-static int heavy_stack_check_fn_insmod(struct stack_trace *trace)
+static int stack_check_fn_insmod(struct stack_trace *trace)
 {
 	unsigned long address;
 	int i, idx;
@@ -61,7 +61,7 @@ static int heavy_stack_check_fn_insmod(struct stack_trace *trace)
 	return 0;
 }
 
-static int heavy_stack_check_fn_rmmod(struct stack_trace *trace)
+static int stack_check_fn_rmmod(struct stack_trace *trace)
 {
 	unsigned long address;
 	int i, idx;
@@ -93,9 +93,9 @@ static int stack_check_task(struct task_struct *task, bool install)
 	save_stack_trace_tsk(task, &trace);
 
 	if (install)
-		return heavy_stack_check_fn_insmod(&trace);
+		return stack_check_fn_insmod(&trace);
 	else
-		return heavy_stack_check_fn_rmmod(&trace);
+		return stack_check_fn_rmmod(&trace);
 }
 
 static int stack_check(bool install)
