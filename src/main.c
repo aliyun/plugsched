@@ -13,7 +13,6 @@
 #include <linux/sched/task.h>
 #include <linux/sysfs.h>
 #include "sched.h"
-#include "helper.h"
 #include "mempool.h"
 #include "head_jump.h"
 #include "stack_check.h"

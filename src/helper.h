@@ -31,7 +31,6 @@ static inline void set_value_long(unsigned long addr, unsigned long val)
 /*
  * binary search method
  */
-
 int bsearch(unsigned long *arr, int start, int end, unsigned long tar)
 {
 	int mid;
@@ -54,4 +53,48 @@ int bsearch(unsigned long *arr, int start, int end, unsigned long tar)
 	}
 
 	return end;
+}
+
+static inline void addr_swap(unsigned long *a, unsigned long *b)
+{
+	if (*a ^ *b) {
+		*a = *a ^ *b;
+		*b = *b ^ *a;
+		*a = *a ^ *b;
+	}
+}
+
+/*
+ * This sort method is coming from lib/sort.c
+ */
+void addr_sort(unsigned long *addr, unsigned long *size, int n) {
+	int i = n/2 - 1, c, r;
+
+	for ( ; i >= 0; i -= 1) {
+		for (r = i; r * 2 + 1 < n; r  = c) {
+			c = r * 2 + 1;
+			if (c < n - 1 &&
+					*(addr + c) < *(addr + c + 1))
+				c += 1;
+			if (*(addr + r) >= *(addr + c))
+				break;
+			addr_swap(addr + r, addr + c);
+			addr_swap(size + r, size + c);
+		}
+	}
+
+	for (i = n - 1; i > 0; i -= 1) {
+		addr_swap(addr, addr + i);
+		addr_swap(size, size + i);
+		for (r = 0; r * 2 + 1 < i; r = c) {
+			c = r * 2 + 1;
+			if (c < i - 1 &&
+					*(addr + c) < *(addr + c + 1))
+				c += 1;
+			if (*(addr + r) >= *(addr + c))
+				break;
+			addr_swap(addr + r, addr + c);
+			addr_swap(size + r, size + c);
+		}
+	}
 }

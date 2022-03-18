@@ -3,6 +3,7 @@
 
 #include <linux/list.h>
 #include <trace/events/sched.h>
+#include "helper.h"
 
 #define MAX_STACK_ENTRIES	100
 
@@ -10,48 +11,6 @@ extern const char *get_ksymbol(struct module *, unsigned long,
 		unsigned long *, unsigned long *);
 
 extern int process_id[];
-
-static inline void addr_swap(unsigned long *a, unsigned long *b)
-{
-	if (*a ^ *b) {
-		*a = *a ^ *b;
-		*b = *b ^ *a;
-		*a = *a ^ *b;
-	}
-}
-
-/* This sort method is coming from lib/sort.c */
-void addr_sort(unsigned long *addr, unsigned long *size, int n) {
-	int i = n/2 - 1, c, r;
-
-	for ( ; i >= 0; i -= 1) {
-		for (r = i; r * 2 + 1 < n; r  = c) {
-			c = r * 2 + 1;
-			if (c < n - 1 &&
-					*(addr + c) < *(addr + c + 1))
-				c += 1;
-			if (*(addr + r) >= *(addr + c))
-				break;
-			addr_swap(addr + r, addr + c);
-			addr_swap(size + r, size + c);
-		}
-	}
-
-	for (i = n - 1; i > 0; i -= 1) {
-		addr_swap(addr, addr + i);
-		addr_swap(size, size + i);
-		for (r = 0; r * 2 + 1 < i; r = c) {
-			c = r * 2 + 1;
-			if (c < i - 1 &&
-					*(addr + c) < *(addr + c + 1))
-				c += 1;
-			if (*(addr + r) >= *(addr + c))
-				break;
-			addr_swap(addr + r, addr + c);
-			addr_swap(size + r, size + c);
-		}
-	}
-}
 
 static void stack_check_init(void)
 {
@@ -84,7 +43,7 @@ static void stack_check_init(void)
 	addr_sort(mod_func_addr, mod_func_size, NR_INTERFACE_FN);
 }
 
-static int heavy_stack_check_fn_insmod(struct stack_trace *trace)
+static int stack_check_fn_insmod(struct stack_trace *trace)
 {
 	unsigned long address;
 	int i, idx;
@@ -102,7 +61,7 @@ static int heavy_stack_check_fn_insmod(struct stack_trace *trace)
 	return 0;
 }
 
-static int heavy_stack_check_fn_rmmod(struct stack_trace *trace)
+static int stack_check_fn_rmmod(struct stack_trace *trace)
 {
 	unsigned long address;
 	int i, idx;
@@ -134,9 +93,9 @@ static int stack_check_task(struct task_struct *task, bool install)
 	save_stack_trace_tsk(task, &trace);
 
 	if (install)
-		return heavy_stack_check_fn_insmod(&trace);
+		return stack_check_fn_insmod(&trace);
 	else
-		return heavy_stack_check_fn_rmmod(&trace);
+		return stack_check_fn_rmmod(&trace);
 }
 
 static int stack_check(bool install)
