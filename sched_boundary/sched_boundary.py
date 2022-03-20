@@ -60,6 +60,17 @@ class GccBugs(object):
         else:
             return str
 
+    @staticmethod
+    def function_signature(decl):
+        fn_signature = str(decl.str_decl)
+        fn_signature = GccBugs.enum_type_name(decl.result, fn_signature)
+
+        for arg in decl.arguments:
+            if isinstance(arg.type, gcc.EnumeralType):
+                arg_type_name = str(arg.type.name)
+                fn_signature = fn_signature.replace(arg_type_name, 'enum ' + arg_type_name)
+        return fn_signature
+
     # extern type array[<unknown>] -> extern type array[]
     @staticmethod
     def array_size(decl, str):
@@ -202,7 +213,7 @@ class SchedBoundaryExtract(SchedBoundary):
                     lines[fn_row_start][fn_col_start:].replace(decl.name, new_name)
                 lines[fn_row_end] = lines[fn_row_end] + '\n' + \
                     "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S CALLBACK FUNCTION */\n".format(new_name) + \
-                    GccBugs.enum_type_name(decl.result, decl.str_decl) + '\n'
+                    GccBugs.function_signature(decl) + '\n'
 
             for decl, export, fn_row_start, fn_col_start, fn_row_end, fn_col_end in self.interface_list:
                 fn_export_jump.write(export)
