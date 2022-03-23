@@ -53,6 +53,14 @@ class GccBugs(object):
         return GccBugs.array_pointer_re.sub(r'\1 (*\3)[\2]', str)
 
     @staticmethod
+    def typedef(decl, str):
+        if isinstance(decl.type.name, gcc.TypeDecl):
+            name = decl.type.name.name
+            return str.replace('struct ' + name, name)
+        else:
+            return str
+
+    @staticmethod
     def enum_type_name(decl, str):
         if isinstance(decl.type, gcc.EnumeralType):
             i = str.find(decl.type.name.name)
@@ -61,14 +69,26 @@ class GccBugs(object):
             return str
 
     @staticmethod
+    def is_val_list(arg):
+        return isinstance(arg.type, gcc.PointerType) and \
+               isinstance(arg.type.dereference, gcc.RecordType) and \
+               isinstance(arg.type.dereference.name, gcc.Declaration) and \
+               arg.type.dereference.name.is_builtin and \
+               arg.type.dereference.name.name == '__va_list_tag'
+
+    @staticmethod
     def function_signature(decl):
         fn_signature = str(decl.str_decl)
         fn_signature = GccBugs.enum_type_name(decl.result, fn_signature)
-
         for arg in decl.arguments:
+            # special dealing with enum types. enum type will missing enum keyword in func.str_decl
             if isinstance(arg.type, gcc.EnumeralType):
                 arg_type_name = str(arg.type.name)
                 fn_signature = fn_signature.replace(arg_type_name, 'enum ' + arg_type_name)
+            # special dealing with builtin types, for example: va_list
+            elif GccBugs.is_val_list(arg):
+                fn_signature = fn_signature.replace("struct  *", "va_list")
+
         return fn_signature
 
     # extern type array[<unknown>] -> extern type array[]
@@ -79,7 +99,7 @@ class GccBugs(object):
     @staticmethod
     def fix(decl, str):
         for bugfix in [GccBugs.array_pointer, GccBugs.enum_type_name,
-                       GccBugs.array_size]:
+                       GccBugs.array_size, GccBugs.typedef]:
             str = bugfix(decl, str)
         return str
 
