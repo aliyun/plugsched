@@ -60,13 +60,13 @@ done
 
 if [ "$(awk 'END{print NF}' $tainted_file)" != "3" ]; then
 	# tainted_file provided by manual_hotfix or kpatch-pre-0.4 that don't have the sympos
-	conflicts=$(sort <(awk '{print $1}' $tainted_file) <(awk '{print $1}' $func_list) | uniq -d)
+	conflicts=$(sort <(awk '{print $1}' $tainted_file) <(awk '{print $1}' $func_list | sort | uniq) | uniq -d)
 else
 	# Get the conflict functions
-	conflicts=$(sort $tainted_file <(awk '{print $1" "$2" "$3}' $func_list) | uniq -d)
+	conflicts=$(sort $tainted_file <(awk '{print $1" "$2" "$3}' $func_list | sort | uniq) | uniq -d)
 fi
 
-conflicts_nosympos=$(sort <(awk '{print $1}' $tainted_file) <(awk '{print $1}' $func_list_nosympos) | uniq -d)
+conflicts_nosympos=$(sort <(awk '{print $1}' $tainted_file) <(awk '{print $1}' $func_list_nosympos | sort | uniq) | uniq -d)
 
 if [ "$conflicts" != "" -o "$conflicts_nosympos" != "" ]; then
 	echo Error: confict detected:
