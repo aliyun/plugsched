@@ -76,13 +76,6 @@ function:
         - sched_online_group
         - id_nr_invalid
         - finish_task_switch
-    sched_outsider: []
-    force_outsider:
-    - default_wake_function
-    - io_schedule_timeout
-    - sd_numa_mask
-    - tg_nop
-    - set_numabalancing_state
 global_var:
     extra_public:
     - cpu_idle_force_poll
