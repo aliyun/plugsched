@@ -3,6 +3,7 @@
 
 #include <linux/list.h>
 #include <trace/events/sched.h>
+#include <linux/stacktrace.h>
 #include "helper.h"
 
 #define MAX_STACK_ENTRIES	100
@@ -43,36 +44,27 @@ static void stack_check_init(void)
 	addr_sort(mod_func_addr, mod_func_size, NR_INTERFACE_FN);
 }
 
-static int stack_check_fn_insmod(struct stack_trace *trace)
+static int stack_check_fn(unsigned long *entries, unsigned int nr_entries, bool install)
 {
-	unsigned long address;
-	int i, idx;
+	int i, ret;
+	unsigned long *func_addr;
+	unsigned long *func_size;
 
-	for (i = 0; i < trace->nr_entries; i++) {
-		address = trace->entries[i];
-		idx = bsearch(vm_func_addr, 0, NR_INTERFACE_FN - 1, address);
-		if (idx == -1)
-			continue;
-
-		if (address < vm_func_addr[idx] + vm_func_size[idx])
-			return -EAGAIN;
+	if (install) {
+		func_addr = vm_func_addr;
+		func_size = vm_func_size;
+	} else {
+		func_addr = mod_func_addr;
+		func_size = mod_func_size;
 	}
 
-	return 0;
-}
+	for (i = 0; i < nr_entries; i++) {
+		int idx;
 
-static int stack_check_fn_rmmod(struct stack_trace *trace)
-{
-	unsigned long address;
-	int i, idx;
-
-	for (i = 0; i < trace->nr_entries; i++) {
-		address = trace->entries[i];
-		idx = bsearch(mod_func_addr, 0, NR_INTERFACE_FN - 1, address);
+		idx = bsearch(func_addr, 0, NR_INTERFACE_FN - 1, address);
 		if (idx == -1)
-			continue;
-
-		if (address < mod_func_addr[idx] + mod_func_size[idx])
+			return 0;
+		if (address < func_addr[idx] + func_size[idx])
 			return -EAGAIN;
 	}
 
@@ -83,6 +75,9 @@ static int stack_check_fn_rmmod(struct stack_trace *trace)
 static int stack_check_task(struct task_struct *task, bool install)
 {
 	unsigned long entries[MAX_STACK_ENTRIES];
+	unsigned int nr_entries = 0;
+
+#ifndef CONFIG_ARCH_STACKWALK
 	struct stack_trace trace;
 
 	trace.skip = 0;
@@ -91,11 +86,12 @@ static int stack_check_task(struct task_struct *task, bool install)
 	trace.entries = entries;
 
 	save_stack_trace_tsk(task, &trace);
+	nr_entries = trace.nr_entries;
+#else /* CONFIG_ARCH_STACKWALK */
+	nr_entries = stack_trace_save_tsk(task, &entries, MAX_STACK_ENTRIES, 0);
+#endif /* CONFIG_ARCH_STACKWALK */
 
-	if (install)
-		return stack_check_fn_insmod(&trace);
-	else
-		return stack_check_fn_rmmod(&trace);
+	return stack_check_fn(entries, nr_entries, install);
 }
 
 static int stack_check(bool install)
