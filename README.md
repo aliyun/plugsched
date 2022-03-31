@@ -82,44 +82,95 @@ Plugsched currently supports Anolis OS 7.9 ANCK by default, and other OS need to
 # plugsched-cli init 4.19.91-25.2.an7.x86_64 ./kernel ./scheduler
 ```
 
-6. The extracted scheduler code is in ./scheduler/kernel/sched/mod now, simply modify the __schedule function, and then compile and package it into a scheduler rpm package.
+6. The extracted scheduler code is in ./scheduler/kernel/sched/mod. Add a new sched_feature and package it into a rpm.
 ```diff
-diff --git a/kernel/sched/mod/core.c b/kernel/sched/mod/core.c
-index f337607..88fe861 100644
---- a/kernel/sched/mod/core.c
-+++ b/kernel/sched/mod/core.c
-@@ -3235,6 +3235,8 @@ static void __sched notrace __schedule(bool preempt)
+diff --git a/scheduler/kernel/sched/mod/core.c b/scheduler/kernel/sched/mod/core.c
+index 9f16b72..21262fd 100644
+--- a/scheduler/kernel/sched/mod/core.c
++++ b/scheduler/kernel/sched/mod/core.c
+@@ -3234,6 +3234,9 @@ static void __sched notrace __schedule(bool preempt)
  	struct rq *rq;
  	int cpu;
  
-+	printk_once("scheduler: Hi, I am the new scheduler!\n");
++	if (sched_feat(PLUGSCHED_TEST))
++		printk_once("I am the new scheduler: __schedule\n");
 +
  	cpu = smp_processor_id();
  	rq = cpu_rq(cpu);
  	prev = rq->curr;
+diff --git a/scheduler/kernel/sched/mod/features.h b/scheduler/kernel/sched/mod/features.h
+index 4c40fac..8d1eafd 100644
+--- a/scheduler/kernel/sched/mod/features.h
++++ b/scheduler/kernel/sched/mod/features.h
+@@ -1,4 +1,6 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
++SCHED_FEAT(PLUGSCHED_TEST, false)
++
+ /*
+  * Only give sleepers 50% of their service deficit. This allows
+  * them to run sooner, but does not allow tons of sleepers to
 ```
 ```shell
 # plugsched-cli build /tmp/work/scheduler
 ```
 
-7. Copy the scheduler rpm to the host, exit the container, and then install scheduler.
+7. Copy the scheduler rpm to the host, exit the container, and view the current sched_features.
 ```text
 # cp /usr/local/lib/plugsched/rpmbuild/RPMS/x86_64/scheduler-xxx-4.19.91-25.2.an7.yyy.x86_64.rpm /tmp/work
 # exit
 exit
-# rpm -ivh /tmp/work/scheduler-xxx-4.19.91-25.2.an7.yyy.x86_64.rpm
-# dmesg ｜ tail -n 10
-[  878.915006] scheduler: total initialization time is        5780743 ns
-[  878.915006] scheduler module is loading
-[  878.915232] scheduler: Hi, I am the new scheduler!
-[  878.915232] scheduler: Hi, I am the new scheduler!
-[  878.915990] scheduler load: current cpu number is               64
-[  878.915990] scheduler load: current thread number is           626
-[  878.915991] scheduler load: stop machine time is            243138 ns
-[  878.915991] scheduler load: stop handler time is            148542 ns
-[  878.915992] scheduler load: stack check time is              86532 ns
-[  878.915992] scheduler load: all the time is                 982076 ns
+# cat /sys/kernel/debug/sched_features
+GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP_PREEMPTION NO_HRTICK NO_DOUBLE_TICK NONTASK_CAPACITY TTWU_QUEUE NO_SIS_AVG_CPU SIS_PROP NO_WARN_DOUBLE_CLOCK RT_PUSH_IPI RT_RUNTIME_SHARE NO_LB_MIN ATTACH_AGE_LOAD WA_IDLE WA_WEIGHT WA_BIAS NO_WA_STATIC_WEIGHT UTIL_EST ID_IDLE_AVG ID_RESCUE_EXPELLEE NO_ID_EXPELLEE_NEVER_HOT NO_ID_LOOSE_EXPEL ID_LAST_HIGHCLASS_STAY
 ```
+
+8. Install the scheduler rpm and then the new feature is added but closed.
+```text
+# rpm -ivh /tmp/work/scheduler-xxx-4.19.91-25.2.an7.yyy.x86_64.rpm
+# lsmod | grep scheduler
+scheduler             503808  1
+# dmesg ｜ tail -n 10
+[ 2186.213916] cni-podman0: port 1(vethfe1a04fa) entered forwarding state
+[ 6092.916180] Hi, scheduler mod is installing!
+[ 6092.923037] scheduler: total initialization time is        6855921 ns
+[ 6092.923038] scheduler module is loading
+[ 6092.924136] scheduler load: current cpu number is               64
+[ 6092.924137] scheduler load: current thread number is           667
+[ 6092.924138] scheduler load: stop machine time is            249471 ns
+[ 6092.924138] scheduler load: stop handler time is            160616 ns
+[ 6092.924138] scheduler load: stack check time is              85916 ns
+[ 6092.924139] scheduler load: all the time is                1097321 ns
+# cat /sys/kernel/debug/sched_features
+NO_PLUGSCHED_TEST GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP_PREEMPTION NO_HRTICK NO_DOUBLE_TICK NONTASK_CAPACITY TTWU_QUEUE NO_SIS_AVG_CPU SIS_PROP NO_WARN_DOUBLE_CLOCK RT_PUSH_IPI RT_RUNTIME_SHARE NO_LB_MIN ATTACH_AGE_LOAD WA_IDLE WA_WEIGHT WA_BIAS NO_WA_STATIC_WEIGHT UTIL_EST ID_IDLE_AVG ID_RESCUE_EXPELLEE NO_ID_EXPELLEE_NEVER_HOT NO_ID_LOOSE_EXPEL ID_LAST_HIGHCLASS_STAY
+```
+
+9. Open the new feature and we can see "I am the new schduler: __schedule" in dmesg.
+```text
+# echo PLUGSCHED_TEST > /sys/kernel/debug/sched_features
+# dmesg | tail -n 5
+[ 6092.924138] scheduler load: stop machine time is            249471 ns
+[ 6092.924138] scheduler load: stop handler time is            160616 ns
+[ 6092.924138] scheduler load: stack check time is              85916 ns
+[ 6092.924139] scheduler load: all the time is                1097321 ns
+[ 6512.539300] I am the new scheduler: __schedule
+```
+
+10. Remove the scheduler rpm and then the new feature will be removed.
+```text
+# rpm -e scheduler-xxx
+# dmesg | tail -n 8
+[ 6717.794923] scheduler module is unloading
+[ 6717.809110] scheduler unload: current cpu number is               64
+[ 6717.809111] scheduler unload: current thread number is           670
+[ 6717.809112] scheduler unload: stop machine time is            321757 ns
+[ 6717.809112] scheduler unload: stop handler time is            142844 ns
+[ 6717.809113] scheduler unload: stack check time is              74938 ns
+[ 6717.809113] scheduler unload: all the time is               14185493 ns
+[ 6717.810189] Bye, scheduler mod has be removed!
+#
+# cat /sys/kernel/debug/sched_features
+GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP_PREEMPTION NO_HRTICK NO_DOUBLE_TICK NONTASK_CAPACITY TTWU_QUEUE NO_SIS_AVG_CPU SIS_PROP NO_WARN_DOUBLE_CLOCK RT_PUSH_IPI RT_RUNTIME_SHARE NO_LB_MIN ATTACH_AGE_LOAD WA_IDLE WA_WEIGHT WA_BIAS NO_WA_STATIC_WEIGHT UTIL_EST ID_IDLE_AVG ID_RESCUE_EXPELLEE NO_ID_EXPELLEE_NEVER_HOT NO_ID_LOOSE_EXPEL ID_LAST_HIGHCLASS_STAY
+```
+**Note: Cannot unload the scheduler module directly using the "rmmod" command! You should use the "rpm or yum" standard command to remove the scheduler package.**
 
 ## FAQ
 **Q: Under the default boundary configuration, what does the scheduler contain after boundary extraction?**
