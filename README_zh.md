@@ -82,44 +82,95 @@ plugsched 是 Linux 内核调度器子系统热升级的 SDK，它可以实现�
 # plugsched-cli init 4.19.91-25.2.an7.x86_64 ./kernel ./scheduler
 ```
 
-6. 提取后的调度器模块代码在 ./scheduler/kernel/sched/mod 中，简单修改 __schedule 函数，然后编译打包成调度器 rpm 包：
+6. 提取后的调度器模块代码在 ./scheduler/kernel/sched/mod 中, 新增一个 sched_feature 并打包生成 rpm 包：
 ```diff
-diff --git a/kernel/sched/mod/core.c b/kernel/sched/mod/core.c
-index f337607..88fe861 100644
---- a/kernel/sched/mod/core.c
-+++ b/kernel/sched/mod/core.c
-@@ -3235,6 +3235,8 @@ static void __sched notrace __schedule(bool preempt)
+diff --git a/scheduler/kernel/sched/mod/core.c b/scheduler/kernel/sched/mod/core.c
+index 9f16b72..21262fd 100644
+--- a/scheduler/kernel/sched/mod/core.c
++++ b/scheduler/kernel/sched/mod/core.c
+@@ -3234,6 +3234,9 @@ static void __sched notrace __schedule(bool preempt)
  	struct rq *rq;
  	int cpu;
  
-+	printk_once("scheduler: Hi, I am the new scheduler!\n");
++	if (sched_feat(PLUGSCHED_TEST))
++		printk_once("I am the new scheduler: __schedule\n");
 +
  	cpu = smp_processor_id();
  	rq = cpu_rq(cpu);
  	prev = rq->curr;
+diff --git a/scheduler/kernel/sched/mod/features.h b/scheduler/kernel/sched/mod/features.h
+index 4c40fac..8d1eafd 100644
+--- a/scheduler/kernel/sched/mod/features.h
++++ b/scheduler/kernel/sched/mod/features.h
+@@ -1,4 +1,6 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
++SCHED_FEAT(PLUGSCHED_TEST, false)
++
+ /*
+  * Only give sleepers 50% of their service deficit. This allows
+  * them to run sooner, but does not allow tons of sleepers to
 ```
 ```shell
 # plugsched-cli build /tmp/work/scheduler
 ```
 
-7. 将生成的 rpm 包拷贝到宿主机，退出容器，并安装调度器包：
+7. 将生成的 rpm 包拷贝到宿主机，退出容器，查看当前 sched_features：
 ```text
 # cp /usr/local/lib/plugsched/rpmbuild/RPMS/x86_64/scheduler-xxx-4.19.91-25.2.an7.yyy.x86_64.rpm /tmp/work
 # exit
 exit
-# rpm -ivh /tmp/work/scheduler-xxx-4.19.91-25.2.an7.yyy.x86_64.rpm
-# dmesg ｜ tail -n 10
-[  878.915006] scheduler: total initialization time is        5780743 ns
-[  878.915006] scheduler module is loading
-[  878.915232] scheduler: Hi, I am the new scheduler!
-[  878.915232] scheduler: Hi, I am the new scheduler!
-[  878.915990] scheduler load: current cpu number is               64
-[  878.915990] scheduler load: current thread number is           626
-[  878.915991] scheduler load: stop machine time is            243138 ns
-[  878.915991] scheduler load: stop handler time is            148542 ns
-[  878.915992] scheduler load: stack check time is              86532 ns
-[  878.915992] scheduler load: all the time is                 982076 ns
+# cat /sys/kernel/debug/sched_features
+GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP_PREEMPTION NO_HRTICK NO_DOUBLE_TICK NONTASK_CAPACITY TTWU_QUEUE NO_SIS_AVG_CPU SIS_PROP NO_WARN_DOUBLE_CLOCK RT_PUSH_IPI RT_RUNTIME_SHARE NO_LB_MIN ATTACH_AGE_LOAD WA_IDLE WA_WEIGHT WA_BIAS NO_WA_STATIC_WEIGHT UTIL_EST ID_IDLE_AVG ID_RESCUE_EXPELLEE NO_ID_EXPELLEE_NEVER_HOT NO_ID_LOOSE_EXPEL ID_LAST_HIGHCLASS_STAY
 ```
+
+8. 安装调度器包，且新增了一个 PLUGSCHED_TEST sched_feature（关闭状态）：
+```text
+# rpm -ivh /tmp/work/scheduler-xxx-4.19.91-25.2.an7.yyy.x86_64.rpm
+# lsmod | grep scheduler
+scheduler             503808  1
+# dmesg ｜ tail -n 10
+[ 2186.213916] cni-podman0: port 1(vethfe1a04fa) entered forwarding state
+[ 6092.916180] Hi, scheduler mod is installing!
+[ 6092.923037] scheduler: total initialization time is        6855921 ns
+[ 6092.923038] scheduler module is loading
+[ 6092.924136] scheduler load: current cpu number is               64
+[ 6092.924137] scheduler load: current thread number is           667
+[ 6092.924138] scheduler load: stop machine time is            249471 ns
+[ 6092.924138] scheduler load: stop handler time is            160616 ns
+[ 6092.924138] scheduler load: stack check time is              85916 ns
+[ 6092.924139] scheduler load: all the time is                1097321 ns
+# cat /sys/kernel/debug/sched_features
+NO_PLUGSCHED_TEST GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP_PREEMPTION NO_HRTICK NO_DOUBLE_TICK NONTASK_CAPACITY TTWU_QUEUE NO_SIS_AVG_CPU SIS_PROP NO_WARN_DOUBLE_CLOCK RT_PUSH_IPI RT_RUNTIME_SHARE NO_LB_MIN ATTACH_AGE_LOAD WA_IDLE WA_WEIGHT WA_BIAS NO_WA_STATIC_WEIGHT UTIL_EST ID_IDLE_AVG ID_RESCUE_EXPELLEE NO_ID_EXPELLEE_NEVER_HOT NO_ID_LOOSE_EXPEL ID_LAST_HIGHCLASS_STAY
+```
+
+9. 打开新的 sched_feature，“I am the new scheduler: __schedule” 信息出现在 dmesg 日志中：
+```text
+# echo PLUGSCHED_TEST > /sys/kernel/debug/sched_features
+# dmesg | tail -n 5
+[ 6092.924138] scheduler load: stop machine time is            249471 ns
+[ 6092.924138] scheduler load: stop handler time is            160616 ns
+[ 6092.924138] scheduler load: stack check time is              85916 ns
+[ 6092.924139] scheduler load: all the time is                1097321 ns
+[ 6512.539300] I am the new scheduler: __schedule
+```
+
+10. 卸载调度器包后，新的 sched_feature 被删除：
+```text
+# rpm -e scheduler-xxx
+# dmesg | tail -n 8
+[ 6717.794923] scheduler module is unloading
+[ 6717.809110] scheduler unload: current cpu number is               64
+[ 6717.809111] scheduler unload: current thread number is           670
+[ 6717.809112] scheduler unload: stop machine time is            321757 ns
+[ 6717.809112] scheduler unload: stop handler time is            142844 ns
+[ 6717.809113] scheduler unload: stack check time is              74938 ns
+[ 6717.809113] scheduler unload: all the time is               14185493 ns
+[ 6717.810189] Bye, scheduler mod has be removed!
+#
+# cat /sys/kernel/debug/sched_features
+GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP_PREEMPTION NO_HRTICK NO_DOUBLE_TICK NONTASK_CAPACITY TTWU_QUEUE NO_SIS_AVG_CPU SIS_PROP NO_WARN_DOUBLE_CLOCK RT_PUSH_IPI RT_RUNTIME_SHARE NO_LB_MIN ATTACH_AGE_LOAD WA_IDLE WA_WEIGHT WA_BIAS NO_WA_STATIC_WEIGHT UTIL_EST ID_IDLE_AVG ID_RESCUE_EXPELLEE NO_ID_EXPELLEE_NEVER_HOT NO_ID_LOOSE_EXPEL ID_LAST_HIGHCLASS_STAY
+```
+**注意：不可以用“rmmod”命令直接卸载调度器模块，应使用“rpm 或 yum”标准命令卸载调度器包。**
 
 ## FAQ
 **Q: 默认边界配置下， 边界划分后的调度器模块里面有什么东西？**
