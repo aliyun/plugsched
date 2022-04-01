@@ -40,7 +40,7 @@ After the development, the scheduler with loading/unloading and other related co
 * **Redirections:** Dynamically replace interface functions in kernel with corresponding functions in module.
 * **Scheduler State Rebuild:** Synchronize the state between the new and old scheduler automatically, which  greatly simplifies the maintenance of data state consistency.
 
-![Architecture](https://user-images.githubusercontent.com/33253760/156824976-c15684be-467b-45ac-abd6-976a9a5d542f.jpg)
+![architecture](https://user-images.githubusercontent.com/33253760/161361409-e9462d4b-955c-4bf0-9de5-6b9993f29238.jpg)
 
 ## Use Cases
 1. Quickly develop, verify and release new features, and merge them into the kernel mainline after being stable.
