@@ -9,7 +9,6 @@
 #include <linux/path.h>
 #include <linux/mutex.h>
 #include <linux/namei.h>
-#include <linux/livepatch.h>
 #include <linux/sched/task.h>
 #include <linux/sysfs.h>
 #include "sched.h"
