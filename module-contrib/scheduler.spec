@@ -66,6 +66,8 @@ install -m 644 %{SOURCE5} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL
 
 #install kernel module after install this rpm-package
 %post
+sync
+
 if [ $1 == 1 ];  then
 	echo "Installing scheduler"
 	systemctl daemon-reload
