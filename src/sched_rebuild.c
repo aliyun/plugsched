@@ -25,6 +25,7 @@ void clear_sched_state(bool mod)
 	struct rq *rq = this_rq();
 	int queue_flags = DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
 
+	raw_spin_lock(&rq->lock);
 	if (mod) {
 		set_rq_offline(rq);
 	} else {
@@ -44,6 +45,7 @@ void clear_sched_state(bool mod)
 		if (task_on_rq_queued(p))
 			p->sched_class->dequeue_task(rq, p, queue_flags);
 	}
+	raw_spin_unlock(&rq->lock);
 }
 
 void rebuild_sched_state(bool mod)
@@ -54,6 +56,7 @@ void rebuild_sched_state(bool mod)
 	int queue_flags = ENQUEUE_RESTORE | ENQUEUE_MOVE | ENQUEUE_NOCLOCK;
 	int cpu = smp_processor_id();
 
+	raw_spin_lock(&rq->lock);
 	if (mod) {
 		set_rq_online(rq);
 	} else {
@@ -70,6 +73,7 @@ void rebuild_sched_state(bool mod)
 		if (task_on_rq_queued(p))
 			p->sched_class->enqueue_task(rq, p, queue_flags);
 	}
+	raw_spin_unlock(&rq->lock);
 
 	if (process_id[cpu])
 		return;
