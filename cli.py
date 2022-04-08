@@ -204,7 +204,7 @@ class Plugsched(object):
             self.apply_patch('dynamic_springboard.patch')
 
         with open(os.path.join(self.mod_path, 'Makefile'), 'a') as f:
-            self.search_springboard(self.vmlinux, _out=f)
+            self.search_springboard(self.vmlinux, kernel_config, _out=f)
 
         logging.info("Succeed!")
 
