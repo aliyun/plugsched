@@ -84,14 +84,19 @@ static unsigned long mod_func_size[NR_INTERFACE_FN];
 #define JUMP_REMOVE_FUNC(func) 	\
 	memcpy((unsigned char *)orig_##func, store_orig_##func, HEAD_LEN)
 
+static inline void do_write_cr0(unsigned long val)
+{
+	asm volatile("mov %0,%%cr0": "+r" (val) : : "memory");
+}
+
 /* Must be used in stop machine context */
 #define JUMP_OPERATION(ops) do { 	\
 		unsigned long cr0;      \
 					\
 		cr0 = read_cr0();       \
-		write_cr0(cr0 & 0xfffeffff);    \
+		do_write_cr0(cr0 & 0xfffeffff);    \
 		jump_##ops();		\
-		write_cr0(cr0);         \
+		do_write_cr0(cr0);         \
 	} while(0)
 
 #else /* For ARM64 */
