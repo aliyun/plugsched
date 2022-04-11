@@ -28,12 +28,12 @@ static void stack_check_init(void)
 	addr_sort(vm_func_addr, vm_func_size, NR_INTERFACE_FN);
 
 	#define PLUGSCHED_FN_PTR(fn, ...) 				\
-		get_ksymbol(THIS_MODULE,(unsigned long)__mod_##fn, 	\
+		kallsyms_lookup_size_offset((unsigned long)__mod_##fn, 	\
 				&mod_##fn##_size, NULL); 		\
 		mod_func_size[NR_##fn] = mod_##fn##_size;
 
 	#define EXPORT_PLUGSCHED(fn, ...) 				\
-		get_ksymbol(THIS_MODULE,(unsigned long)fn, 		\
+		kallsyms_lookup_size_offset((unsigned long)fn, 		\
 				&mod_##fn##_size, NULL); 		\
 		mod_func_size[NR_##fn] = mod_##fn##_size;
 
