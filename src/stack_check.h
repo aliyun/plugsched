@@ -60,6 +60,7 @@ static int stack_check_fn(unsigned long *entries, unsigned int nr_entries, bool 
 
 	for (i = 0; i < nr_entries; i++) {
 		int idx;
+		unsigned long address = entries[i];
 
 		idx = bsearch(func_addr, 0, NR_INTERFACE_FN - 1, address);
 		if (idx == -1)
