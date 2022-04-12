@@ -46,7 +46,7 @@ static void stack_check_init(void)
 
 static int stack_check_fn(unsigned long *entries, unsigned int nr_entries, bool install)
 {
-	int i, ret;
+	int i;
 	unsigned long *func_addr;
 	unsigned long *func_size;
 
