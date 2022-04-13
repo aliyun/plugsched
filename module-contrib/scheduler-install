@@ -60,6 +60,7 @@ uninstall_module() {
 
 if [ $1 == "install" ]; then
 	if [ "$cursys" == "$mod" ]; then
+		/usr/bin/mkdir -p /run/plugsched
 		/usr/bin/cp $modfile /run/plugsched/scheduler.ko
 		/usr/local/bin/symbol_resolve /run/plugsched/scheduler.ko /proc/kallsyms
 		install_module /run/plugsched/scheduler.ko
@@ -69,6 +70,7 @@ if [ $1 == "install" ]; then
 	fi
 elif [ $1 == "uninstall" ]; then
 	uninstall_module
+	/usr/bin/rm -rf /run/plugsched
 else
 	warn "Error: Unknown operation"
 	exit 1

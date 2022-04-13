@@ -52,7 +52,6 @@ awk -F '[(,)]' '$2!=""{print $2" "$3" vmlinux"}' %{_modpath}/tainted_functions{.
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_prefix}/lib/systemd/system
 mkdir -p %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
-mkdir -p %{buildroot}%{_rundir}/plugsched
 
 install -m 755 %{_tmpdir}/symbol_resolve/symbol_resolve %{buildroot}%{_bindir}/symbol_resolve
 install -m 755 %{_modpath}/scheduler.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
@@ -98,8 +97,5 @@ fi
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/sched_boundary.yaml
-
-%dir
-%{_rundir}/plugsched
 
 %changelog
