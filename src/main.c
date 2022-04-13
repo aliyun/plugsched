@@ -113,36 +113,6 @@ static void reset_balance_callback(void)
 	}
 }
 
-static inline void install_sched_domain_sysctl(void)
-{
-	void (*old_unregister_sd_sysctl)(void);
-
-	mutex_lock(&cgroup_mutex);
-	mutex_lock(&cpuset_mutex);
-
-	old_unregister_sd_sysctl = (void *)kallsyms_lookup_name("unregister_sched_domain_sysctl");
-	old_unregister_sd_sysctl();
-	register_sched_domain_sysctl();
-
-	mutex_unlock(&cpuset_mutex);
-	mutex_unlock(&cgroup_mutex);
-}
-
-static inline void restore_sched_domain_sysctl(void)
-{
-	void (*old_register_sd_sysctl)(void);
-
-	mutex_lock(&cgroup_mutex);
-	mutex_lock(&cpuset_mutex);
-
-	unregister_sched_domain_sysctl();
-	cpumask_copy(sd_sysctl_cpus, cpu_possible_mask);
-	old_register_sd_sysctl = (void *)kallsyms_lookup_name("register_sched_domain_sysctl");
-	old_register_sd_sysctl();
-
-	mutex_unlock(&cpuset_mutex);
-	mutex_unlock(&cgroup_mutex);
-}
 
 static int __sync_sched_install(void *arg)
 {
@@ -244,6 +214,38 @@ static int sync_sched_mod(void *func)
 	return ret;
 }
 
+#ifdef CONFIG_SCHED_DEBUG
+static inline void install_sched_domain_sysctl(void)
+{
+	void (*old_unregister_sd_sysctl)(void);
+
+	mutex_lock(&cgroup_mutex);
+	mutex_lock(&cpuset_mutex);
+
+	old_unregister_sd_sysctl = (void *)kallsyms_lookup_name("unregister_sched_domain_sysctl");
+	old_unregister_sd_sysctl();
+	register_sched_domain_sysctl();
+
+	mutex_unlock(&cpuset_mutex);
+	mutex_unlock(&cgroup_mutex);
+}
+
+static inline void restore_sched_domain_sysctl(void)
+{
+	void (*old_register_sd_sysctl)(void);
+
+	mutex_lock(&cgroup_mutex);
+	mutex_lock(&cpuset_mutex);
+
+	unregister_sched_domain_sysctl();
+	cpumask_copy(sd_sysctl_cpus, cpu_possible_mask);
+	old_register_sd_sysctl = (void *)kallsyms_lookup_name("register_sched_domain_sysctl");
+	old_register_sd_sysctl();
+
+	mutex_unlock(&cpuset_mutex);
+	mutex_unlock(&cgroup_mutex);
+}
+
 /* sched_debug and sched_features interface in debugfs */
 static struct dentry* find_dentry(const char* name)
 {
@@ -294,7 +296,9 @@ int restore_sched_debug_procfs(void)
 
 	return 0;
 }
+#endif
 
+#ifdef CONFIG_SCHEDSTATS
 /* schedstat interface in proc */
 int install_proc_schedstat(void)
 {
@@ -318,6 +322,7 @@ int restore_proc_schedstat(void)
 
 	return 0;
 }
+#endif
 
 static void report_cur_status(char *ops)
 {
@@ -363,11 +368,14 @@ static int load_sched_routine(void)
 		return ret;
 	}
 
-	install_sched_domain_sysctl();
-
-	install_sched_debug_procfs();
+#ifdef CONFIG_SCHEDSTATS
 	install_proc_schedstat();
+#endif
+#ifdef CONFIG_SCHED_DEBUG
+	install_sched_domain_sysctl();
+	install_sched_debug_procfs();
 	install_sched_debugfs();
+#endif
 
 	main_end = ktime_get();
 	report_detail_time("load");
@@ -390,11 +398,14 @@ static int unload_sched_routine(void)
 	if (ret)
 		return ret;
 
-	restore_sched_domain_sysctl();
-
-	restore_sched_debug_procfs();
+#ifdef CONFIG_SCHEDSTATS
 	restore_proc_schedstat();
+#endif
+#ifdef CONFIG_SCHED_DEBUG
+	restore_sched_domain_sysctl();
+	restore_sched_debug_procfs();
 	restore_sched_debugfs();
+#endif
 
 	main_end = ktime_get();
 	report_detail_time("unload");
