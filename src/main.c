@@ -122,7 +122,7 @@ static int __sync_sched_install(void *arg)
 		stop_time_p0 = ktime_get();
 
 		/* double checker simple memory pool */
-		if (error = recheck_smps())
+		if ((error = recheck_smps()))
 			atomic_cmpxchg(&global_error, 0, error);
 	}
 
@@ -134,7 +134,7 @@ static int __sync_sched_install(void *arg)
 	/* wait for all cpu to finish stack check */
 	atomic_cond_read_relaxed(&cpu_finished, !VAL);
 
-	if (error = atomic_read(&global_error)) {
+	if ((error = atomic_read(&global_error))) {
 		print_error(error);
 		return error;
 	}
@@ -175,7 +175,7 @@ static int __sync_sched_restore(void *arg)
 	/* wait for all cpu to finish stack check */
 	atomic_cond_read_relaxed(&cpu_finished, !VAL);
 
-	if (error = atomic_read(&global_error)) {
+	if ((error = atomic_read(&global_error))) {
 		print_error(error);
 		return error;
 	}
