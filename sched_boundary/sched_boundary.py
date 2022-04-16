@@ -54,8 +54,13 @@ class GccBugs(object):
 
     @staticmethod
     def typedef(decl, str):
-        if isinstance(decl.type.name, gcc.TypeDecl):
-            name = decl.type.name.name
+        t = decl.type
+
+        while isinstance(t, (gcc.PointerType, gcc.ArrayType)):
+            t = t.dereference
+
+        if isinstance(t.name, gcc.TypeDecl):
+            name = t.name.name
             return str.replace('struct ' + name, name)
         else:
             return str
