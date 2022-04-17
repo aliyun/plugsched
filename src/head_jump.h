@@ -109,6 +109,8 @@ static inline void do_write_cr0(unsigned long val)
 
 #define JUMP_INIT_FUNC(func, prefix) do {	\
 		orig_##func = (unsigned long)__vmlinux__##func;	\
+		vm_func_addr[NR_##func] = orig_##func; 		\
+		mod_func_addr[NR_##func] = (unsigned long)prefix##func; \
 		memcpy((void *)&store_orig_##func, (void *)orig_##func, AARCH64_INSN_SIZE); \
 		store_jump_##func = aarch64_insn_gen_branch_imm(orig_##func,	\
 				  (unsigned long)prefix##func, AARCH64_INSN_BRANCH_NOLINK); \
