@@ -81,11 +81,11 @@ static void resolve_ref(const char *fname, kallsym_collection &kallsyms, sympos_
 		if (sym.st_shndx != SHN_UNDEF)
 			continue;
 		/*
-		 * Filter out the "__vmlinux__" prefix, which represents interface
+		 * Filter out the "__orig_" prefix, which represents interface
 		 * functions or function pointers defined in vmlinux.
 		 */
-		if (strstr(name, "__vmlinux__"))
-			name += sizeof("__vmlinux__") - 1;
+		if (strstr(name, "__orig_"))
+			name += sizeof("__orig_") - 1;
 		if (kallsyms.find(name) == kallsyms.end())
 			continue;
 		kallsym = &kallsyms[name];

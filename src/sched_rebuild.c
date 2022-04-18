@@ -6,18 +6,10 @@
 #include <linux/sched.h>
 #include "sched.h"
 
-static void (*orig_set_rq_offline)(struct rq *);
-static void (*orig_set_rq_online)(struct rq *);
+extern void __orig_set_rq_offline(struct rq*);
+extern void __orig_set_rq_online(struct rq*);
 
 extern unsigned int process_id[];
-
-void init_sched_rebuild(void)
-{
-	orig_set_rq_online = (void (*) (struct rq *))
-			kallsyms_lookup_name("set_rq_online");
-	orig_set_rq_offline = (void (*) (struct rq *))
-			kallsyms_lookup_name("set_rq_offline");
-}
 
 void clear_sched_state(bool mod)
 {
@@ -29,7 +21,7 @@ void clear_sched_state(bool mod)
 	if (mod) {
 		set_rq_offline(rq);
 	} else {
-		orig_set_rq_offline(rq);
+		__orig_set_rq_offline(rq);
 	}
 
 	for_each_process_thread(g, p) {
@@ -60,7 +52,7 @@ void rebuild_sched_state(bool mod)
 	if (mod) {
 		set_rq_online(rq);
 	} else {
-		orig_set_rq_online(rq);
+		__orig_set_rq_online(rq);
 	}
 
 	for_each_process_thread(g, p) {

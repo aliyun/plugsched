@@ -18,6 +18,7 @@
 
 #define MAX_CPU_NR		1024
 
+extern void __orig___schedule(bool);
 int process_id[MAX_CPU_NR];
 atomic_t cpu_finished;
 static atomic_t global_error;
@@ -42,7 +43,6 @@ static s64 stop_time;
 ktime_t stop_time_p0, stop_time_p1, stop_time_p2;
 ktime_t main_start, main_end, init_start, init_end;
 
-extern void init_sched_rebuild(void);
 extern void clear_sched_state(bool mod);
 extern void rebuild_sched_state(bool mod);
 
@@ -119,7 +119,7 @@ static void reset_balance_callback(void)
 static void disable_stack_protector(void)
 {
 	int i;
-	void *addr = orig___schedule + STACK_PROTECTOR;
+	void *addr = __orig___schedule + STACK_PROTECTOR;
 
 	for (i=0; i<STACK_PROTECTOR_LEN; i++, addr+=4)
 		aarch64_insn_patch_text_nosync(addr, NOP);
@@ -230,15 +230,15 @@ static int sync_sched_mod(void *func)
 }
 
 #ifdef CONFIG_SCHED_DEBUG
+extern void __orig_register_sched_domain_sysctl(void);
+extern void __orig_unregister_sched_domain_sysctl(void);
+
 static inline void install_sched_domain_sysctl(void)
 {
-	void (*old_unregister_sd_sysctl)(void);
-
 	mutex_lock(&cgroup_mutex);
 	mutex_lock(&cpuset_mutex);
 
-	old_unregister_sd_sysctl = (void *)kallsyms_lookup_name("unregister_sched_domain_sysctl");
-	old_unregister_sd_sysctl();
+	__orig_unregister_sched_domain_sysctl();
 	register_sched_domain_sysctl();
 
 	mutex_unlock(&cpuset_mutex);
@@ -247,15 +247,12 @@ static inline void install_sched_domain_sysctl(void)
 
 static inline void restore_sched_domain_sysctl(void)
 {
-	void (*old_register_sd_sysctl)(void);
-
 	mutex_lock(&cgroup_mutex);
 	mutex_lock(&cpuset_mutex);
 
 	unregister_sched_domain_sysctl();
 	cpumask_copy(sd_sysctl_cpus, cpu_possible_mask);
-	old_register_sd_sysctl = (void *)kallsyms_lookup_name("register_sched_domain_sysctl");
-	old_register_sd_sysctl();
+	__orig_register_sched_domain_sysctl();
 
 	mutex_unlock(&cpuset_mutex);
 	mutex_unlock(&cgroup_mutex);
@@ -279,13 +276,13 @@ void install_sched_debugfs(void)
 				&sched_feat_fops);
 }
 
+extern struct file_operations __orig_sched_feat_fops;
+extern struct seq_operations  __orig_sched_debug_sops;
+
 void restore_sched_debugfs(void)
 {
-	struct file_operations *old_schedfeat_fops =
-		(struct file_operations *)kallsyms_lookup_name("sched_feat_fops");
-
 	debugfs_remove(sched_features_dir);
-	debugfs_create_file("sched_features", 0644, NULL, NULL, old_schedfeat_fops);
+	debugfs_create_file("sched_features", 0644, NULL, NULL, &__orig_sched_feat_fops);
 }
 
 /* sched_debug interface in proc */
@@ -301,12 +298,9 @@ int install_sched_debug_procfs(void)
 
 int restore_sched_debug_procfs(void)
 {
-	struct seq_operations* old_sched_debug_sops =
-		(struct seq_operations *)kallsyms_lookup_name("sched_debug_sops");
-
 	remove_proc_entry("sched_debug", NULL);
 
-	if (!proc_create_seq("sched_debug", 0444, NULL, old_sched_debug_sops))
+	if (!proc_create_seq("sched_debug", 0444, NULL, &__orig_sched_debug_sops))
 		return -ENOMEM;
 
 	return 0;
@@ -314,6 +308,8 @@ int restore_sched_debug_procfs(void)
 #endif
 
 #ifdef CONFIG_SCHEDSTATS
+extern struct seq_operations __orig_schedstat_sops;
+
 /* schedstat interface in proc */
 int install_proc_schedstat(void)
 {
@@ -327,12 +323,9 @@ int install_proc_schedstat(void)
 
 int restore_proc_schedstat(void)
 {
-	struct seq_operations* old_schedstat_sops =
-		(struct seq_operations*)kallsyms_lookup_name("schedstat_sops");
-
 	remove_proc_entry("schedstat", NULL);
 
-	if (!proc_create_seq("schedstat", 0444, NULL, old_schedstat_sops))
+	if (!proc_create_seq("schedstat", 0444, NULL, &__orig_schedstat_sops))
 		return -ENOMEM;
 
 	return 0;
@@ -558,9 +551,8 @@ static int __init sched_mod_init(void)
 	printk("Hi, scheduler mod is installing!\n");
 	init_start = ktime_get();
 
-	sched_springboard = kallsyms_lookup_name("__schedule") + SPRINGBOARD;
+	sched_springboard = (unsigned long)__orig___schedule + SPRINGBOARD;
 
-	init_sched_rebuild();
 	jump_init_all();
 
 	/* This must after jump_init_all function !!! */

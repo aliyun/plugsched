@@ -32,8 +32,8 @@ static unsigned long mod_func_size[NR_INTERFACE_FN];
 #undef PLUGSCHED_FN_PTR
 
 /* Used to declare extern functions defined in vmlinux*/
-#define PLUGSCHED_FN_PTR(fn, ret, ...) extern ret __vmlinux__##fn(__VA_ARGS__);
-#define EXPORT_PLUGSCHED(fn, ret, ...) extern ret __vmlinux__##fn(__VA_ARGS__);
+#define PLUGSCHED_FN_PTR(fn, ret, ...) extern ret __orig_##fn(__VA_ARGS__);
+#define EXPORT_PLUGSCHED(fn, ret, ...) extern ret __orig_##fn(__VA_ARGS__);
 #include "export_jump.h"
 #undef EXPORT_PLUGSCHED
 #undef PLUGSCHED_FN_PTR
@@ -64,18 +64,16 @@ static unsigned long mod_func_size[NR_INTERFACE_FN];
 #define DEFINE_JUMP_FUNC(func) 	\
 	static unsigned char store_jump_##func[HEAD_LEN]; 	\
 	static unsigned char store_orig_##func[HEAD_LEN]; 	\
-	static unsigned long orig_##func; 			\
 	static unsigned long orig_##func##_size; 		\
 	static unsigned long mod_##func##_size
 
 #define JUMP_INIT_FUNC(func, prefix) do {		\
-		orig_##func = (unsigned long)__vmlinux__##func; 	\
-		vm_func_addr[NR_##func] = orig_##func; 		\
+		vm_func_addr[NR_##func] = (unsigned long)__orig_##func; 	\
 		mod_func_addr[NR_##func] = (unsigned long)prefix##func; \
-		memcpy(store_orig_##func, (unsigned char *)orig_##func, HEAD_LEN); \
+		memcpy(store_orig_##func, __orig_##func, HEAD_LEN); \
 		store_jump_##func[0] = 0xe9; 	\
 		(*(int *)(store_jump_##func + 1)) = 	\
-			(long)prefix##func - (long)orig_##func - HEAD_LEN; \
+			(long)prefix##func - (long)__orig_##func - HEAD_LEN; \
 	} while(0)
 
 #define JUMP_INSTALL_FUNC(func) \
@@ -103,24 +101,22 @@ static inline void do_write_cr0(unsigned long val)
 #define DEFINE_JUMP_FUNC(func)				\
 	static u32 store_orig_##func;			\
 	static u32 store_jump_##func;			\
-	static unsigned long orig_##func;		\
 	static unsigned long orig_##func##_size;	\
 	static unsigned long mod_##func##_size
 
 #define JUMP_INIT_FUNC(func, prefix) do {	\
-		orig_##func = (unsigned long)__vmlinux__##func;	\
-		vm_func_addr[NR_##func] = orig_##func; 		\
+		vm_func_addr[NR_##func] = (unsigned long)__orig_##func; 	\
 		mod_func_addr[NR_##func] = (unsigned long)prefix##func; \
-		memcpy((void *)&store_orig_##func, (void *)orig_##func, AARCH64_INSN_SIZE); \
-		store_jump_##func = aarch64_insn_gen_branch_imm(orig_##func,	\
+		memcpy((void *)&store_orig_##func, __orig_##func, AARCH64_INSN_SIZE); \
+		store_jump_##func = aarch64_insn_gen_branch_imm((unsigned long)__orig_##func,	\
 				  (unsigned long)prefix##func, AARCH64_INSN_BRANCH_NOLINK); \
 	} while(0)
 
 #define JUMP_INSTALL_FUNC(func) \
-	aarch64_insn_patch_text_nosync((void *)orig_##func, store_jump_##func)
+	aarch64_insn_patch_text_nosync(__orig_##func, store_jump_##func)
 
 #define JUMP_REMOVE_FUNC(func)  \
-	aarch64_insn_patch_text_nosync((void *)orig_##func, store_orig_##func)
+	aarch64_insn_patch_text_nosync(__orig_##func, store_orig_##func)
 
 #define JUMP_OPERATION(ops) do {	\
 		jump_##ops();	\
