@@ -229,7 +229,7 @@ kpatch 是函数粒度的热升级，plugsched 是子系统范围的热升级，
 
 ## Supported Architectures
 - [X] x86-64
-- [ ] aarch64: plan to do
+- [X] aarch64
 
 ## Limitations
 * 不可修改 init 函数，因为 init 函数在系统重启后被释放掉，需要初始化的过程请在加载模块时执行；

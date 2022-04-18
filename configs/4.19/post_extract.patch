@@ -54,3 +54,28 @@ index 3581697..8f4f532 100644
  #include <linux/syscalls.h>
  #include <linux/task_work.h>
  #include <linux/tsacct_kern.h>
+diff --git a/arch/arm64/include/asm/stackprotector.h b/arch/arm64/include/asm/stackprotector.h
+index 2dcecfd..0e37f1f 100644
+--- a/arch/arm64/include/asm/stackprotector.h
++++ b/arch/arm64/include/asm/stackprotector.h
+@@ -16,7 +16,9 @@
+ #include <linux/random.h>
+ #include <linux/version.h>
+
++#ifndef CONFIG_STACKPROTECTOR_PER_TASK
+ extern unsigned long __stack_chk_guard;
++#endif
+
+ /*
+  * Initialize the stackprotector canary value.
+@@ -34,8 +36,10 @@
+ 	canary &= CANARY_MASK;
+
+ 	current->stack_canary = canary;
++#ifndef CONFIG_STACKPROTECTOR_PER_TASK
+ 	if (!IS_ENABLED(CONFIG_STACKPROTECTOR_PER_TASK))
+ 		__stack_chk_guard = current->stack_canary;
++#endif
+ }
+
+ #endif	/* _ASM_STACKPROTECTOR_H */

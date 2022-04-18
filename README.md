@@ -231,7 +231,7 @@ Yes. We provide the [sidecar](./docs/Advanced-Features.md) mechanism to modify f
 
 ## Supported Architectures
 - [X] x86-64
-- [ ] aarch64: plan to do
+- [X] aarch64
 
 ## Limitations
 * Cannot modify the init functions because they have been released after rebooting. If you need to, please do it in module initialization.

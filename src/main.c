@@ -114,6 +114,20 @@ static void reset_balance_callback(void)
 }
 
 
+#if defined(CONFIG_ARM64) && defined(CONFIG_STACKPROTECTOR_PER_TASK)
+#define NOP 0xd503201f
+static void disable_stack_protector(void)
+{
+	int i;
+	void *addr = orig___schedule + STACK_PROTECTOR;
+
+	for (i=0; i<STACK_PROTECTOR_LEN; i++, addr+=4)
+		aarch64_insn_patch_text_nosync(addr, NOP);
+}
+#else
+static void disable_stack_protector(void) { }
+#endif
+
 static int __sync_sched_install(void *arg)
 {
 	int error;
@@ -146,6 +160,7 @@ static int __sync_sched_install(void *arg)
 
 	if (is_first_process()) {
 		JUMP_OPERATION(install);
+		disable_stack_protector();
 		sched_alloc_extrapad();
 		reset_balance_callback();
 		atomic_set(&redirect_done, 1);
