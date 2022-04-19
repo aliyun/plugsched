@@ -39,3 +39,4 @@ scheduler-objs := $(obj-stubs) main.o sched_rebuild.o
 
 ldflags-y += -T $(plugsched_modpath)/scheduler.lds
 ccflags-n += -DSCHEDMOD_MEMPOOL
+ccflags-y += -Wno-unused-function
