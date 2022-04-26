@@ -58,7 +58,7 @@ uninstall_module() {
 	fi
 }
 
-if [ $1 == "install" ]; then
+if [ "$1" == "install" ]; then
 	if [ "$cursys" == "$mod" ]; then
 		/usr/bin/mkdir -p /run/plugsched
 		/usr/bin/cp $modfile /run/plugsched/scheduler.ko
@@ -68,7 +68,7 @@ if [ $1 == "install" ]; then
 		warn "Error: kernel version is not same as plugsched version!"
 		exit 1
 	fi
-elif [ $1 == "uninstall" ]; then
+elif [ "$1" == "uninstall" ]; then
 	uninstall_module
 	/usr/bin/rm -rf /run/plugsched
 else
