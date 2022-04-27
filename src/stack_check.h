@@ -17,7 +17,7 @@ static void stack_check_init(void)
 {
 	#define PLUGSCHED_FN_PTR EXPORT_PLUGSCHED
 	#define EXPORT_PLUGSCHED(fn, ...) 				\
-		kallsyms_lookup_size_offset(orig_##fn, 			\
+		kallsyms_lookup_size_offset((unsigned long)__orig_##fn,			 \
 				&orig_##fn##_size, NULL); 		\
 		vm_func_size[NR_##fn] = orig_##fn##_size;
 
