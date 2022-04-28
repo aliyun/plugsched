@@ -62,7 +62,7 @@ if [ "$1" == "install" ]; then
 	if [ "$cursys" == "$mod" ]; then
 		/usr/bin/mkdir -p /run/plugsched
 		/usr/bin/cp $modfile /run/plugsched/scheduler.ko
-		/usr/local/bin/symbol_resolve /run/plugsched/scheduler.ko /proc/kallsyms
+		/var/plugsched/$(uname -r)/symbol_resolve /run/plugsched/scheduler.ko /proc/kallsyms
 		install_module /run/plugsched/scheduler.ko
 	else
 		warn "Error: kernel version is not same as plugsched version!"
