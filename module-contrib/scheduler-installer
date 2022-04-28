@@ -7,6 +7,8 @@ RETRY_INTERVAL=2
 
 cursys=$(uname -r)
 modfile=/var/plugsched/$cursys/scheduler.ko
+hotfix_conflict_check=/var/plugsched/$cursys/hotfix_conflict_check
+tainted_functions=/var/plugsched/$cursys/tainted_functions
 enablefile=/sys/kernel/plugsched/plugsched/enable
 mod=$(modinfo $modfile | grep vermagic | awk '{print $2}')
 
@@ -60,6 +62,7 @@ uninstall_module() {
 
 if [ "$1" == "install" ]; then
 	if [ "$cursys" == "$mod" ]; then
+		$hotfix_conflict_check $tainted_functions || exit 1
 		/usr/bin/mkdir -p /run/plugsched
 		/usr/bin/cp $modfile /run/plugsched/scheduler.ko
 		/var/plugsched/$(uname -r)/symbol_resolve /run/plugsched/scheduler.ko /proc/kallsyms

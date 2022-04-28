@@ -7,7 +7,6 @@ ConditionKernelCommandLine=!plugsched.enable=0
 
 [Service]
 Type=oneshot
-ExecStartPre=/usr/bin/bash -c "/var/plugsched/$(uname -r)/hotfix_conflict_check /var/plugsched/$(uname -r)/tainted_functions"
 ExecStart=/usr/bin/bash -c "/var/plugsched/$(uname -r)/scheduler-installer install"
 
 [Install]
