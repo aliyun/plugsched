@@ -8,7 +8,7 @@ ConditionKernelCommandLine=!plugsched.enable=0
 [Service]
 Type=oneshot
 ExecStartPre=/usr/bin/bash -c "hotfix_conflict_check /var/plugsched/$(uname -r)/tainted_functions"
-ExecStart=/usr/local/bin/scheduler-install install
+ExecStart=/usr/local/bin/scheduler-installer install
 
 [Install]
 WantedBy=multi-user.target

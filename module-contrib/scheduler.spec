@@ -19,7 +19,7 @@ Packager:	Yihao Wu <wuyihao@linux.alibaba.com>
 Group:		System Environment/Kernel
 License:	GPLv2
 URL:		None
-Source1:	scheduler-install
+Source1:	scheduler-installer
 Source2:	plugsched.service
 Source3:	hotfix_conflict_check.sh
 Source4:	version
@@ -30,7 +30,7 @@ The scheduler policy rpm-package.
 
 %prep
 # copy files to rpmbuild/SOURCE/
-cp %{_outdir}/scheduler-install %{_sourcedir}
+cp %{_outdir}/scheduler-installer %{_sourcedir}
 cp %{_outdir}/plugsched.service %{_sourcedir}
 cp %{_outdir}/hotfix_conflict_check.sh %{_sourcedir}
 cp %{_outdir}/version %{_sourcedir}
@@ -82,7 +82,7 @@ fi
 systemctl daemon-reload
 if [ $1 == 0 ]; then
 	echo "Uninstalling scheduler"
-	/usr/local/bin/scheduler-install uninstall || exit 1
+	/usr/local/bin/scheduler-installer uninstall || exit 1
 elif [ $1 == 1 ]; then
 	echo "Upgrading scheduler - uninstall old version."
 	systemctl start scheduler
@@ -90,7 +90,7 @@ fi
 
 %files
 %{_bindir}/symbol_resolve
-%{_bindir}/scheduler-install
+%{_bindir}/scheduler-installer
 %{_bindir}/hotfix_conflict_check
 %{_prefix}/lib/systemd/system/plugsched.service
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
