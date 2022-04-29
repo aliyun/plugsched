@@ -19,22 +19,17 @@ Packager:	Yihao Wu <wuyihao@linux.alibaba.com>
 Group:		System Environment/Kernel
 License:	GPLv2
 URL:		None
-Source1:	scheduler-installer
-Source2:	plugsched.service
-Source3:	hotfix_conflict_check.sh
-Source4:	version
-Source5:	sched_boundary.yaml
 
 %description
 The scheduler policy rpm-package.
 
 %prep
 # copy files to rpmbuild/SOURCE/
-cp %{_outdir}/scheduler-installer %{_sourcedir}
-cp %{_outdir}/plugsched.service %{_sourcedir}
-cp %{_outdir}/hotfix_conflict_check.sh %{_sourcedir}
-cp %{_outdir}/version %{_sourcedir}
+cp %{_outdir}/* %{_sourcedir}
 cp %{_tmpdir}/sched_boundary.yaml %{_sourcedir}
+
+chmod 0644 %{_sourcedir}/{version,sched_boundary.yaml}
+rm -f %{_sourcedir}/scheduler.spec
 
 %build
 # Build sched_mod
@@ -46,6 +41,7 @@ make -C %{_tmpdir}/symbol_resolve
 
 # Generate the tainted_functions file
 awk -F '[(,)]' '$2!=""{print $2" "$3" vmlinux"}' %{_modpath}/tainted_functions{.h,_sidecar.h} > %{_sourcedir}/tainted_functions
+chmod 0444 %{_sourcedir}/tainted_functions
 
 %install
 #install tool, module and systemd service
@@ -54,13 +50,10 @@ mkdir -p %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
 
 install -m 755 %{_tmpdir}/symbol_resolve/symbol_resolve %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/symbol_resolve
 install -m 755 %{_modpath}/scheduler.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
-install -m 444 %{_sourcedir}/tainted_functions %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
+install -m 644 %{_sourcedir}/plugsched.service %{buildroot}%{_prefix}/lib/systemd/system
 
-install -m 755 %{SOURCE1} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
-install -m 644 %{SOURCE2} %{buildroot}%{_prefix}/lib/systemd/system
-install -m 755 %{SOURCE3} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/hotfix_conflict_check
-install -m 644 %{SOURCE4} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
-install -m 644 %{SOURCE5} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/sched_boundary.yaml
+cp %{_sourcedir}/* %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
+rm -f %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/plugsched.service
 
 #install kernel module after install this rpm-package
 %post
@@ -91,13 +84,7 @@ systemctl daemon-reload
 
 %files
 %{_prefix}/lib/systemd/system/plugsched.service
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/symbol_resolve
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler-installer
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/hotfix_conflict_check
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/sched_boundary.yaml
+%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/*
 
 %dir
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
