@@ -1,0 +1,14 @@
+#!/bin/bash
+# Copyright 2019-2022 Alibaba Group Holding Limited.
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
+source $(dirname "$0")/libs/working_dir
+source libs/catch_error
+
+podman cp $1/patch.diff plugsched:/root/patch
+podman exec -it plugsched patch -f -p1 -i patch
+podman exec -it plugsched plugsched-cli build scheduler
+podman exec -it plugsched patch -f -p1 -i patch -R
+podman exec -it plugsched ls /usr/local/lib/plugsched/rpmbuild/RPMS/$(uname -i)/
+podman exec -it plugsched bash -c "cp /usr/local/lib/plugsched/rpmbuild/RPMS/$(uname -i)/scheduler-xxx-*.rpm /root"
+
