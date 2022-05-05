@@ -19,22 +19,17 @@ Packager:	Yihao Wu <wuyihao@linux.alibaba.com>
 Group:		System Environment/Kernel
 License:	GPLv2
 URL:		None
-Source1:	scheduler-install
-Source2:	plugsched.service
-Source3:	hotfix_conflict_check.sh
-Source4:	version
-Source5:	sched_boundary.yaml
 
 %description
 The scheduler policy rpm-package.
 
 %prep
 # copy files to rpmbuild/SOURCE/
-cp %{_outdir}/scheduler-install %{_sourcedir}
-cp %{_outdir}/plugsched.service %{_sourcedir}
-cp %{_outdir}/hotfix_conflict_check.sh %{_sourcedir}
-cp %{_outdir}/version %{_sourcedir}
+cp %{_outdir}/* %{_sourcedir}
 cp %{_tmpdir}/sched_boundary.yaml %{_sourcedir}
+
+chmod 0644 %{_sourcedir}/{version,sched_boundary.yaml}
+rm -f %{_sourcedir}/scheduler.spec
 
 %build
 # Build sched_mod
@@ -46,56 +41,52 @@ make -C %{_tmpdir}/symbol_resolve
 
 # Generate the tainted_functions file
 awk -F '[(,)]' '$2!=""{print $2" "$3" vmlinux"}' %{_modpath}/tainted_functions{.h,_sidecar.h} > %{_sourcedir}/tainted_functions
+chmod 0444 %{_sourcedir}/tainted_functions
 
 %install
 #install tool, module and systemd service
-mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_prefix}/lib/systemd/system
 mkdir -p %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
 
-install -m 755 %{_tmpdir}/symbol_resolve/symbol_resolve %{buildroot}%{_bindir}/symbol_resolve
+install -m 755 %{_tmpdir}/symbol_resolve/symbol_resolve %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/symbol_resolve
 install -m 755 %{_modpath}/scheduler.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
-install -m 444 %{_sourcedir}/tainted_functions %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
+install -m 644 %{_sourcedir}/plugsched.service %{buildroot}%{_prefix}/lib/systemd/system
 
-install -m 755 %{SOURCE1} %{buildroot}%{_bindir}
-install -m 644 %{SOURCE2} %{buildroot}%{_prefix}/lib/systemd/system
-install -m 755 %{SOURCE3} %{buildroot}%{_bindir}/hotfix_conflict_check
-install -m 644 %{SOURCE4} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
-install -m 644 %{SOURCE5} %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/sched_boundary.yaml
+cp %{_sourcedir}/* %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
+rm -f %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/plugsched.service
 
 #install kernel module after install this rpm-package
 %post
 sync
 
-if [ $1 == 1 ];  then
-	echo "Installing scheduler"
-	systemctl daemon-reload
-	systemctl enable plugsched
-	systemctl start plugsched
-elif [ $1 == 2 ];  then
-	echo "Upgrading scheduler - install new version."
-	/sbin/rmmod scheduler || echo "scheduler module not loaded. Skip rmmod and continue upgrade."
+if [ "$(uname -r)" != "%{KVER}-%{KREL}.%{_arch}" ]; then
+	echo "INFO: scheduler dose not match kernel, skip load module..."
+	exit 0
 fi
+
+echo "Start plugsched.service"
+systemctl daemon-reload
+systemctl enable plugsched
+systemctl start plugsched
 
 #uninstall kernel module before remove this rpm-package
 %preun
-systemctl daemon-reload
-if [ $1 == 0 ]; then
-	echo "Uninstalling scheduler"
-	/usr/local/bin/scheduler-install uninstall || exit 1
-elif [ $1 == 1 ]; then
-	echo "Upgrading scheduler - uninstall old version."
-	systemctl start scheduler
+if [ "$(uname -r)" != "%{KVER}-%{KREL}.%{_arch}" ]; then
+	echo "INFO: scheduler dose not match kernel, skip unload module..."
+	exit 0
 fi
 
+echo "Stop plugsched.service"
+/var/plugsched/$(uname -r)/scheduler-installer uninstall || exit 1
+
+%postun
+systemctl daemon-reload
+
 %files
-%{_bindir}/symbol_resolve
-%{_bindir}/scheduler-install
-%{_bindir}/hotfix_conflict_check
 %{_prefix}/lib/systemd/system/plugsched.service
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/sched_boundary.yaml
+%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/*
+
+%dir
+%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
 
 %changelog
