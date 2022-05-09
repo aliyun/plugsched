@@ -1,0 +1,10 @@
+#!/bin/bash
+# Copyright 2019-2022 Alibaba Group Holding Limited.
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
+rpm -ivh /tmp/work/scheduler-xxx-*.rpm
+if ! dmesg | grep "I am the new scheduler: __schedule"; then
+	2>&1 echo "Failed to install the scheduler module"
+	exit 1
+fi
+rpm -e scheduler-xxx

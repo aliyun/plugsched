@@ -1,0 +1,16 @@
+// Copyright 2019-2022 Alibaba Group Holding Limited.
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
+diff --git a/scheduler/kernel/sched/mod/core.c b/scheduler/kernel/sched/mod/core.c
+index 9f16b72..21262fd 100644
+--- a/scheduler/kernel/sched/mod/core.c
++++ b/scheduler/kernel/sched/mod/core.c
+@@ -3234,6 +3234,8 @@ static void __sched notrace __schedule(bool preempt)
+ 	struct rq *rq;
+ 	int cpu;
+
++	printk_once("I am the new scheduler: __schedule\n");
++
+ 	cpu = smp_processor_id();
+ 	rq = cpu_rq(cpu);
+ 	prev = rq->curr;

@@ -1,0 +1,31 @@
+#!/bin/bash
+# Copyright 2019-2022 Alibaba Group Holding Limited.
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
+source $(dirname "$0")/libs/working_dir
+source libs/catch_error
+
+arch=$(uname -i)
+if [ "${arch}" = "x86_64" ]; then
+	# x86_64 is the default image
+	tag="latest"
+else
+	tag="latest-${arch}"
+fi
+
+uname_r=$(uname -r)
+uname_noarch=${uname_r%.*}
+yum install anolis-repos -y
+yum install podman yum-utils kernel-debuginfo-${uname_r} kernel-devel-${uname_r} --enablerepo=Plus-debuginfo --enablerepo=Plus -y
+
+container=$(podman ps -a | awk '$NF=="plugsched"{print $1}')
+if [ -n "$container" ]; then
+	podman rm -f ${container}
+fi
+podman run -itd --name=plugsched -w /root/ -v /tmp/work:/root -v /usr/src/kernels:/usr/src/kernels -v /usr/lib/debug/lib/modules:/usr/lib/debug/lib/modules plugsched/plugsched-sdk:${tag} /bin/bash
+podman exec -it plugsched rm -rf /usr/local/lib/plugsched
+podman cp .. plugsched:/usr/local/lib/plugsched
+mkdir -p /tmp/work && cd /tmp/work
+yumdownloader --source kernel-${uname_r} --enablerepo=Plus
+podman exec -it plugsched plugsched-cli extract_src kernel-${uname_noarch}.src.rpm ./kernel
+podman exec -it plugsched plugsched-cli init ${uname_r} ./kernel ./scheduler
