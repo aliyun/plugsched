@@ -22,10 +22,11 @@ container=$(podman ps -a | awk '$NF=="plugsched"{print $1}')
 if [ -n "$container" ]; then
 	podman rm -f ${container}
 fi
+mkdir -p /tmp/work
 podman run -itd --name=plugsched -w /root/ -v /tmp/work:/root -v /usr/src/kernels:/usr/src/kernels -v /usr/lib/debug/lib/modules:/usr/lib/debug/lib/modules plugsched/plugsched-sdk:${tag} /bin/bash
 podman exec -it plugsched rm -rf /usr/local/lib/plugsched
 podman cp .. plugsched:/usr/local/lib/plugsched
-mkdir -p /tmp/work && cd /tmp/work
+cd /tmp/work
 yumdownloader --source kernel-${uname_r} --enablerepo=Plus
 podman exec -it plugsched plugsched-cli extract_src kernel-${uname_noarch}.src.rpm ./kernel
 podman exec -it plugsched plugsched-cli init ${uname_r} ./kernel ./scheduler
