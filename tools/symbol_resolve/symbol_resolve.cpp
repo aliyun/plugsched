@@ -22,12 +22,7 @@ static void ERROR(std::string msg, bool elf_error, std::string extra="")
 	std::abort();
 }
 
-struct kallsym_t {
-	char type;
-	std::vector<unsigned long> addr;
-};
-
-typedef std::map<std::string, struct kallsym_t> kallsym_collection;
+typedef std::map<std::string, std::vector<unsigned long>> kallsym_collection;
 typedef std::map<std::string, int> sympos_collection;
 
 static void resolve_ref(const char *fname, kallsym_collection &kallsyms, sympos_collection &symposes)
@@ -39,7 +34,7 @@ static void resolve_ref(const char *fname, kallsym_collection &kallsyms, sympos_
 	Elf_Scn *scn = NULL;
 	Elf_Data *data = NULL;
 	size_t shstrndx, i;
-	struct kallsym_t *kallsym;
+	std::vector<unsigned long> kallsym;
 	char *name, modified = 0;
 
 	if (elf_version(EV_CURRENT) == EV_NONE )
@@ -88,7 +83,7 @@ static void resolve_ref(const char *fname, kallsym_collection &kallsyms, sympos_
 			name += sizeof("__orig_") - 1;
 		if (kallsyms.find(name) == kallsyms.end())
 			continue;
-		kallsym = &kallsyms[name];
+		kallsym = kallsyms[name];
 
 		/*
 		 * Symbols which don't appear in sched_outsider may be
@@ -99,15 +94,15 @@ static void resolve_ref(const char *fname, kallsym_collection &kallsyms, sympos_
 			sympos = symposes[name];
 		else
 			sympos = 0;
-		if (sympos == 0 && kallsym->addr.size() > 1)
+		if (sympos == 0 && kallsym.size() > 1)
 			ERROR("global symbol ambigouos is unresolvable.", false, name);
-		if (sympos > 0 && kallsym->addr.size() < sympos)
+		if (sympos > 0 && kallsym.size() < sympos)
 			ERROR("local symbol doens't have as many alternatives.", false, name);
 		if (sympos > 0)
 			sympos --;
 		/* Resolve UND symbols */
 		sym.st_shndx = SHN_ABS;
-		sym.st_value = kallsym->addr[sympos];
+		sym.st_value = kallsym[sympos];
 		modified = 1;
 		if (gelf_update_sym(data, i, &sym) == -1)
 			ERROR("gelf_update_sym", true);
@@ -145,7 +140,7 @@ static void load_kallsyms(const char *fname, kallsym_collection &kallsyms)
 			continue;
 		/* Reached modules */
 		if (!line_stream.eof()) break;
-		kallsyms[name].addr.push_back(addr);
+		kallsyms[name].push_back(addr);
 	}
 
 	f.close();
