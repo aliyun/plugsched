@@ -77,10 +77,10 @@ static unsigned long mod_func_size[NR_INTERFACE_FN];
 	} while(0)
 
 #define JUMP_INSTALL_FUNC(func) \
-	memcpy((unsigned char *)orig_##func, store_jump_##func, HEAD_LEN)
+	memcpy((unsigned char *)__orig_##func, store_jump_##func, HEAD_LEN)
 
 #define JUMP_REMOVE_FUNC(func) 	\
-	memcpy((unsigned char *)orig_##func, store_orig_##func, HEAD_LEN)
+	memcpy((unsigned char *)__orig_##func, store_orig_##func, HEAD_LEN)
 
 static inline void do_write_cr0(unsigned long val)
 {
