@@ -415,6 +415,7 @@ static int unload_sched_routine(void)
 	restore_sched_debugfs();
 #endif
 
+	sched_mempools_destroy();
 	main_end = ktime_get();
 	report_detail_time("unload");
 
@@ -575,7 +576,6 @@ static int __init sched_mod_init(void)
 
 static void __exit sched_mod_exit(void)
 {
-	sched_mempools_destroy();
 	unregister_plugsched_sysfs();
 
 	printk("Bye, scheduler mod has be removed!\n");
