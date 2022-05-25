@@ -53,16 +53,13 @@ Plugsched currently supports Anolis OS 7.9 ANCK by default, and other OS need to
 1. Log into the cloud server, and install some neccessary basic software packages.
 ```shell
 # yum install anolis-repos -y
-# yum install podman kernel-debuginfo-$(uname -r) kernel-devel-$(uname -r) --enablerepo=Plus-debuginfo --enablerepo=Plus -y
+# yum install yum-utils podman kernel-debuginfo-$(uname -r) kernel-devel-$(uname -r) --enablerepo=Plus-debuginfo --enablerepo=Plus -y
 ```
 
 2. Create a temporary working directory and download the source code of the kernel.
 ```shell
-# mkdir /tmp/work
-# uname -r
-4.19.91-25.2.an7.x86_64
-# cd /tmp/work
-# wget https://mirrors.openanolis.cn/anolis/7.9/Plus/source/Packages/kernel-4.19.91-25.2.an7.src.rpm
+# mkdir /tmp/work && cd /tmp/work
+# yumdownloader --source kernel-$(uname -r) --enablerepo=Plus
 ```
 
 3. Startup the container, and spawn a shell.
@@ -74,12 +71,13 @@ Plugsched currently supports Anolis OS 7.9 ANCK by default, and other OS need to
 
 4. Extract kernel source code.
 ```shell
-# plugsched-cli extract_src kernel-4.19.91-25.2.an7.src.rpm ./kernel
+# uname_r=$(uname -r)
+# plugsched-cli extract_src kernel-${uname_r%.*}.src.rpm ./kernel
 ```
 
 5. Boundary analysis and extraction.
 ```shell
-# plugsched-cli init 4.19.91-25.2.an7.x86_64 ./kernel ./scheduler
+# plugsched-cli init $(uname -r) ./kernel ./scheduler
 ```
 
 6. The extracted scheduler code is in ./scheduler/kernel/sched/mod. Add a new sched_feature and package it into a rpm.
@@ -116,7 +114,8 @@ index 4c40fac..8d1eafd 100644
 
 7. Copy the scheduler rpm to the host, exit the container, and view the current sched_features.
 ```text
-# cp /usr/local/lib/plugsched/rpmbuild/RPMS/x86_64/scheduler-xxx-4.19.91-25.2.an7.yyy.x86_64.rpm /tmp/work
+# uname_r=$(uname -r)
+# cp /usr/local/lib/plugsched/rpmbuild/RPMS/x86_64/scheduler-xxx-${uname_r%.*}.yyy.x86_64.rpm /tmp/work/scheduler-xxx.rpm
 # exit
 exit
 # cat /sys/kernel/debug/sched_features
@@ -125,7 +124,7 @@ GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP
 
 8. Install the scheduler rpm and then the new feature is added but closed.
 ```text
-# rpm -ivh /tmp/work/scheduler-xxx-4.19.91-25.2.an7.yyy.x86_64.rpm
+# rpm -ivh /tmp/work/scheduler-xxx.rpm
 # lsmod | grep scheduler
 scheduler             503808  1
 # dmesg ｜ tail -n 10

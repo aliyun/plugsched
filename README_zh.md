@@ -53,16 +53,13 @@ plugsched 是 Linux 内核调度器子系统热升级的 SDK，它可以实现�
 1. 登陆云服务器后，先安装一些必要的基础软件包：
 ```shell
 # yum install anolis-repos -y
-# yum install podman kernel-debuginfo-$(uname -r) kernel-devel-$(uname -r) --enablerepo=Plus-debuginfo --enablerepo=Plus -y
+# yum install yum-utils podman kernel-debuginfo-$(uname -r) kernel-devel-$(uname -r) --enablerepo=Plus-debuginfo --enablerepo=Plus -y
 ```
 
 2. 创建临时工作目录，下载系统内核的 SRPM 包：
 ```shell
-# mkdir /tmp/work
-# uname -r
-4.19.91-25.2.an7.x86_64
-# cd /tmp/work
-# wget https://mirrors.openanolis.cn/anolis/7.9/Plus/source/Packages/kernel-4.19.91-25.2.an7.src.rpm
+# mkdir /tmp/work && cd /tmp/work
+# yumdownloader --source kernel-$(uname -r) --enablerepo=Plus
 ```
 
 3. 启动并进入容器：
@@ -72,14 +69,15 @@ plugsched 是 Linux 内核调度器子系统热升级的 SDK，它可以实现�
 # cd /tmp/work
 ```
 
-4. 提取 4.19.91-25.1.al7.x86_64 内核源码：
+4. 提取内核源码：
 ```shell
-# plugsched-cli extract_src kernel-4.19.91-25.2.an7.src.rpm ./kernel
+# uname_r=$(uname -r)
+# plugsched-cli extract_src kernel-${uname_r%.*}.src.rpm ./kernel
 ```
 
 5. 进行边界划分与提取：
 ```shell
-# plugsched-cli init 4.19.91-25.2.an7.x86_64 ./kernel ./scheduler
+# plugsched-cli init $(uname -r) ./kernel ./scheduler
 ```
 
 6. 提取后的调度器模块代码在 ./scheduler/kernel/sched/mod 中, 新增一个 sched_feature 并打包生成 rpm 包：
@@ -116,7 +114,8 @@ index 4c40fac..8d1eafd 100644
 
 7. 将生成的 rpm 包拷贝到宿主机，退出容器，查看当前 sched_features：
 ```text
-# cp /usr/local/lib/plugsched/rpmbuild/RPMS/x86_64/scheduler-xxx-4.19.91-25.2.an7.yyy.x86_64.rpm /tmp/work
+# uname_r=$(uname -r)
+# cp /usr/local/lib/plugsched/rpmbuild/RPMS/x86_64/scheduler-xxx-${uname_r%.*}.yyy.x86_64.rpm /tmp/work/scheduler-xxx.rpm
 # exit
 exit
 # cat /sys/kernel/debug/sched_features
@@ -125,7 +124,7 @@ GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP
 
 8. 安装调度器包，且新增了一个 PLUGSCHED_TEST sched_feature（关闭状态）：
 ```text
-# rpm -ivh /tmp/work/scheduler-xxx-4.19.91-25.2.an7.yyy.x86_64.rpm
+# rpm -ivh /tmp/work/scheduler-xxx.rpm
 # lsmod | grep scheduler
 scheduler             503808  1
 # dmesg ｜ tail -n 10
