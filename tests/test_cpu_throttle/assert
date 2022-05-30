@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+
+import subprocess
+import sh
+import os
+import sys
+
+class TestCPUThrottle:
+    def setup_class(self):
+        self.test_flag = True
+        print("CPU throttle test")
+        sh.mkdir('/sys/fs/cgroup/cpu/test')
+        
+    def init_cgroup(self):
+        cmd = "while :; do :; done"
+        self.child = subprocess.Popen(cmd, shell=True)
+        sh.echo(self.child.pid, _out='/sys/fs/cgroup/cpu/test/cgroup.procs')
+
+    def set_cfs_quota(self, t_us):
+        sh.echo(t_us, _out='/sys/fs/cgroup/cpu/test/cpu.cfs_quota_us')
+
+    def test_all(self):
+        self.set_cfs_quota('50000')
+        self.init_cgroup()
+        self.check_le_75()
+        self.check_after_load()
+        self.set_cfs_quota('100000')
+        self.check_gt_75()
+        self.check_after_unload()
+        
+    def check_le_75(self):
+        sh.yum('-y', 'install', 'sysstat')
+        cmd = "pidstat -h -u -p " + str(self.child.pid) + " 1 1 | awk '{print $7}' | tail -1"
+        cpu_util = float(subprocess.check_output(cmd, shell=True).split()[0])
+        # assert cpu_util <= 75
+        if cpu_util > 75:
+            self.error_handler(0, 75)
+
+    def check_after_load(self):
+        scheduler_rpm = sh.glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
+        if len(scheduler_rpm) != 1:
+            print("Please check your scheduler rpm");
+            self.teardown_class()
+            sys.exit(1)
+        scheduler_rpm = scheduler_rpm[0]
+        sh.rpm('-ivh', scheduler_rpm)
+        cmd = "pidstat -h -u -p " + str(self.child.pid) + " 1 1 | awk '{print $7}' | tail -1"
+        cpu_util = float(subprocess.check_output(cmd, shell=True).split()[0])
+        # assert cpu_util <= 75
+        if cpu_util > 75:
+            self.error_handler(0, 75)
+
+    def check_gt_75(self):
+        cmd = "pidstat -h -u -p " + str(self.child.pid) + " 1 1 | awk '{print $7}' | tail -1"
+        cpu_util = float(subprocess.check_output(cmd, shell=True).split()[0])
+        # assert cpu_util >= 75
+        if cpu_util < 75:
+            self.error_handler(1, 75)
+
+    def check_after_unload(self):
+        sh.rpm('-e', 'scheduler-xxx')
+        cmd = "pidstat -h -u -p " + str(self.child.pid) + " 1 1 | awk '{print $7}' | tail -1"
+        cpu_util = float(subprocess.check_output(cmd, shell=True).split()[0])
+        # assert cpu_util >= 75
+        if cpu_util < 75:
+            self.error_handler(1, 75)
+
+    def teardown_class(self):
+        self.child.kill()
+        self.child.wait()
+        sh.rmdir("/sys/fs/cgroup/cpu/test")
+        tmp = subprocess.Popen("lsmod | grep scheduler", shell=True, stdout=subprocess.PIPE)
+        if tmp.stdout.read() != b'':
+            sh.rpm('-e', 'scheduler-xxx')
+
+    def error_handler(self, ty, bound):
+        err_msg = "CPU util should " + "less than" if ty == 0 else "greater than" + str(bound)
+        print(err_msg)
+        print("CPU throttle test " + "\033[31mFAILED\033[0m")
+        self.teardown_class()
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    test_unit = TestCPUThrottle()
+    test_unit.setup_class()
+    test_unit.test_all()
+    test_unit.teardown_class()
+    print("CPU throttle test " + "\033[32mPASS\033[0m")
