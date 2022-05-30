@@ -3,3 +3,4 @@ public_var
 var_uniformity
 cpu_throttle
 cpu_bal
+sched_syscall
