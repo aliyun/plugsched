@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+
+import os
+import sh
+import sys
+import subprocess
+class CPUBalTest:
+    def setup_class(self):
+        print("CPU Balance test")
+        self.new_val = 117
+
+    def test_cpu_bal(self):
+        self.load_scheduler()
+        sh.echo('0', _out='/sys/devices/system/cpu/cpu0/online')
+        val = int(sh.cat('/proc/sys/kernel/sched_domain/cpu1/domain0/imbalance_pct').split()[0])
+        if val != self.new_val:
+            self.error_handler()
+            
+    def load_scheduler(self):
+        scheduler_rpm = sh.glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
+        if len(scheduler_rpm) != 1:
+            print("Please check your scheduler rpm");
+            self.teardown_class()
+            sys.exit(1)
+        scheduler_rpm = scheduler_rpm[0]
+        sh.rpm('-ivh', scheduler_rpm)
+
+    def error_handler(self):
+        print("The parameter imbalance_pct is not modified.")
+        print("CPU Balance test " + "\033[31mFAILED\033[0m")
+        self.teardown_class()
+        sys.exit(1)
+
+    def teardown_class(self):
+        tmp = subprocess.Popen("lsmod | grep scheduler", shell=True, stdout=subprocess.PIPE)
+        if tmp.stdout.read() != b'':
+            sh.rpm('-e', 'scheduler-xxx')
+
+if __name__ == '__main__':
+    test_unit = CPUBalTest()
+    test_unit.setup_class()
+    test_unit.test_cpu_bal()
+    test_unit.teardown_class()
+    print("CPU Balance test " + "\033[32mPASS\033[0m")
+    
