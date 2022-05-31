@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+
+import subprocess
+import sys
+import sh
+import os
+
+class TestSchedSyscall:
+    def setup_class(self):
+        print("Sched syscall test")
+        cmd = "while :; do :; done"
+        self.child = subprocess.Popen(cmd, shell=True)
+
+    def load_scheduler(self):
+        scheduler_rpm = sh.glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
+        if len(scheduler_rpm) != 1:
+            print("Please check your scheduler rpm");
+            self.teardown_class()
+            sys.exit(1)
+        scheduler_rpm = scheduler_rpm[0]
+        sh.rpm('-ivh', scheduler_rpm)
+
+    def test_cpuset(self):
+        fa_mems = sh.cat("/sys/fs/cgroup/cpuset/cpuset.mems").split()[0]
+        fa_cpus = sh.cat("/sys/fs/cgroup/cpuset/cpuset.cpus").split()[0]
+        sh.mkdir("/sys/fs/cgroup/cpuset/test")
+        self.load_scheduler()
+        sh.echo(fa_mems, _out="/sys/fs/cgroup/cpuset/test/cpuset.mems")
+        sh.echo(fa_cpus, _out="/sys/fs/cgroup/cpuset/test/cpuset.cpus")
+        ch_mems = sh.cat("/sys/fs/cgroup/cpuset/test/cpuset.mems").split()[0]
+        ch_cpus = sh.cat("/sys/fs/cgroup/cpuset/test/cpuset.cpus").split()[0]
+        if fa_mems != ch_mems or fa_cpus != ch_cpus:
+            self.error_handler()
+        sh.rmdir("/sys/fs/cgroup/cpuset/test")
+        
+    def test_policy_and_prio(self):
+        cmd = "chrt -p -f 10 " + str(self.child.pid)
+        subprocess.Popen(cmd, shell=True)
+        res = sh.chrt('-p', self.child.pid).split('\n')
+        if res[0].split()[-1] != 'SCHED_FIFO' or res[1].split()[-1] != '10':
+            self.error_handler()
+
+    def test_all(self):
+        self.test_cpuset()
+        self.test_policy_and_prio()
+
+    def error_handler(self):
+        self.child.kill()
+        self.child.wait()
+        sh.rmdir("/sys/fs/cgroup/cpuset/test")
+        self.unload_scheduler()
+        print("Sched syscall test " + "\033[31mFAILED\033[0m")
+        sys.exit(1)
+
+    def unload_scheduler(self):
+        tmp = subprocess.Popen("lsmod | grep scheduler", shell=True, stdout=subprocess.PIPE)
+        if tmp.stdout.read() != b'':
+            sh.rpm('-e', 'scheduler-xxx')
+
+    def teardown_class(self):
+        self.child.kill()
+        self.child.wait()
+        self.unload_scheduler()
+
+if __name__ == '__main__':
+    test_unit = TestSchedSyscall()
+    test_unit.setup_class()
+    test_unit.test_all()
+    test_unit.teardown_class()
+    print("Sched syscall test " + "\033[32mPASS\033[0m")
+
