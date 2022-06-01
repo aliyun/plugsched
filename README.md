@@ -12,11 +12,16 @@ The scheduler subsystem is built into the kernel, not an independent module . An
 
 For functions, the scheduler module exports some **interface** functions. By replacing these functions in the kernel, the kernel can bypass the original execution logic and enter the new scheduler module, thereby completing the function update. Functions compiled in the scheduler module are either interface functions, or **insiders**. Other functions are all called **outsiders**.
 
-For data, the scheduler module re-initializes **private data** and inherits **shared data** from the previous scheduler. Re-initializing is more than resetting the memory, but through Scheduler State Rebuild technique. Most of the important data (runqueue state and sched class state) is handled by Scheduler State Rebuild technique, making them private automatically. And plugsched allows users to manually define some of the rest of the data as private data for flexibility. However, the manually defined private data merely means resetting the memory. So by default, the rest of the data is shared data for simplicity.
+For the data, plugsched divides data into private data and shared data. Private data is allocated memory independently within the module, while shared data shares memory between the module and kernel. For global variables, they can be converted to private data by redefinition or to shared data by declaration. By default, static global variables are marked as private data and non-static global variables are marked as shared data. But to make the system work better, we manually adjusted the classification of some global variables in the boundary configuration file.
 
-Also for data, users want to know not only how is the data initialized, but also whether they can modify some data itself, or the semantic of it. No strict rules are set on global variables and stack variables yet, so users can modify either the data themselves or the semantics of them. But data structures are different. First, plugsched classifies struct fields which is accessed only by the scheduler as **inner-fields**, others as **non-inner-fields**. The scheduler module allows modifying the semantics of inner fields, and forbids to modify the semantics of non-inner fields. And the scheduler module even allows modifing the size of the whole data structure if all fileds are inner fileds. Last but most important, we recommend using reserved fields of data structures, rather than modifying existing ones.
+Data state synchronization is a core problem when updating the module. Data is divided into critical data and non-critical data according to whether the data state needs to be rebuilt. Critical data includes rq, cfs_rq, rt_rq, dl_rq, cfs_bandwidth, sched_class, sysfs, debugfs, sched_features, timer, and others are non-critical data, such as sched_domain_topology, task_group_cache, sysctls of scheduler, tracepoint and cpumask related to scheduler, and so on. Plugsched uses sched-rebuild technology to rebuild the critical data state of the scheduler. For non-critical data, private data does not require synchronization, and shared data is inherited automatically, which without additional processing. The general data rebuild technology solves the state synchronization problem ingeniously.
 
-For example, modifying the state of `rq->lock` only changes its data, while using `rq->lock` to store something else changes its semantics, and reducing the size of `struct rq` is equivalent to modifying many members of `struct rq`. But since `rq->lock` is accessed by many subsystems, making it non-inner data. Users are forbidden to modify `rq->lock`, or shrink the size of `struct rq`.
+|           |  critical data  |  non-critical data  |
+|-----------|:---------------:|:-------------------:|
+|  private  |     rebuild     |       re-init       |
+|   shared  |     rebuild     |       inherits      |
+
+**It is important to note that the size of structures and the semantics of their members cannot be modified arbitrarily. If new members need to be added, it is recommended to use reserved fields that are predefined in the structures.**
 
 ### Boundary Extraction
 The scheduler itself is not a module, so it is necessary to determine the boundary of the scheduler for modularization. The boundary analyzer extracts the scheduler code from the kernel source code according to the boundary configuration information. The configuration mainly includes source code files, the interface functions, etc. Finally, the code within the boundary is extracted into a separate directory.  The process is mainly divided into the following steps.
@@ -204,9 +209,7 @@ Yes. Boundary analyzer also works for header files. Functions in kernel/sched/mo
 
 **Q: Can structures be modified?**
 
-It depends. If there are any non-inner-fields in the structure, the structure can't be modified. On the contrary, if there aren't any non-inner-fields in the structure, it can be modified.
-
-When modifying a structure, it's most recommended to use the reserved fields in the structure, and secondly recommended to reuse the inner-fields in the structure.
+Cannot modify the size of structures and the semantics of their members arbitrarily. The reserved fields can be modified if they are predefined in the structures.
 
 **Q: Will there be a performance regression when the kernel scheduler is replaced?**
 
