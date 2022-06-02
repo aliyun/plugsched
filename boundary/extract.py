@@ -59,8 +59,7 @@ class Extraction(object):
             unique.add(obj)
 
             if obj in self.config['function']['sched_outsider'] or \
-               obj in self.config['function']['sdcr_out'] or \
-               obj in self.config['function']['init']:
+               obj in self.config['function']['sdcr_out']:
                 self.fn_list.append(fn),
             elif obj in self.config['function']['fn_ptr']:
                 self.fn_ptr_list.append(fn)
