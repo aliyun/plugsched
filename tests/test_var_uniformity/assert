@@ -5,6 +5,7 @@ import sh
 import os
 import subprocess
 import sys
+from glob import glob
 
 class TestVarUniformity:
     def setup_class(self):
@@ -45,7 +46,7 @@ class TestVarUniformity:
             dict[item] = str(sh.cat(item)).strip()
 
     def load_scheduler(self):
-        scheduler_rpm = sh.glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
+        scheduler_rpm = glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
         if len(scheduler_rpm) != 1:
             print("Please check your scheduler rpm");
             self.teardown_class()

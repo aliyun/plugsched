@@ -5,12 +5,13 @@ import sh
 import yaml
 import os
 import sys
+from glob import glob
 
 class TestPublicVar:
     def setup_class(self):
         print("Public vars test")
         cur_sys = str(sh.uname('-r')).strip()
-        scheduler_rpm = sh.glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
+        scheduler_rpm = glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
         if len(scheduler_rpm) != 1:
             print("Please check your scheduler rpm");
             self.teardown_class()
@@ -20,7 +21,11 @@ class TestPublicVar:
         module = '/var/plugsched/' + cur_sys + '/scheduler.ko'
         yaml_file = '/tmp/work/scheduler/working/sched_boundary.yaml'
         with open(yaml_file, 'r') as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
+            yaml_version = float(yaml.__version__)
+            if yaml_version >= 5.1:
+                config = yaml.load(f, Loader=yaml.FullLoader)
+            else:
+                config = yaml.load(f)
             self.public_vars = config['global_var']['extra_public']
         cmd = "objdump -t " + module
         self.symtab = str(subprocess.check_output(cmd, shell=True)).split('\\n')

@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+
+import os
+import sh
+import sys
+import subprocess
+import time
+from glob import glob
+
+class CPUDomainReuildTest:
+    def setup_class(self):
+        print("CPU domain rebuild test")
+        self.init_cpu_set()
+
+    def init_cpu_set(self):
+        self.cpu_set = []
+
+        def add_cpu(num):
+            cpu_state = "/sys/devices/system/cpu/cpu" + str(num) + "/online"
+            self.cpu_set.append(cpu_state)
+        
+        for i in range(0, 6, 2):
+            add_cpu(i)
+
+    def test_cpu_rebuild(self):
+        self.record_orig_state()
+        self.load_scheduler()
+        self.record_state_after_load()
+        if self.load_domain_file != self.orig_domain_file or self.orig_state != self.load_state:
+            self.error_handler()
+        self.change_cpu_state()
+        self.record_after_change_cpu_state()
+        self.unload_scheduler()
+        self.record_state_after_unload()
+        if self.state_after_change_cpu != self.state_after_unload or self.domain_file_after_change_cpu != self.unload_domain_file:
+            self.error_handler()
+
+    def record_after_change_cpu_state(self):
+        self.state_after_change_cpu = {}
+        self.record_data(self.state_after_change_cpu)
+        self.domain_file_after_change_cpu = set(sh.find("/proc/sys/kernel/sched_domain").split())
+
+    def record_state_after_load(self):
+        self.load_state = {}
+        self.record_data(self.load_state)
+        self.load_domain_file = set(sh.find("/proc/sys/kernel/sched_domain").split())
+
+    def record_state_after_unload(self):
+        self.state_after_unload = {}
+        self.record_data(self.state_after_unload)
+        self.unload_domain_file = set(sh.find("/proc/sys/kernel/sched_domain").split())
+
+    def record_orig_state(self):
+        self.orig_state = {}
+        self.record_data(self.orig_state)
+        self.orig_domain_file = set(sh.find("/proc/sys/kernel/sched_domain").split())
+
+    def record_data(self, data_arr):
+        for item in self.cpu_set:
+            if not os.path.exists(item):
+                continue
+            val = sh.cat(item).split()[0]
+            data_arr[item] = val
+
+    def load_scheduler(self):
+        scheduler_rpm = glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
+        if len(scheduler_rpm) != 1:
+            print("Please check your scheduler rpm");
+            self.teardown_class()
+            sys.exit(1)
+        scheduler_rpm = scheduler_rpm[0]
+        sh.rpm('-ivh', scheduler_rpm)
+
+    def unload_scheduler(self):
+        tmp = subprocess.Popen("lsmod | grep scheduler", shell=True, stdout=subprocess.PIPE)
+        if tmp.stdout.read() != b'':
+            sh.rpm('-e', 'scheduler-xxx')
+
+    def change_cpu_state(self):
+        def reverse(val):
+            return "0" if val == "1" else "1"
+
+        for k, v in self.orig_state.items():
+            sh.echo(reverse(v), _out=k)
+
+    def reload_cpu_state(self):
+        for k, v in self.orig_state.items():
+            sh.echo(v, _out=k)
+
+    def error_handler(self):
+        print("CPU domain rebuild test " + "\033[31mFAILED\033[0m")
+        self.unload_scheduler()
+        self.reload_cpu_state()
+        sys.exit(1)
+
+    def teardown_class(self):
+        self.unload_scheduler()
+        self.reload_cpu_state()
+
+if __name__ == '__main__':
+    unit_test = CPUDomainReuildTest()
+    unit_test.setup_class()
+    unit_test.test_cpu_rebuild()
+    unit_test.teardown_class()
+    print("CPU domain rebuild test " + "\033[32mPASS\033[0m")
+        
+
