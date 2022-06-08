@@ -5,3 +5,4 @@ cpu_throttle
 domain_rebuild
 sched_syscall
 mem_pressure
+sli_continuity

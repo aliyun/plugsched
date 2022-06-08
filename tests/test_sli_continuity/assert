@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import sh
+from sh import yum, cat, RunningCommand, getconf, rpm, grep, lsmod, killall, awk
+from time import sleep, time
+from glob import glob
+
+epsilon = 0.05
+
+def near(n, m):
+    return abs(n - m) < epsilon
+
+def positive(n):
+    return n > 0
+
+def overflow(n):
+    return n > 1.0 + epsilon
+
+def near_greater_equal(n, m):
+    return n >= m and n < m + epsilon
+
+class TestSLI:
+    def setup_class(self):
+        yum('install', 'stress-ng', assumeyes=True)
+        self.rpm = self.get_rpm()
+        print("SLI continuity test")
+        self.HZ = int(getconf('CLK_TCK'))
+
+    def get_rpm(self):
+        scheduler_rpm = glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
+        if len(scheduler_rpm) != 1:
+            print("Please check your scheduler rpm");
+            sys.exit(1)
+        return scheduler_rpm
+
+    def task_usage(self, pid:int):
+        procf = '/proc/%d/stat' % pid
+        fields = cat(procf).split()
+        utime = float(fields[13]) / self.HZ
+        stime = float(fields[14]) / self.HZ
+        return utime, stime, time()
+
+    def test_util(self, *args, **kwargs):
+        stress:RunningCommand = sh.stress_ng(**kwargs, _bg=True)
+        sleep(5)
+        master = stress.process.pid
+        worker = int(cat('/proc/{pid}/task/{pid}/children'.format(pid=master)).strip())
+
+        u0, s0, t0 = self.task_usage(worker)
+        sleep(5)
+        u1, s1, t1 = self.task_usage(worker)
+        rpm(self.rpm, install=True)
+        sleep(5)
+        u2, s2, t2 = self.task_usage(worker)
+        sleep(5)
+        u3, s3, t3 = self.task_usage(worker)
+
+        U0 = (u1 - u0) / (t1 - t0)
+        S0 = (s1 - s0) / (t1 - t0)
+        U1 = (u2 - u1) / (t2 - t1)
+        S1 = (s2 - s1) / (t2 - t1)
+        U2 = (u3 - u2) / (t3 - t2)
+        S2 = (s3 - s2) / (t3 - t2)
+
+        return (U0, S0), (U1, S1), (U2, S2)
+
+    def test_usr(self):
+        (U0, S0), (U1, S1), (U2,S2) = self.test_util(cpu=1, cpu_load=75)
+
+        # Characteristic of 2nd period:
+        #   Don't know exact range, because of stop_machine
+        #   But at least don't exceed 100%
+        if not positive(U1) or overflow(U1):
+            self.error_handler('U1', U1)
+
+        # Characteristic of 3rd period:
+        if not near(U2, U0) or overflow(U2):
+            self.error_handler('U2', U2)
+
+        # Characteristic of all periods:
+        if not near_greater_equal(S0, 0) or overflow(S0):
+            self.error_handler('S0', S0)
+        if not near_greater_equal(S1, 0) or overflow(S1):
+            self.error_handler('S1', S1)
+        if not near_greater_equal(S2, 0) or overflow(S2):
+            self.error_handler('S2', S2)
+
+        killall('stress-ng-cpu', _ok_code=[0,1])
+        rpm('scheduler-xxx', erase=True)
+
+    def test_sys(self):
+        (U0, S0), (U1, S1), (U2,S2) = self.test_util(urandom=1)
+
+        # Characteristic of 1st period:
+        if not near(S0, 1) or overflow(S0):
+            self.error_handler('S0', S0)
+
+        # Characteristic of 2nd period:
+        #   Don't know exact range, because of stop_machine
+        #   But at least don't exceed 100%
+        if not positive(S1) or overflow(S1):
+            self.error_handler('S1', S1)
+
+        # Characteristic of 3rd period:
+        if not near(S2, S0) or overflow(S2):
+            self.error_handler('S2', S2)
+
+        # Characteristic of all periods:
+        if not near_greater_equal(U0, 0) or overflow(U0):
+            self.error_handler('U0', U0)
+        if not near_greater_equal(U1, 0) or overflow(U1):
+            self.error_handler('U1', U1)
+        if not near_greater_equal(U2, 0) or overflow(U2):
+            self.error_handler('U2', U2)
+
+        killall('stress-ng-urand', _ok_code=[0,1])
+        rpm('scheduler-xxx', erase=True)
+
+    def test_nr_running(self):
+        nr_tasks = 500
+        stress:RunningCommand = sh.stress_ng(fork=nr_tasks, _bg=True)
+        sleep(5)
+        nr_running_0 = float(awk(cat('/proc/stat'), '/procs_running/{print $2}')) / nr_tasks
+        rpm(self.rpm, install=True)
+        sleep(1)
+        nr_running_1 = float(awk(cat('/proc/stat'), '/procs_running/{print $2}')) / nr_tasks
+        rpm('scheduler-xxx', erase=True)
+        nr_running_2 = float(awk(cat('/proc/stat'), '/procs_running/{print $2}')) / nr_tasks
+        if not near(nr_running_0, 1.0):
+            self.error_handler('nr_running_0', nr_running_0)
+        if not near(nr_running_1, 1.0):
+            self.error_handler('nr_running_1', nr_running_1)
+        if not near(nr_running_2, 1.0):
+            self.error_handler('nr_running_2', nr_running_2)
+
+        killall('stress-ng-fork', _ok_code=[0,1])
+
+    def test_all(self):
+        self.test_usr()
+        self.test_sys()
+        self.test_nr_running()
+
+    def teardown_class(self):
+        killall('stress-ng-cpu', _ok_code=[0,1])
+        killall('stress-ng-urand', _ok_code=[0,1])
+        killall('stress-ng-fork', _ok_code=[0,1])
+        if grep(lsmod(), 'scheduler', word_regexp=True, _ok_code=[0,1]).exit_code == 0:
+            rpm('scheduler-xxx', erase=True)
+
+    def error_handler(self, obj, value):
+        print("Failed becaused {} = {}".format(obj, value))
+        self.teardown_class()
+        raise
+
+if __name__ == '__main__':
+    test_unit = TestSLI()
+    test_unit.setup_class()
+    test_unit.test_all()
+    test_unit.teardown_class()
