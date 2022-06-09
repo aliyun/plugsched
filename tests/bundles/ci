@@ -2,5 +2,5 @@ quick_start
 public_var
 var_uniformity
 cpu_throttle
-cpu_bal
+domain_rebuild
 sched_syscall

@@ -4,6 +4,7 @@ import subprocess
 import sys
 import sh
 import os
+from glob import glob
 
 class TestSchedSyscall:
     def setup_class(self):
@@ -12,7 +13,7 @@ class TestSchedSyscall:
         self.child = subprocess.Popen(cmd, shell=True)
 
     def load_scheduler(self):
-        scheduler_rpm = sh.glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
+        scheduler_rpm = glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
         if len(scheduler_rpm) != 1:
             print("Please check your scheduler rpm");
             self.teardown_class()
