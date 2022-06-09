@@ -30,6 +30,7 @@ interface_prefix:
     - __arm64_compat_sys_
 function:
     interface:
+        - wake_up_idle_ht
         - do_set_cpus_allowed
         - set_user_nice
         - sched_setscheduler
