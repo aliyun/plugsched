@@ -26,7 +26,7 @@ modpath = None
 Loader.add_constructor(resolver.BaseResolver.DEFAULT_SEQUENCE_TAG,
                        lambda loader, node: set(loader.construct_sequence(node)))
 Dumper.add_representer(set, lambda dumper, node: dumper.represent_list(node))
-Dumper.add_representer(unicode,
+Dumper.add_representer(str,
                        lambda dumper, data: dumper.represent_scalar(u'tag:yaml.org,2002:str', data))
 
 def read_config():
@@ -122,15 +122,16 @@ def inflect(initial_insiders, edges):
     global __insiders
     __insiders = copy.deepcopy(initial_insiders)
     while True:
-        delete_insider = filter(None, map(inflect_one, edges))
+        delete_insider = list(filter(None, list(map(inflect_one, edges))))
         if not delete_insider:
             break
         __insiders -= set(delete_insider)
     return __insiders
 
 global_fn_dict = {}
-def lookup_if_global((name, file)):
+def lookup_if_global(name_and_file):
     # Returns None if function is a gcc built-in function
+    name, file = name_and_file
     file = global_fn_dict.get(name, None) if file == '?' else file
     return (name, file) if file else None
 
@@ -142,7 +143,7 @@ if __name__ == '__main__':
     config = read_config()
     config['mod_files_basename'] = {os.path.basename(f): f for f in config['mod_files']}
     config['mod_header_files'] = [f for f in config['mod_files'] if f.endswith('.h')]
-    metas = map(read_meta, all_meta_files())
+    metas = list(map(read_meta, all_meta_files()))
 
     func_class = {
         'fn':        set(),
@@ -207,7 +208,7 @@ if __name__ == '__main__':
             if struct not in m['struct']: continue
             all_set |= set(m['struct'][struct]['all_fields'])
 
-            for field, users in m['struct'][struct]['public_fields'].iteritems():
+            for field, users in m['struct'][struct]['public_fields'].items():
                 p_user = set(map(tuple, users)) & func_class['public_user']
                 if p_user:
                     user_set |= p_user

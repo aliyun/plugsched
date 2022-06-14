@@ -28,8 +28,8 @@ if __name__ == '__main__':
     modpath = sys.argv[4]
 
     with open(tmpdir + 'symbol_resolve/undefined_functions_sidecar.h', 'w') as f:
-        for fn, pos in sympos.iteritems():
+        for fn, pos in sympos.items():
             f.write('{"%s", %d},\n' % (fn, pos))
     with open(modpath + 'tainted_functions_sidecar.h', 'w') as f:
-        for fn, pos in sympos.iteritems():
+        for fn, pos in sympos.items():
             f.write('TAINTED_FUNCTION(%s,%d)\n' % (fn, pos if pos else 1))
