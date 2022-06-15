@@ -11,16 +11,16 @@ GCC_PLUGIN_FLAGS := -fplugin=/usr/lib64/gcc-python-plugin/python.so \
 
 PHONY += plugsched sidecar collect extract
 
-collect:   CFLAGS_KERNEL = $(GCC_PLUGIN_FLAGS)collect
-extract:   CFLAGS_KERNEL = $(GCC_PLUGIN_FLAGS)extract
-
 plugsched: scripts prepare sidecar
 	$(MAKE) CFLAGS_MODULE=-fkeep-static-functions -C $(srctree) M=$(plugsched_modpath) modules
 
 sidecar: $(plugsched_modpath)/export_jump_sidecar.h
 	python2 $(plugsched_tmpdir)/sidecar.py $< ./vmlinux $(plugsched_tmpdir) $(plugsched_modpath)
 
-collect: $(core-y) $(core-m) $(drivers-y) $(drivers-m) $(net-y) $(net-m) $(virt-y)
+collect:
+	$(MAKE) CFLAGS_KERNEL="$(GCC_PLUGIN_FLAGS)collect" \
+		CFLAGS_MODULE="$(GCC_PLUGIN_FLAGS)collect"
 analyze:
 	python2 $(plugsched_tmpdir)/process.py ./vmlinux $(plugsched_tmpdir) $(plugsched_modpath)
 extract: $(objs)
+	$(MAKE) CFLAGS_KERNEL="$(GCC_PLUGIN_FLAGS)extract" $(objs)
