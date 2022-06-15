@@ -140,7 +140,9 @@ class Plugsched(object):
                          'objs=%s' % ' '.join(objs),
                          *['%s=%s' % i for i in kwargs.items()],
                          file=os.path.join(self.tmp_dir, 'Makefile.plugsched'),
-                         jobs=self.threads)
+                         jobs=self.threads,
+                         _out=sys.stdout,
+                         _err=sys.stderr)
 
     def fix_up(self):
         self.mod_sh.sed("s/#include \"/#include \"..\//g;"  + \
