@@ -2,20 +2,21 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 From registry.cn-hangzhou.aliyuncs.com/alinux/alinux3-aa64
 
-RUN yum install python2 python2-devel gcc gcc-c++ wget libyaml-devel -y && \
-    wget https://bootstrap.pypa.io/pip/2.7/get-pip.py && \
-    python2 get-pip.py
-RUN pip install --upgrade setuptools && \
-    pip install --global-option='--with-libyaml' pyyaml && \
-    pip install six sh coloredlogs future fire jinja2 docopt && \
-    yum install python2-lxml python2-pygments python2-six -y && \
-    yum install systemd git make bison flex \
-		gcc-plugin-devel \
-		elfutils-libelf-devel openssl openssl-devel \
-		elfutils-devel-static \
-		glibc-static zlib-static \
-		libstdc++-static \
-    		rpm-build rsync bc perl -y && \
+RUN yum install python3 python3-devel python3-lxml gcc gcc-c++ wget libyaml-devel -y && \
+    wget https://bootstrap.pypa.io/pip/3.6/get-pip.py && \
+    python3 get-pip.py
+RUN pip3 install --upgrade setuptools && \
+    pip3 install --global-option='--with-libyaml' pyyaml && \
+    pip3 install sh coloredlogs fire jinja2 docopt && \
+    yum install make bison flex python3-lxml python3-six python3-pygments \
+                gcc-plugin-devel \
+                systemd git \
+                elfutils-libelf-devel openssl openssl-devel \
+                elfutils-devel-static \
+                glibc-static zlib-static \
+                libstdc++-static \
+                platform-python-devel \
+                rpm-build rsync bc perl -y && \
     yum clean all
 
 RUN git clone https://gitee.com/src-anolis-sig/gcc-python-plugin.git && \
