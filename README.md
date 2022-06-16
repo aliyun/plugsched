@@ -132,7 +132,7 @@ GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP
 # rpm -ivh /tmp/work/scheduler-xxx.rpm
 # lsmod | grep scheduler
 scheduler             503808  1
-# dmesg ｜ tail -n 10
+# dmesg | tail -n 10
 [ 2186.213916] cni-podman0: port 1(vethfe1a04fa) entered forwarding state
 [ 6092.916180] Hi, scheduler mod is installing!
 [ 6092.923037] scheduler: total initialization time is        6855921 ns
@@ -219,7 +219,7 @@ The overhead incurred by plugsched can be ignored,  and the performance regressi
 
 It depends on the current system load and the number of threads. In our tests, we have 10k+ processes running on a 104 logical CPU machine. And the downtime is less than 10ms.
 
-**Q: What's the difference between plugsched and kpatch? Do we achieve the same goal by optimizing kpatch? **
+**Q: What's the difference between plugsched and kpatch? Do we achieve the same goal by optimizing kpatch?**
 
 kpatch is live updating for function granularity, while plugsched for subsystem-wide. Some capabilities cannot be achieved through kpatch optimization. For example, kpatch can not modify the __schedule function, and can not modify thousands of functions at the same time.
 
