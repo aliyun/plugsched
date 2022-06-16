@@ -1,9 +1,9 @@
+#!/usr/bin/env python3
 # Copyright 2019-2022 Alibaba Group Holding Limited.
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 from collections import defaultdict
-from builtins import super
-from itertools import izip, groupby as _groupby
+from itertools import groupby as _groupby
 from yaml import load, dump, resolver, CLoader as Loader, CDumper as Dumper
 import json
 import re
@@ -418,14 +418,14 @@ class SchedBoundaryCollect(SchedBoundary):
 
         def groupby(it, grouper, selector):
             sorted_list = sorted(it, key=grouper)
-            return dict((k, map(selector, v)) for k, v in _groupby(sorted_list, grouper))
+            return dict((k, list(map(selector, v))) for k, v in _groupby(sorted_list, grouper))
 
-        for struct, user_fields in public_fields.iteritems():
+        for struct, user_fields in public_fields.items():
             self.struct_properties[struct.name.name] = {
                 "all_fields": [f.name for f in struct.fields if f.name],
                 "public_fields": groupby(user_fields,
-                    grouper=lambda (user, field): field.name,
-                    selector=lambda (user, field): (user.name, os.path.relpath(user.location.file)))
+                    grouper=lambda user_and_field: user_and_field[1].name,
+                    selector=lambda user_and_field: (user_and_field[0].name, os.path.relpath(user_and_field[0].location.file)))
             }
 
     def collect_edges(self):

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # Copyright 2019-2022 Alibaba Group Holding Limited.
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
@@ -120,7 +120,7 @@ class Plugsched(object):
                     break
             return i
 
-        candidates = map(os.path.basename, glob('%s/configs/%s*' % (self.plugsched_path, self.major)))
+        candidates = list(map(os.path.basename, glob('%s/configs/%s*' % (self.plugsched_path, self.major))))
         if len(candidates) == 0:
             logging.fatal('''Can't find config directory, please add config for kernel %s''', self.KVER)
 
@@ -210,9 +210,22 @@ class Plugsched(object):
 
         logging.info("Succeed!")
 
+    # when python3 working with rpmbuild, the /usr/local/python* path
+    # won't be in included in sys/path which results in some modules
+    # can't be find. So we need to add the PYTHONPATH manually.
+    # The detail about this can be find in
+    # https://fedoraproject.org/wiki/Changes/Making_sudo_pip_safe
+    def add_python_path(self):
+        py_ver = sys.version[0:3]
+        python_path = '/usr/local/lib64/python' + py_ver + '/site-packages'
+        python_path += os.pathsep
+        python_path += '/usr/local/lib/python' + py_ver + '/site-packages'
+        os.environ["PYTHONPATH"] = python_path
+
     def cmd_build(self):
         if not os.path.exists(self.work_dir):
             logging.fatal("plugsched: Can't find %s", self.work_dir)
+        self.add_python_path()
         logging.info("Preparing rpmbuild environment")
         rpmbuild_root = os.path.join(self.plugsched_path, 'rpmbuild')
         self.plugsched_sh.rm('rpmbuild', recursive=True, force=True)
@@ -242,7 +255,7 @@ if __name__ == '__main__':
 
         rpmbuild_root = mkdtemp()
         sh.rpmbuild('--define', '%%_topdir %s' % rpmbuild_root,
-                    '--define', '%%__python %s' % '/usr/bin/python2',
+                    '--define', '%%__python %s' % '/usr/bin/python3',
                     '-rp', '--nodeps', kernel_src_rpm)
 
         src = glob('kernel*/linux*', rpmbuild_root + '/BUILD/')
