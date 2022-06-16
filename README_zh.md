@@ -132,7 +132,7 @@ GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP
 # rpm -ivh /tmp/work/scheduler-xxx.rpm
 # lsmod | grep scheduler
 scheduler             503808  1
-# dmesg ｜ tail -n 10
+# dmesg | tail -n 10
 [ 2186.213916] cni-podman0: port 1(vethfe1a04fa) entered forwarding state
 [ 6092.916180] Hi, scheduler mod is installing!
 [ 6092.923037] scheduler: total initialization time is        6855921 ns
