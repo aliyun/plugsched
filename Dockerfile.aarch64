@@ -3,10 +3,9 @@
 From registry.cn-hangzhou.aliyuncs.com/alinux/alinux3-aa64
 
 RUN yum install python3 python3-devel python3-lxml gcc gcc-c++ wget libyaml-devel -y && \
-    wget https://bootstrap.pypa.io/pip/3.6/get-pip.py && \
-    python3 get-pip.py
+    yum install python3-pip -y
 RUN pip3 install --upgrade setuptools && \
-    pip3 install --global-option='--with-libyaml' pyyaml && \
+    pip3 install pyyaml && \
     pip3 install sh coloredlogs fire jinja2 docopt && \
     yum install make bison flex python3-lxml python3-six python3-pygments \
                 gcc-plugin-devel \
