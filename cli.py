@@ -58,11 +58,12 @@ coloredlogs.install(level='INFO')
 logging.getLogger().addHandler(ShutdownHandler())
 
 class Plugsched(object):
-    def __init__(self, work_dir, vmlinux, makefile):
+    def __init__(self, work_dir, vmlinux, makefile, sym_vers):
         self.plugsched_path = os.path.dirname(os.path.realpath(__file__))
         self.work_dir = os.path.abspath(work_dir)
         self.vmlinux = os.path.abspath(vmlinux)
         self.makefile = os.path.abspath(makefile)
+        self.sym_vers = os.path.abspath(sym_vers)
         self.mod_path = os.path.join(self.work_dir, 'kernel/sched/mod/')
         self.tmp_dir = os.path.join(self.work_dir, 'working/')
         plugsched_sh = sh(_cwd=self.plugsched_path)
@@ -166,6 +167,9 @@ class Plugsched(object):
     def extract(self):
         logging.info('Extracting scheduler module objs: %s', ' '.join(self.mod_objs))
         self.make(stage = 'collect', plugsched_tmpdir = self.tmp_dir, plugsched_modpath = self.mod_path)
+
+        self.plugsched_sh.cp(self.sym_vers, self.vmlinux, self.work_dir, force=True)
+
         self.make(stage = 'analyze', plugsched_tmpdir = self.tmp_dir, plugsched_modpath = self.mod_path)
         self.make(stage = 'extract', plugsched_tmpdir = self.tmp_dir, plugsched_modpath = self.mod_path,
                   objs = self.mod_objs)
@@ -183,12 +187,10 @@ class Plugsched(object):
             self.mod_sh.cp(glob(f, _cwd=self.plugsched_path), t, recursive=True, dereference=True)
 
 
-    def cmd_init(self, kernel_src, sym_vers, kernel_config):
+    def cmd_init(self, kernel_src, kernel_config):
         self.create_sandbox(kernel_src)
-        self.plugsched_sh.cp(sym_vers,      self.work_dir, force=True)
         self.plugsched_sh.cp(kernel_config, self.work_dir + '/.config', force=True)
         self.plugsched_sh.cp(self.makefile, self.work_dir, force=True)
-        self.plugsched_sh.cp(self.vmlinux,  self.work_dir, force=True)
 
         logging.info('Patching kernel with pre_extract patch')
         self.apply_patch('pre_extract.patch')
@@ -274,8 +276,8 @@ if __name__ == '__main__':
         if not os.path.exists(kernel_config):
             logging.fatal("%s not found, please install kernel-devel-%s.rpm", kernel_config, release_kernel)
 
-        plugsched = Plugsched(work_dir, vmlinux, makefile)
-        plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
+        plugsched = Plugsched(work_dir, vmlinux, makefile, sym_vers)
+        plugsched.cmd_init(kernel_src, kernel_config)
 
     elif arguments['dev_init']:
         kernel_src = arguments['<kernel_src>']
@@ -295,14 +297,16 @@ if __name__ == '__main__':
         if not os.path.exists(kernel_config):
             logging.fatal("kernel config %s not found", kernel_config)
 
-        plugsched = Plugsched(work_dir, vmlinux, makefile)
-        plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
+        plugsched = Plugsched(work_dir, vmlinux, makefile, sym_vers)
+        plugsched.cmd_init(kernel_src, kernel_config)
 
     elif arguments['build']:
         work_dir = arguments['<work_dir>']
 
         vmlinux = os.path.join(work_dir, 'vmlinux')
         makefile = os.path.join(work_dir, 'Makefile')
-        plugsched = Plugsched(work_dir, vmlinux, makefile)
+        sym_vers = os.path.join(work_dir, 'Modules.symvers')
+
+        plugsched = Plugsched(work_dir, vmlinux, makefile, sym_vers)
         plugsched.cmd_build()
 
