@@ -8,7 +8,7 @@
 #include <linux/version.h>
 #include "kernel/sched/sched.h"
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0) && LINUX_VERSION_CODE <= KERNEL_VERSION(5, 1, 0)
 #include "kernel/sched/sched-pelt.h"
 #endif
 
