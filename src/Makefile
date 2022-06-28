@@ -29,13 +29,9 @@ obj-m += scheduler.o
 $(obj)/%.o: $(src)/%.c FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
+	$(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS_$(@F)) $@
 
-$(obj)/%.stub.o: $(obj)/%.o FORCE
-	$(call cmd,objcopy)
-
-obj-stubs := $(patsubst %.o,%.stub.o,$(objs-y))
-
-scheduler-objs := $(obj-stubs) main.o sched_rebuild.o
+scheduler-objs := $(objs-y) main.o sched_rebuild.o
 
 ldflags-y += -T $(plugsched_modpath)/scheduler.lds
 ccflags-n += -DSCHEDMOD_MEMPOOL
