@@ -22,5 +22,5 @@ collect:
 		CFLAGS_MODULE="$(GCC_PLUGIN_FLAGS)collect"
 analyze:
 	python3 $(plugsched_tmpdir)/process.py ./vmlinux $(plugsched_tmpdir) $(plugsched_modpath)
-extract: $(objs)
+extract:
 	$(MAKE) CFLAGS_KERNEL="$(GCC_PLUGIN_FLAGS)extract" $(objs)
