@@ -1,0 +1,92 @@
+// Copyright 2019-2022 Alibaba Group Holding Limited.
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
+From cf0e314e367f00a4beb9e38b2e69feca0138e59c Mon Sep 17 00:00:00 2001
+From: Erwei Deng <erwei@linux.alibaba.com>
+Date: Thu, 28 Jul 2022 21:32:14 +0800
+Subject: [PATCH] Dynamic __schedule springboard
+
+With this springboard, we don't have to customize the kernel's __schedule.
+
+In order to match the layout of stack of __schedule in vmlinux, I change
+the attribute of prepare_task_switch to noinline which is because that,
+the frame pointer in vmlinux is optimized but not in scheduler. Whether
+the prepare_task_switch is inlined can infect whether the frame pointer
+of __schedule in module is optimized.
+
+Co-developed-by: Yihao Wu <wuyihao@linux.alibaba.com>
+Signed-off-by: Erwei Deng <erwei@linux.alibaba.com>
+
+---
+ kernel/sched/mod/core.c | 41 +++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/sched/mod/core.c b/kernel/sched/mod/core.c
+index d665eac45..f5038f4f0 100644
+--- a/kernel/sched/mod/core.c
++++ b/kernel/sched/mod/core.c
+@@ -3228,7 +3228,7 @@ static inline void finish_lock_switch(struct rq *rq)
+  * prepare_task_switch sets up locking and calls architecture specific
+  * hooks.
+  */
+-static inline void
++static noinline void
+ prepare_task_switch(struct rq *rq, struct task_struct *prev,
+ 		    struct task_struct *next)
+ {
+@@ -3413,6 +3413,8 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
+ /*
+  * context_switch - switch to the new MM and the new thread's register state.
+  */
++extern unsigned long sched_springboard;
++
+ static __always_inline struct rq *
+ context_switch(struct rq *rq, struct task_struct *prev,
+ 	       struct task_struct *next, struct rq_flags *rf)
+@@ -3465,7 +3467,42 @@ context_switch(struct rq *rq, struct task_struct *prev,
+ 	prepare_lock_switch(rq, next, rf);
+ 
+ 	/* Here we just switch the register state and the stack. */
+-	switch_to(prev, next, prev);
++#ifdef CONFIG_X86_64
++	__asm__("add %0,%%rsp\n\t"
++		"pushq %1\n\t"
++		"jmp __switch_to_asm"
++		:
++		:"i"(STACKSIZE_MOD - STACKSIZE_VMLINUX), "r"(sched_springboard), "D"(prev), "S"(next)
++		:"rbx","r12","r13","r14","r15"
++	);
++#endif
++#ifdef CONFIG_ARM64
++	__asm__(
++		"ldp x29,x30,[sp,  #0]\n\t"
++		"ldp x19,x20,[sp, #16]\n\t"
++		"ldp x21,x22,[sp, #32]\n\t"
++		"ldp x23,x24,[sp, #48]\n\t"
++		"ldp x25,x26,[sp, #64]\n\t"
++		"ldp x27,x28,[sp, #80]\n\t"
++		"sub  sp,x29,%0\n\t"
++		"stp x29,x30,[sp,  #0]\n\t"
++		"stp x19,x20,[sp, #16]\n\t"
++		"stp x21,x22,[sp, #32]\n\t"
++		"stp x23,x24,[sp, #48]\n\t"
++		"stp x25,x26,[sp, #64]\n\t"
++		"stp x27,x28,[sp, #80]\n\t"
++		"mov x0,%2\n\t"
++		"mov x1,%3\n\t"
++		"ldr x30,%1\n\t"
++		"b __switch_to"
++		:
++		:"i"(STACKSIZE_SCHEDULE), "m"(sched_springboard),"r"(prev),"r"(next)
++		:"x19","x20","x21","x22","x23","x24","x25",
++		 "x26","x27","x28","x30","x0","x1"
++	);
++#endif
++
++	/* Below will not be executed, we'll return to vmlinux here */
+ 	barrier();
+ 
+ 	return finish_task_switch(prev);
+-- 
+2.27.0
+
