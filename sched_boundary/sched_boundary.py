@@ -235,7 +235,7 @@ class SchedBoundaryExtract(SchedBoundary):
                 decl.static = False
                 new_name = '__mod_' + decl.name
                 lines[fn_row_start] = lines[fn_row_start][:fn_col_start] + \
-                    lines[fn_row_start][fn_col_start:].replace(decl.name, new_name)
+                    lines[fn_row_start][fn_col_start:].replace(decl.name, '__used ' + new_name)
                 lines[fn_row_end] = lines[fn_row_end] + '\n' + \
                     "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S CALLBACK FUNCTION */\n".format(new_name) + \
                     GccBugs.function_signature(decl) + '\n'
