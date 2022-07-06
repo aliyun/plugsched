@@ -115,7 +115,7 @@ class SchedBoundaryExtract(SchedBoundary):
         self.fn_ptr_list = []
         self.interface_list = []
         self.var_list = []
-        self.fake = 'fake.c'
+        self.fake = 'kernel/sched/fake.c'
 
     def register_cbs(self):
         if gcc.get_main_input_filename() in self.mod_srcs | {self.fake}:

@@ -6,12 +6,12 @@
 /* other headers not list below are included by sched.h */
 
 #include <linux/version.h>
-#include "kernel/sched/sched.h"
+#include "sched.h"
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0) && LINUX_VERSION_CODE <= KERNEL_VERSION(5, 1, 0)
-#include "kernel/sched/sched-pelt.h"
+#include "sched-pelt.h"
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
-#include "kernel/sched/pelt.h"
+#include "pelt.h"
 #endif
