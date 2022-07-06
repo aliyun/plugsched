@@ -1,0 +1,25 @@
+diff --git a/scheduler/kernel/sched/mod/core.c b/scheduler/kernel/sched/mod/core.c
+index 9f16b72..21262fd 100644
+--- a/scheduler/kernel/sched/mod/core.c
++++ b/scheduler/kernel/sched/mod/core.c
+@@ -3234,6 +3234,9 @@ static void __sched notrace __schedule(bool preempt)
+	struct rq *rq;
+	int cpu;
+
++	if (sched_feat(PLUGSCHED_TEST))
++		printk_once("I am the new scheduler: __schedule\n");
++
+	cpu = smp_processor_id();
+	rq = cpu_rq(cpu);
+	prev = rq->curr;
+diff --git a/scheduler/kernel/sched/mod/features.h b/scheduler/kernel/sched/mod/features.h
+index 4c40fac..8d1eafd 100644
+--- a/scheduler/kernel/sched/mod/features.h
++++ b/scheduler/kernel/sched/mod/features.h
+@@ -1,4 +1,6 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
++SCHED_FEAT(PLUGSCHED_TEST, false)
++
+ /*
+  * Only give sleepers 50% of their service deficit. This allows
+  * them to run sooner, but does not allow tons of sleepers to
