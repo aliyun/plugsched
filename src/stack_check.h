@@ -89,7 +89,7 @@ static int stack_check_task(struct task_struct *task, bool install)
 	save_stack_trace_tsk(task, &trace);
 	nr_entries = trace.nr_entries;
 #else /* CONFIG_ARCH_STACKWALK */
-	nr_entries = stack_trace_save_tsk(task, &entries, MAX_STACK_ENTRIES, 0);
+	nr_entries = stack_trace_save_tsk(task, entries, MAX_STACK_ENTRIES, 0);
 #endif /* CONFIG_ARCH_STACKWALK */
 
 	return stack_check_fn(entries, nr_entries, install);

@@ -11,6 +11,7 @@
 #include <linux/namei.h>
 #include <linux/sched/task.h>
 #include <linux/sysfs.h>
+#include <linux/version.h>
 #include "sched.h"
 #include "mempool.h"
 #include "head_jump.h"
@@ -31,7 +32,21 @@ DECLARE_PER_CPU(struct callback_head, rt_pull_head);
 unsigned long sched_springboard;
 
 extern struct mutex cgroup_mutex;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 3, 0)
 extern struct mutex cpuset_mutex;
+#define plugsched_cpuset_lock() \
+	mutex_lock(&cpuset_mutex)
+#define plugsched_cpuset_unlock() \
+	mutex_unlock(&cpuset_mutex)
+#else
+extern struct percpu_rw_semaphore cpuset_rwsem;
+#define plugsched_cpuset_lock() \
+	percpu_down_write(&cpuset_rwsem)
+#define plugsched_cpuset_unlock() \
+	percpu_up_write(&cpuset_rwsem)
+#endif
+
 extern cpumask_var_t sd_sysctl_cpus;
 extern const struct file_operations sched_feat_fops;
 extern const struct seq_operations sched_debug_sops;
@@ -236,25 +251,25 @@ extern void __orig_unregister_sched_domain_sysctl(void);
 static inline void install_sched_domain_sysctl(void)
 {
 	mutex_lock(&cgroup_mutex);
-	mutex_lock(&cpuset_mutex);
+	plugsched_cpuset_lock();
 
 	__orig_unregister_sched_domain_sysctl();
 	register_sched_domain_sysctl();
 
-	mutex_unlock(&cpuset_mutex);
+	plugsched_cpuset_unlock();
 	mutex_unlock(&cgroup_mutex);
 }
 
 static inline void restore_sched_domain_sysctl(void)
 {
 	mutex_lock(&cgroup_mutex);
-	mutex_lock(&cpuset_mutex);
+	plugsched_cpuset_lock();
 
 	unregister_sched_domain_sysctl();
 	cpumask_copy(sd_sysctl_cpus, cpu_possible_mask);
 	__orig_register_sched_domain_sysctl();
 
-	mutex_unlock(&cpuset_mutex);
+	plugsched_cpuset_unlock();
 	mutex_unlock(&cgroup_mutex);
 }
 
