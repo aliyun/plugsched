@@ -184,7 +184,7 @@ class SchedBoundaryExtract(SchedBoundary):
         loc = gcc.get_location()
 
         # filter out *.h
-        if loc.file != gcc.get_main_input_filename():
+        if decl.location.file != gcc.get_main_input_filename():
             return
 
         if not isinstance(decl, gcc.VarDecl):
