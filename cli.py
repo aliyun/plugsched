@@ -147,7 +147,7 @@ class Plugsched(object):
 
     def fix_up(self):
         self.mod_sh.sed("s/#include \"/#include \"..\//g;"  + \
-                        "/EXPORT_SYMBOL/d;"                 + \
+                        "/EXPORT_.*SYMBOL/d;"               + \
                         "/initcall/d;"                      + \
                         "/early_param/d;"                   + \
                         "/\<__init\>/d;"                    + \

@@ -255,8 +255,9 @@ class SchedBoundaryExtract(SchedBoundary):
                     lines[i] = ''
 
             # Specially handling shared per_cpu and static_key variables to improve readability
+            orig_lines = list(lines)
             for decl, row_start, row_end in list(self.var_list):
-                line = lines[row_start]
+                line = orig_lines[row_start]
                 if 'DEFINE_PER_CPU(' in line:
                     line = line.replace('DEFINE_PER_CPU(', 'DECLARE_PER_CPU(').replace('static ', '')
                 elif 'DEFINE_PER_CPU_SHARED_ALIGNED(' in line:
@@ -265,6 +266,8 @@ class SchedBoundaryExtract(SchedBoundary):
                     line = line.replace('DEFINE_STATIC_KEY_FALSE(', 'DECLARE_STATIC_KEY_FALSE(').replace('static ', '')
                 elif 'DEFINE_STATIC_KEY_TRUE(' in line:
                     line = line.replace('DEFINE_STATIC_KEY_TRUE(', 'DECLARE_STATIC_KEY_TRUE(').replace('static ', '')
+                elif 'EXPORT_' in line and '_SYMBOL' in line:
+                    line = ''
                 else:
                     lines[row_start] = ''
                     continue
