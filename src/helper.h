@@ -31,7 +31,7 @@ static inline void set_value_long(unsigned long addr, unsigned long val)
 /*
  * binary search method
  */
-int bsearch(unsigned long *arr, int start, int end, unsigned long tar)
+int func_addr_bsearch(unsigned long *arr, int start, int end, unsigned long tar)
 {
 	int mid;
 
