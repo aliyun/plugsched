@@ -165,14 +165,14 @@ static inline bool is_simple_percpu_mempool_addr(
 #define FIELD_INDIRECT_TYPE(t, f) typeof(*((struct t*)0)->f)
 
 #define DEFINE_RESERVE(type, field, name, require, max)			\
-struct simple_mempool *name##_smp = NULL;				\
-void release_##name##_reserve(struct type *x)				\
+static struct simple_mempool *name##_smp = NULL;			\
+static void release_##name##_reserve(struct type *x)			\
 {									\
 	if (!is_simple_mempool_addr(name##_smp, x->field))		\
 		kfree(x->field);					\
 	x->field = NULL;						\
 }									\
-FIELD_TYPE(type, field) alloc_##name##_reserve(void)			\
+static IELD_TYPE(type, field) alloc_##name##_reserve(void)		\
 {									\
 	return simple_mempool_alloc(name##_smp);			\
 }									\
@@ -192,14 +192,14 @@ static int recheck_mempool_##name(void)					\
 }
 
 #define DEFINE_RESERVE_PERCPU(type, field, name, require, max)		\
-struct simple_percpu_mempool *name##_smp = NULL;			\
-void release_##name##_reserve(struct type *x)				\
+static struct simple_percpu_mempool *name##_smp = NULL;			\
+static void release_##name##_reserve(struct type *x)			\
 {									\
 	if (!is_simple_percpu_mempool_addr(name##_smp, x->field))	\
 		free_percpu((void *)x->field);				\
 	x->field = NULL;						\
 }									\
-FIELD_TYPE(type, field) alloc_##name##_reserve(void)			\
+static FIELD_TYPE(type, field) alloc_##name##_reserve(void)		\
 {									\
 	return simple_percpu_mempool_alloc(name##_smp);			\
 }									\

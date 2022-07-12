@@ -31,7 +31,7 @@ static inline void set_value_long(unsigned long addr, unsigned long val)
 /*
  * binary search method
  */
-int bsearch(unsigned long *arr, int start, int end, unsigned long tar)
+static int bsearch(unsigned long *arr, int start, int end, unsigned long tar)
 {
 	int mid;
 
@@ -67,7 +67,7 @@ static inline void addr_swap(unsigned long *a, unsigned long *b)
 /*
  * This sort method is coming from lib/sort.c
  */
-void addr_sort(unsigned long *addr, unsigned long *size, int n) {
+static void addr_sort(unsigned long *addr, unsigned long *size, int n) {
 	int i = n/2 - 1, c, r;
 
 	for ( ; i >= 0; i -= 1) {
