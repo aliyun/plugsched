@@ -180,14 +180,16 @@ if __name__ == '__main__':
             if edge['to']:
                 edges.append(edge)
 
+    func_class['in_vmlinux'] = find_in_vmlinux(vmlinux)
     func_class['fn_ptr'] -= func_class['interface']
+    func_class['fn_ptr_optimized'] = func_class['fn_ptr'] - func_class['in_vmlinux']
+    func_class['fn_ptr'] -= func_class['fn_ptr_optimized']
     func_class['border'] = func_class['interface'] | func_class['fn_ptr']
     func_class['initial_insider'] = func_class['mod_fns'] - func_class['border']
-    func_class['in_vmlinux'] = find_in_vmlinux(vmlinux)
 
     # Inflect outsider functions
     func_class['insider'] = inflect(func_class['initial_insider'], edges)
-    func_class['sched_outsider'] = func_class['initial_insider'] - func_class['insider']
+    func_class['sched_outsider'] = (func_class['initial_insider'] - func_class['insider']) | func_class['fn_ptr_optimized']
     func_class['optimized_out'] = func_class['sched_outsider'] - func_class['in_vmlinux']
     func_class['public_user'] = func_class['fn'] - func_class['insider'] - func_class['border']
     func_class['tainted'] = (func_class['border'] | func_class['insider']) & func_class['in_vmlinux']

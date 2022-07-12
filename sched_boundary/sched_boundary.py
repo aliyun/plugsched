@@ -115,7 +115,7 @@ class SchedBoundaryExtract(SchedBoundary):
         self.fn_ptr_list = []
         self.interface_list = []
         self.var_list = []
-        self.fake = 'fake.c'
+        self.fake = 'kernel/sched/fake.c'
 
     def register_cbs(self):
         if gcc.get_main_input_filename() in self.mod_srcs | {self.fake}:
@@ -184,7 +184,7 @@ class SchedBoundaryExtract(SchedBoundary):
         loc = gcc.get_location()
 
         # filter out *.h
-        if loc.file != gcc.get_main_input_filename():
+        if decl.location.file != gcc.get_main_input_filename():
             return
 
         if not isinstance(decl, gcc.VarDecl):
@@ -235,7 +235,7 @@ class SchedBoundaryExtract(SchedBoundary):
                 decl.static = False
                 new_name = '__mod_' + decl.name
                 lines[fn_row_start] = lines[fn_row_start][:fn_col_start] + \
-                    lines[fn_row_start][fn_col_start:].replace(decl.name, new_name)
+                    lines[fn_row_start][fn_col_start:].replace(decl.name, '__used ' + new_name)
                 lines[fn_row_end] = lines[fn_row_end] + '\n' + \
                     "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S CALLBACK FUNCTION */\n".format(new_name) + \
                     GccBugs.function_signature(decl) + '\n'
@@ -255,8 +255,9 @@ class SchedBoundaryExtract(SchedBoundary):
                     lines[i] = ''
 
             # Specially handling shared per_cpu and static_key variables to improve readability
+            orig_lines = list(lines)
             for decl, row_start, row_end in list(self.var_list):
-                line = lines[row_start]
+                line = orig_lines[row_start]
                 if 'DEFINE_PER_CPU(' in line:
                     line = line.replace('DEFINE_PER_CPU(', 'DECLARE_PER_CPU(').replace('static ', '')
                 elif 'DEFINE_PER_CPU_SHARED_ALIGNED(' in line:
@@ -265,6 +266,8 @@ class SchedBoundaryExtract(SchedBoundary):
                     line = line.replace('DEFINE_STATIC_KEY_FALSE(', 'DECLARE_STATIC_KEY_FALSE(').replace('static ', '')
                 elif 'DEFINE_STATIC_KEY_TRUE(' in line:
                     line = line.replace('DEFINE_STATIC_KEY_TRUE(', 'DECLARE_STATIC_KEY_TRUE(').replace('static ', '')
+                elif 'EXPORT_' in line and '_SYMBOL' in line:
+                    line = ''
                 else:
                     lines[row_start] = ''
                     continue
