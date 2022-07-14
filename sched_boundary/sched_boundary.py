@@ -82,6 +82,12 @@ class GccBugs(object):
                arg.type.dereference.name.name == '__va_list_tag'
 
     @staticmethod
+    def va_list(decl, str):
+        if GccBugs.is_val_list(decl):
+            return str.replace("struct  *", "va_list")
+        return str
+
+    @staticmethod
     def function_signature(decl):
         fn_signature = str(decl.str_decl)
         fn_signature = GccBugs.enum_type_name(decl.result, fn_signature)
@@ -104,7 +110,7 @@ class GccBugs(object):
     @staticmethod
     def fix(decl, str):
         for bugfix in [GccBugs.array_pointer, GccBugs.enum_type_name,
-                       GccBugs.array_size, GccBugs.typedef]:
+                       GccBugs.array_size, GccBugs.typedef, GccBugs.va_list]:
             str = bugfix(decl, str)
         return str
 
