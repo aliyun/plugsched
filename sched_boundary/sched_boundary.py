@@ -87,21 +87,6 @@ class GccBugs(object):
             return str.replace("struct  *", "va_list")
         return str
 
-    @staticmethod
-    def function_signature(decl):
-        fn_signature = str(decl.str_decl)
-        fn_signature = GccBugs.enum_type_name(decl.result, fn_signature)
-        for arg in decl.arguments:
-            # special dealing with enum types. enum type will missing enum keyword in func.str_decl
-            if isinstance(arg.type, gcc.EnumeralType):
-                arg_type_name = str(arg.type.name)
-                fn_signature = fn_signature.replace(arg_type_name, 'enum ' + arg_type_name)
-            # special dealing with builtin types, for example: va_list
-            elif GccBugs.is_val_list(arg):
-                fn_signature = fn_signature.replace("struct  *", "va_list")
-
-        return fn_signature
-
     # extern type array[<unknown>] -> extern type array[]
     @staticmethod
     def array_size(decl, str):
@@ -127,6 +112,20 @@ class SchedBoundaryExtract(SchedBoundary):
         if gcc.get_main_input_filename() in self.mod_srcs | {self.fake}:
             super().register_cbs()
 
+    @staticmethod
+    def add_fn_list(decl, fn_lst):
+        signature = {"fn": decl.name,
+                "ret": GccBugs.fix(decl.result, decl.result.type.str_no_uid),
+                "params": ", ".join(GccBugs.fix(arg, arg.type.str_no_uid) \
+                        for arg in decl.arguments) if decl.arguments else "void"
+            }
+        fn_lst.append([decl,
+            signature,
+            decl.location.line - 1,
+            decl.location.column - 1,
+            decl.function.end.line - 1,
+            decl.function.end.column - 1])
+
     def function_define(self, decl, _):
         # only func definition will trigger PLUGIN_FINISH_PARSE_FUNCTION
         loc = gcc.get_location()
@@ -143,8 +142,7 @@ class SchedBoundaryExtract(SchedBoundary):
         assert(isinstance(decl, gcc.FunctionDecl))
 
         obj = (decl.name, loc.file)
-        interface_export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})\n"
-        fn_ptr_export_fmt = "PLUGSCHED_FN_PTR({fn}, {ret}, {params})\n"
+
         # translate index to start with 0
         if obj in self.config['function']['sched_outsider'] or \
            obj in self.config['function']['init']:
@@ -154,31 +152,9 @@ class SchedBoundaryExtract(SchedBoundary):
                 decl.function.end.line - 1,
                 decl.function.end.column - 1])
         elif obj in self.config['function']['fn_ptr']:
-            fn_ptr_export = fn_ptr_export_fmt.format(
-                fn=decl.name,
-                ret=GccBugs.fix(decl.result, decl.result.type.str_no_uid),
-                params=", ".join(GccBugs.fix(arg, arg.type.str_no_uid) \
-                        for arg in decl.arguments) if decl.arguments else "void"
-            )
-            self.fn_ptr_list.append([decl,
-                fn_ptr_export,
-                decl.location.line - 1,
-                decl.location.column - 1,
-                decl.function.end.line - 1,
-                decl.function.end.column - 1])
+            SchedBoundaryExtract.add_fn_list(decl, self.fn_ptr_list)
         elif obj in self.config['function']['interface']:
-            interface_export = interface_export_fmt.format(
-                fn=decl.name,
-                ret=GccBugs.fix(decl.result, decl.result.type.str_no_uid),
-                params=", ".join(GccBugs.fix(arg, arg.type.str_no_uid) \
-                        for arg in decl.arguments) if decl.arguments else "void"
-            )
-            self.interface_list.append([decl,
-                interface_export,
-                decl.location.line - 1,
-                decl.location.column - 1,
-                decl.function.end.line - 1,
-                decl.function.end.column - 1])
+            SchedBoundaryExtract.add_fn_list(decl, self.interface_list)
 
     def var_declare(self, decl, _):
         def anonymous_type_var(var_decl):
@@ -234,8 +210,10 @@ class SchedBoundaryExtract(SchedBoundary):
                     for i in range(fn_row_start+1, fn_row_end+1):
                         lines[i] = ''
 
-            for decl, export, fn_row_start, fn_col_start, fn_row_end, fn_col_end in self.fn_ptr_list:
-                fn_export_jump.write(export)
+            fn_ptr_export_header_fmt = "PLUGSCHED_FN_PTR({fn}, {ret}, {params})\n"
+            fn_ptr_export_c_fmt = "extern {ret} {fn}({params});\n"
+            for decl, signature, fn_row_start, fn_col_start, fn_row_end, fn_col_end in self.fn_ptr_list:
+                fn_export_jump.write(fn_ptr_export_header_fmt.format(**signature))
                 decl.public = True
                 decl.external = True
                 decl.static = False
@@ -244,10 +222,11 @@ class SchedBoundaryExtract(SchedBoundary):
                     lines[fn_row_start][fn_col_start:].replace(decl.name, '__used ' + new_name)
                 lines[fn_row_end] = lines[fn_row_end] + '\n' + \
                     "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S CALLBACK FUNCTION */\n".format(new_name) + \
-                    GccBugs.function_signature(decl) + '\n'
+                    fn_ptr_export_c_fmt.format(**signature)
 
-            for decl, export, fn_row_start, fn_col_start, fn_row_end, fn_col_end in self.interface_list:
-                fn_export_jump.write(export)
+            interface_export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})\n"
+            for decl, signature, fn_row_start, fn_col_start, fn_row_end, fn_col_end in self.interface_list:
+                fn_export_jump.write(interface_export_fmt.format(**signature))
 
                 # everyone know that syscall ABI should be consistent
                 if any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']):
