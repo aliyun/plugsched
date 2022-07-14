@@ -99,6 +99,11 @@ class GccBugs(object):
             str = bugfix(decl, str)
         return str
 
+    @staticmethod
+    def variadic_function(decl, signature):
+        if decl.str_decl.find("...") >= 0:
+            signature["params"] += ", ..."
+
 class SchedBoundaryExtract(SchedBoundary):
     def __init__(self):
         super().__init__(tmpdir + 'sched_boundary_extract.yaml')
@@ -119,6 +124,7 @@ class SchedBoundaryExtract(SchedBoundary):
                 "params": ", ".join(GccBugs.fix(arg, arg.type.str_no_uid) \
                         for arg in decl.arguments) if decl.arguments else "void"
             }
+        GccBugs.variadic_function(decl, signature)
         fn_lst.append([decl,
             signature,
             decl.location.line - 1,
