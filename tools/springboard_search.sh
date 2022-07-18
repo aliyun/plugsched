@@ -103,7 +103,7 @@ function get_stack_check_off_AArch64()
 function output()
 {
 	echo "ccflags-y += -DSPRINGBOARD=$target_off"
-	echo "ccflags-y += -DSTACKSIZE_SCHEDULE=$stack_size"
+	echo "ccflags-y += -DSTACKSIZE_VMLINUX=$stack_size"
 	if [ $flag_stack_protector = "Y" ]; then
 		echo "ccflags-y += -DSTACK_PROTECTOR=$stack_chk_off"
 		echo "ccflags-y += -DSTACK_PROTECTOR_LEN=$stack_chk_len"
