@@ -35,7 +35,7 @@ function:
         - __balance_callback
         - do_set_cpus_allowed
         - set_user_nice
-        - sched_setscheduler
+        - __sched_setscheduler
         - sched_setscheduler_nocheck
         - __set_cpus_allowed_ptr
         - schedule_tail
