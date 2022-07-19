@@ -16,6 +16,9 @@ config = None
 # store sympos for local functions in module files
 local_sympos = {}
 
+# store exported function symbol (EXPORT_SYMBOL, EXPORT_SYMBOL_GPL)
+export_func = set()
+
 # tmp directory to store middle files
 tmpdir = None
 
@@ -75,6 +78,13 @@ def find_in_vmlinux(vmlinux_elf):
             # Disagreement 1:
             if filename in config['mod_files_basename']:
                 filename = config['mod_files_basename'][filename]
+            continue
+        elif symtype == 'NOTYPE':
+            # find exported function symbol (EXPORT_SYMBOL)
+            if key.startswith('__ksymtab_') and filename in config['mod_files']:
+                key = key[len('__ksymtab_'):]
+                file = get_in_any(key, config['mod_files'])
+                if file: export_func.add((key, file))
             continue
         elif symtype != 'FUNC':
             continue
@@ -181,21 +191,23 @@ if __name__ == '__main__':
                 edges.append(edge)
 
     func_class['in_vmlinux'] = find_in_vmlinux(vmlinux)
+    func_class['export'] = export_func
     func_class['fn_ptr'] -= func_class['interface']
     func_class['fn_ptr_optimized'] = func_class['fn_ptr'] - func_class['in_vmlinux']
     func_class['fn_ptr'] -= func_class['fn_ptr_optimized']
     func_class['border'] = func_class['interface'] | func_class['fn_ptr']
-    func_class['initial_insider'] = func_class['mod_fns'] - func_class['border']
+    # exported function maybe used by kernel modules, it can't be internal function
+    func_class['initial_insider'] = func_class['mod_fns'] - func_class['border'] - func_class['export']
 
     # Inflect outsider functions
     func_class['insider'] = inflect(func_class['initial_insider'], edges)
-    func_class['sched_outsider'] = (func_class['initial_insider'] - func_class['insider']) | func_class['fn_ptr_optimized']
+    func_class['sched_outsider'] = (func_class['mod_fns'] - func_class['insider'] - func_class['border']) | func_class['fn_ptr_optimized']
     func_class['optimized_out'] = func_class['sched_outsider'] - func_class['in_vmlinux']
     func_class['public_user'] = func_class['fn'] - func_class['insider'] - func_class['border']
     func_class['tainted'] = (func_class['border'] | func_class['insider']) & func_class['in_vmlinux']
     func_class['undefined'] = func_class['sched_outsider'] | func_class['border']
 
-    for output_item in ['sched_outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out']:
+    for output_item in ['sched_outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out', 'export']:
         config['function'][output_item] = func_class[output_item]
 
     # Handle Struct public fields. The right hand side gives an example
