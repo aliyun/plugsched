@@ -316,19 +316,31 @@ class SchedBoundaryCollect(SchedBoundary):
                 "name": decl.name,
                 "init": self.decl_in_section(decl, '.init.text'),
                 "file": os.path.relpath(decl.location.file),
-                "l_brace_loc": (decl.function.start.line, decl.function.start.column),
-                "r_brace_loc": (decl.function.end.line, decl.function.end.column),
-                "fn_name_loc": (decl.location.line, decl.location.column),
+                "l_brace_loc": (decl.function.start.line - 1, decl.function.start.column - 1),
+                "r_brace_loc": (decl.function.end.line - 1, decl.function.end.column - 1),
+                "name_loc": (decl.location.line - 1, decl.location.column - 1),
                 "external": decl.external,
                 "public": decl.public,
                 "static": decl.static,
+                "inline": decl.inline or 'always_inline' in decl.attributes,
                 "signature": (decl.name, os.path.relpath(decl.location.file)),
+                "decl_str": None,
             }
             self.fn_properties.append(properties)
 
             # interface candidates must belongs to module source files
             if not src_f in self.mod_srcs:
                 continue
+
+            decl_str = {
+                "fn": decl.name,
+                "ret": GccBugs.fix(decl.result, decl.result.type.str_no_uid),
+                "params": ', '.join(GccBugs.fix(arg, arg.type.str_no_uid) \
+                        for arg in decl.arguments) if decl.arguments else 'void'
+            }
+
+            GccBugs.variadic_function(decl, decl_str)
+            properties['decl_str'] = decl_str
 
             if decl.name in self.config['function']['interface'] or \
                any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']):
@@ -359,13 +371,21 @@ class SchedBoundaryCollect(SchedBoundary):
         properties = {
             "name": decl.name,
             "file": os.path.relpath(decl.location.file),
-            "var_name_loc": (decl.location.line, decl.location.column),
-            "dec_start_loc_line": var_decl_start_loc(decl).line,
-            "dec_end_loc_line": loc.line,
+            "name_loc": (decl.location.line - 1, decl.location.column - 1),
+            "decl_start_line": var_decl_start_loc(decl).line - 1,
+            "decl_end_line": loc.line - 1,
             "external": decl.external,
             "public": decl.public,
             "static": decl.static,
+            "decl_str": None,
         }
+
+        # tricky skill to get right str_decl
+        if loc.file in self.mod_srcs:
+           decl_str = decl.str_decl.split('=')[0].strip(' ;') + ';'
+           decl_str = decl_str.replace('static ', 'extern ')
+           properties['decl_str'] = GccBugs.fix(decl, decl_str)
+
         self.var_properties.append(properties)
 
     def collect_fn_ptrs(self):
