@@ -26,7 +26,7 @@ objs-$(CONFIG_SCHED_DEBUG) += debug.o
 
 obj-m += scheduler.o
 
-CFLAGS_core.stub.o := -DSTACKSIZE_MOD=0
+CFLAGS_core.stub.o := -DMODULE -DSTACKSIZE_MOD=0
 $(obj)/core.stub.o: $(src)/core.c FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
@@ -44,3 +44,4 @@ scheduler-objs := $(objs-y) main.o sched_rebuild.o
 ldflags-y += -T $(plugsched_modpath)/scheduler.lds
 ccflags-n += -DSCHEDMOD_MEMPOOL
 ccflags-y += -Wno-unused-function
+ccflags-y += -fkeep-static-functions
