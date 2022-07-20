@@ -11,7 +11,7 @@ GCC_PLUGIN_FLAGS := -fplugin=/usr/lib64/gcc-python-plugin/python.so \
 PHONY += plugsched sidecar collect extract
 
 plugsched: scripts prepare sidecar
-	$(MAKE) CFLAGS_MODULE=-fkeep-static-functions -C $(srctree) M=$(plugsched_modpath) modules
+	$(MAKE) -C $(srctree) M=$(plugsched_modpath) modules
 
 sidecar: $(plugsched_modpath)/export_jump_sidecar.h
 	python3 $(plugsched_tmpdir)/sidecar.py $< ./vmlinux $(plugsched_tmpdir) $(plugsched_modpath)
