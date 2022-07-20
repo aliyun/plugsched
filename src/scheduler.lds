@@ -9,5 +9,6 @@
 SECTIONS {
 	PROVIDE(__mod_sched_start = .);
 	.sched.text		0 : ALIGN(8) { *(.sched.text) }
+	.init.text		0 : ALIGN(8) { *(.init.text) *(.ref.text) }
 	PROVIDE(__mod_sched_end = .);
 }
