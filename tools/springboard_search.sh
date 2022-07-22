@@ -4,11 +4,11 @@
 
 function get_function_range()
 {
-        addrs=$(nm -n $vmlinux | grep " $1\$" -A1 | awk '{printf " 0x"$1}')
+        addrs=$(nm -n $object | grep " $1\$" -A1 | awk '{printf " 0x"$1}')
         read -r start_addr end_addr <<< "$addrs"
 
         if [ $start_addr == $end_addr ]; then
-		1>&2 echo "ERROR: __schedule function range not found in vmlinux"
+		1>&2 echo "ERROR: __schedule function range not found in target object"
                 exit 1
         fi
 
@@ -17,7 +17,11 @@ function get_function_range()
 
 function get_function_asm()
 {
-	objdump -d $vmlinux --start-address=$start_addr --stop-address=$end_addr
+	if [ "$stage" == "init" ]; then
+		objdump -d $object --start-address=$start_addr --stop-address=$end_addr
+	else
+		objdump -d $object | grep "<__schedule>:" -A30
+	fi
 }
 
 function get_stack_size_X86_64()
@@ -27,7 +31,7 @@ function get_stack_size_X86_64()
 	stack_size=${stack_size#*$}
 
 	if [ -z "${stack_size// }" ]; then
-		1>&2 echo "ERROR: stack_size of __schedule not found in vmlinux."
+		1>&2 echo "ERROR: stack_size of __schedule not found in target object."
 		exit 1
 	fi
 	echo $stack_size
@@ -40,7 +44,7 @@ function get_stack_size_AArch64()
 	stack_size=${stack_size#*-}
 
 	if [ -z "${stack_size// }" ]; then
-		1>&2 echo "ERROR: stack_size of __schedule not found in vmlinux."
+		1>&2 echo "ERROR: stack_size of __schedule not found in target object."
 		exit 1
 	fi
 	echo $stack_size
@@ -53,7 +57,7 @@ function get_springboard_target()
 	target_off=$((target_addr-start_addr))
 
 	if   [ -z "${target_off// }" ]; then
-		1>&2 echo "ERROR: springboard not found in vmlinux."
+		1>&2 echo "ERROR: springboard not found in target object."
 		exit 1
 	fi
 	echo $target_off
@@ -103,7 +107,7 @@ function get_stack_check_off_AArch64()
 function output()
 {
 	echo "ccflags-y += -DSPRINGBOARD=$target_off"
-	echo "ccflags-y += -DSTACKSIZE_SCHEDULE=$stack_size"
+	echo "ccflags-y += -DSTACKSIZE_VMLINUX=$stack_size"
 	if [ $flag_stack_protector = "Y" ]; then
 		echo "ccflags-y += -DSTACK_PROTECTOR=$stack_chk_off"
 		echo "ccflags-y += -DSTACK_PROTECTOR_LEN=$stack_chk_len"
@@ -122,8 +126,7 @@ function read_config()
 function do_search()
 {
 	read_config
-	arch=$(readelf -h $vmlinux | awk '/Machine:/{print $NF}' | tr '-' '_')
-        eval $(get_function_range __schedule)
+	eval $(get_function_range __schedule)
 	schedule_asm="$(get_function_asm)"
 	target_off=$(get_springboard_target_$arch)
 	stack_size=$(get_stack_size_$arch)
@@ -134,10 +137,18 @@ function do_search()
 }
 
 
-vmlinux=$1
-config=$2
-if [ ! -f $vmlinux ]; then
-	1>&2 echo "Usage: springboard_search.sh <vmlinux>."
+stage=$1
+object=$2
+config=$3
+
+arch=$(readelf -h $object | awk '/Machine:/{print $NF}' | tr '-' '_')
+
+if [ "$stage" == "init" ]; then
+	do_search
+elif [ "$stage" == "build" ]; then
+	schedule_asm="$(get_function_asm)"
+	get_stack_size_$arch
+else
+	1>&2 echo "Usage: springboard_search.sh <stage> <object>."
 	exit 1
 fi
-do_search

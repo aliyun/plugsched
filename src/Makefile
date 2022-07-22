@@ -26,7 +26,15 @@ objs-$(CONFIG_SCHED_DEBUG) += debug.o
 
 obj-m += scheduler.o
 
-$(obj)/%.o: $(src)/%.c FORCE
+CFLAGS_core.stub.o := -DMODULE -DSTACKSIZE_MOD=0
+$(obj)/core.stub.o: $(src)/core.c FORCE
+	$(call cmd,force_checksrc)
+	$(call if_changed_rule,cc_o_c)
+
+GET_STACK_SIZE: $(obj)/core.stub.o
+	$(eval CFLAGS_core.o += -DSTACKSIZE_MOD=$(shell bash $(plugsched_tmpdir)/springboard_search.sh build $<))
+
+$(obj)/%.o: $(src)/%.c GET_STACK_SIZE FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
 	$(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS_$(@F)) $@
@@ -36,3 +44,4 @@ scheduler-objs := $(objs-y) main.o sched_rebuild.o
 ldflags-y += -T $(plugsched_modpath)/scheduler.lds
 ccflags-n += -DSCHEDMOD_MEMPOOL
 ccflags-y += -Wno-unused-function
+ccflags-y += -fkeep-static-functions
