@@ -85,7 +85,6 @@ class Plugsched(object):
             'src/Makefile':             self.mod_path,
             'src/scheduler.lds':        self.mod_path,
             'src/.gitignore':           './',
-            'sched_boundary/fake.c':    './kernel/sched',
         }
         self.threads = cpu_count()
         self.mod_files = self.config['mod_files']
