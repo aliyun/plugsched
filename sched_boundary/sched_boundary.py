@@ -136,38 +136,27 @@ class SchedBoundaryExtract(SchedBoundary):
             elif obj in self.config['function']['interface']:
                 self.interface_list.append(fn)
 
-    def var_declare(self, decl, _):
-        def anonymous_type_var(var_decl):
-            t = var_decl.type
-            while isinstance(t, (gcc.PointerType, gcc.ArrayType)):
-                t = t.type
-            return t.name is None
-
+    def var_location(self):
         loc = gcc.get_location()
+        src_file = gcc.get_main_input_filename()
+        tmp_config = src_file + ".sched_boundary"
 
-        # filter out *.h
-        if decl.location.file != gcc.get_main_input_filename():
-            return
+        # FIXME: there is not fake.c.sched_boundary
+        if src_file == self.fake: return
 
-        if not isinstance(decl, gcc.VarDecl):
-            return
+        with open(tmp_config) as f:
+            self.meta = json.load(f)
 
-        if decl.name in self.config['global_var']['force_private']:
-            return
-
-        # share public (non-static) variables by default
-        if decl.public or decl.name in self.config['global_var']['extra_public']:
-            if anonymous_type_var(decl):
-                self.var_list.append((decl,
-                    decl.type.stub.location.line - 1,
-                    loc.line - 1))
-            else:
-                self.var_list.append((decl,
-                    decl.location.line - 1,
-                    loc.line - 1))
+        for var in self.meta['var']:
+            if var['name'] in self.config['global_var']['force_private']:
+                continue
+            # share public (non-static) variables by default
+            if var['public'] or var['name'] in self.config['global_var']['extra_public']:
+                self.var_list.append(var)
 
     def final_work(self):
         self.function_location()
+        self.var_location()
 
         if gcc.get_main_input_filename() == self.fake:
             # no function definition in sched-pelt.h
@@ -221,13 +210,15 @@ class SchedBoundaryExtract(SchedBoundary):
                     "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S INTERFACE FUNCTION */\n".format(name)
 
             # General handling all shared variables
-            for decl, row_start, row_end in self.var_list:
+            orig_lines = list(lines)
+            for var in list(self.var_list):
+                name, row_start, row_end = var['name'], var['decl_start_line'], var['decl_end_line']
+
+                # delete data initialization code
                 for i in range(row_start+1, row_end+1):
                     lines[i] = ''
 
-            # Specially handling shared per_cpu and static_key variables to improve readability
-            orig_lines = list(lines)
-            for decl, row_start, row_end in list(self.var_list):
+                # Specially handling shared per_cpu and static_key variables to improve readability
                 line = orig_lines[row_start]
                 if 'DEFINE_PER_CPU(' in line:
                     line = line.replace('DEFINE_PER_CPU(', 'DECLARE_PER_CPU(').replace('static ', '')
@@ -240,20 +231,17 @@ class SchedBoundaryExtract(SchedBoundary):
                 elif 'EXPORT_' in line and '_SYMBOL' in line:
                     line = ''
                 else:
+                    # delete data definition
                     lines[row_start] = ''
                     continue
+
                 lines[row_start] = line
-                self.var_list.remove((decl, row_start, row_end))
+                self.var_list.remove(var)
 
-            # General handling shared variables
-            for decl, row_start, row_end in self.var_list:
-                decl.static = False
-                decl.external = True
-                decl.public = True
-                decl.initial = 0
-
-                line = GccBugs.fix(decl, decl.str_decl) + '\n'
-                lines[row_start] += line
+            # convert data definition to declarition
+            for var in self.var_list:
+                row_start = var['decl_start_line']
+                lines[row_start] += var['decl_str'] + '\n'
 
             with open(modpath + os.path.basename(src_f), 'w') as out_f:
                 out_f.writelines(lines)
