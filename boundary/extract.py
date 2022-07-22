@@ -23,7 +23,7 @@ modpath = None
 
 class SchedBoundaryExtract(object):
     def __init__(self, src_file, tmpdir, modpath):
-        with open(tmpdir + 'sched_boundary_extract.yaml') as f:
+        with open(tmpdir + 'boundary_extract.yaml') as f:
             self.config = load(f, Loader)
 
         self.src_file = src_file
@@ -39,7 +39,7 @@ class SchedBoundaryExtract(object):
         if src_file in self.mod_hdrs:
             file_name = tmpdir + 'header_symbol.json'
         else:
-            file_name = src_file + '.sched_boundary'
+            file_name = src_file + '.boundary'
 
         with open(file_name) as f:
             metas = json.load(f)

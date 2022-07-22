@@ -81,9 +81,9 @@ class GccBugs(object):
             signature["params"] += ", ..."
 
 
-class SchedBoundaryCollect(object):
+class Collection(object):
     def __init__(self):
-        with open(tmpdir + 'sched_boundary.yaml') as f:
+        with open(tmpdir + 'boundary.yaml') as f:
             self.config = load(f, Loader)
         self.mod_files = self.config['mod_files']
         self.mod_srcs = {f for f in self.mod_files if f.endswith('.c')}
@@ -322,16 +322,15 @@ class SchedBoundaryCollect(object):
             "interface": self.interface_properties,
             "struct": self.struct_properties
         }
-        with open(gcc.get_main_input_filename() + '.sched_boundary', 'w') as f:
+        with open(gcc.get_main_input_filename() + '.boundary', 'w') as f:
             json.dump(collect, f, indent=4)
 
 
 if __name__ == '__main__':
     import gcc
 
-    stage = gcc.argument_dict['stage']
     tmpdir = gcc.argument_dict['tmpdir']
     modpath = gcc.argument_dict['modpath']
 
-    sched_boundary = SchedBoundaryCollect()
-    sched_boundary.register_cbs()
+    collect = Collection()
+    collect.register_cbs()

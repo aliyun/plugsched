@@ -26,9 +26,9 @@ The scheduler policy rpm-package.
 %prep
 # copy files to rpmbuild/SOURCE/
 cp %{_outdir}/* %{_sourcedir}
-cp %{_tmpdir}/sched_boundary.yaml %{_sourcedir}
+cp %{_tmpdir}/boundary.yaml %{_sourcedir}
 
-chmod 0644 %{_sourcedir}/{version,sched_boundary.yaml}
+chmod 0644 %{_sourcedir}/{version,boundary.yaml}
 rm -f %{_sourcedir}/scheduler.spec
 
 %build

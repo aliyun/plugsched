@@ -11,7 +11,7 @@ coloredlogs.install(level='INFO')
 
 def YamlDiff(old_file, new_file):
 
-    """ find the difference of two sched_boundary_extract.yaml
+    """ find the difference of two boundary_extract.yaml
 
     :param old_file: the 1st yaml file
     :param new_file: the 2nd yaml file
@@ -29,7 +29,7 @@ def YamlDiff(old_file, new_file):
     for changed in (old_set | new_set) - (old_set & new_set):
         logging.warn('DIFF: check the outsider \"%s\"', changed)
 
-    logging.info("Bye: analyze the DIFF and remember to update sched_boundary.yaml")
+    logging.info("Bye: analyze the DIFF and remember to update boundary.yaml")
 
 if __name__ == '__main__':
     YamlDiff(sys.argv[1], sys.argv[2])
