@@ -2,7 +2,7 @@
 Plugsched is a SDK that enables live updating the Linux kernel scheduler. It can dynamically replace the scheduler subsystem without rebooting the system or applications, with milliseconds downtime. Plugsched can help developers to dynamically add, delete and modify kernel scheduling features in the production environment, which allows customizing the scheduler for different specific scenarios. The live-update capability also enables rollback.
 
 ## Motivation
-* **Different policies fit for differnt scenarios:** In the scenario of cloud-computing, optimizing scheduling policies is complex, and an one-fit-all strategy does not exist. So, it is necessary to allow users to customize the scheduler for different scenarios.
+* **Different policies fit for different scenarios:** In the scenario of cloud-computing, optimizing scheduling policies is complex, and an one-fit-all strategy does not exist. So, it is necessary to allow users to customize the scheduler for different scenarios.
 * **Scheduler evolved slowly :** Linux kernel has been evolved and iterated for many years, and has a heavy code base. Scheduler is one of the core subsystems of the kernel and its structure is complex and tightly coupled with other OS subsystems, which makes the development and debugging even harder. Linux rarely merges new scheduling classes, and would be especially unlikely to accept a scenario-specific or non-generic scheduler. Plugsched can decouple the scheduler from the kernel, and developers can only focus on the iterative development of the scheduler.
 * **Updating kernel is hard:** The scheduler is built into the kernel, so applying changes to the scheduler requires updating the kernel. The kernel release cycle is usually several months, which makes the changes not able to be deployed quickly. Furthermore, updating kernel is even more expensive in the cluster, which involves application migration and machine downtime.
 * **Unable to update a subsystem:** kpatch and livepatch are live update techniques of function granularity, which have weak expressive ability and cannot implement complex code changes. For eBPF, it doesn't support the scheduler well yet, and even if it were, it would only allow small modifications to the scheduling policies.
@@ -53,9 +53,9 @@ After the development, the scheduler with loading/unloading and other related co
 3. Unified management of scheduler hotfixes to avoid conflicts caused by multiple hotfixes.
 
 ## Quick Start
-Plugsched currently supports Anolis OS 7.9 ANCK by default, and other OS need to adjust the [boundary configrations](./docs/Support-various-Linux-distros.md). In order to reduce the complexity of building a running environment, we provide container images and Dockerfiles, and developers do not need to build a development environment by themselves. For convenience, we purchased an Alibaba Cloud ECS (64CPU + 128GB) and installed the Anolis OS 7.9 ANCK. We will live update the kernel scheduler.
+Plugsched currently supports Anolis OS 7.9 ANCK by default, and other OS need to adjust the [boundary configurations](./docs/Support-various-Linux-distros.md). In order to reduce the complexity of building a running environment, we provide container images and Dockerfiles, and developers do not need to build a development environment by themselves. For convenience, we purchased an Alibaba Cloud ECS (64CPU + 128GB) and installed the Anolis OS 7.9 ANCK. We will live update the kernel scheduler.
 
-1. Log into the cloud server, and install some neccessary basic software packages.
+1. Log into the cloud server, and install some necessary basic software packages.
 ```shell
 # yum install anolis-repos -y
 # yum install yum-utils podman kernel-debuginfo-$(uname -r) kernel-devel-$(uname -r) --enablerepo=Plus-debuginfo --enablerepo=Plus -y
@@ -147,7 +147,7 @@ scheduler             503808  1
 NO_PLUGSCHED_TEST GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP_PREEMPTION NO_HRTICK NO_DOUBLE_TICK NONTASK_CAPACITY TTWU_QUEUE NO_SIS_AVG_CPU SIS_PROP NO_WARN_DOUBLE_CLOCK RT_PUSH_IPI RT_RUNTIME_SHARE NO_LB_MIN ATTACH_AGE_LOAD WA_IDLE WA_WEIGHT WA_BIAS NO_WA_STATIC_WEIGHT UTIL_EST ID_IDLE_AVG ID_RESCUE_EXPELLEE NO_ID_EXPELLEE_NEVER_HOT NO_ID_LOOSE_EXPEL ID_LAST_HIGHCLASS_STAY
 ```
 
-9. Open the new feature and we can see "I am the new schduler: __schedule" in dmesg.
+9. Open the new feature and we can see "I am the new scheduler: __schedule" in dmesg.
 ```text
 # echo PLUGSCHED_TEST > /sys/kernel/debug/sched_features
 # dmesg | tail -n 5
@@ -213,7 +213,7 @@ Cannot modify the size of structures and the semantics of their members arbitrar
 
 **Q: Will there be a performance regression when the kernel scheduler is replaced?**
 
-The overhead incurred by plugsched can be ignored,  and the performance regression is mainly depend on the code modificated by developers. After the benchmark test, the new scheduler has no performance impact if no modification was applied.
+The overhead incurred by plugsched can be ignored,  and the performance regression is mainly depend on the code modified by developers. After the benchmark test, the new scheduler has no performance impact if no modification was applied.
 
 **Q: Is there any downtime when loading scheduler modules? how many?**
 
@@ -225,7 +225,7 @@ kpatch is live updating for function granularity, while plugsched for subsystem-
 
 **Q: Does plugsched conflict with the hotfix of Kpatch?**
 
-Yes. The overlaped part between plugsched and kpatch will be overwrote by plugsched. However, we have designed conflict detecting mechanisms that can be used in the production environment.
+Yes. The overlapped part between plugsched and kpatch will be overwritten by plugsched. However, we have designed conflict detecting mechanisms that can be used in the production environment.
 
 **Q: Can I modify a function outside the scheduler boundary?**
 
