@@ -73,11 +73,11 @@ class Plugsched(object):
         self.get_config_dir()
         self.search_springboard = sh.Command(self.plugsched_path + '/tools/springboard_search.sh')
 
-        with open(os.path.join(self.config_dir, 'sched_boundary.yaml')) as f:
+        with open(os.path.join(self.config_dir, 'boundary.yaml')) as f:
             self.config = load(f, Loader)
         self.file_mapping = {
             self.config_dir + '/*':     self.tmp_dir,
-            'sched_boundary/*.py':      self.tmp_dir,
+            'boundary/*.py':            self.tmp_dir,
             'tools/symbol_resolve':     self.tmp_dir,
             'src/sidecar.py':           self.tmp_dir,
             'src/Makefile.plugsched':   self.tmp_dir,

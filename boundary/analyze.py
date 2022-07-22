@@ -33,13 +33,13 @@ Dumper.add_representer(str,
                        lambda dumper, data: dumper.represent_scalar(u'tag:yaml.org,2002:str', data))
 
 def read_config():
-    with open(tmpdir + 'sched_boundary.yaml') as f:
+    with open(tmpdir + 'boundary.yaml') as f:
         return load(f, Loader)
 
 def all_meta_files():
     for r, dirs, files in os.walk('.'):
         for file in files:
-            if file.endswith('.sched_boundary'):
+            if file.endswith('.boundary'):
                 yield os.path.join(r, file)
 
 def read_meta(filename):
@@ -236,9 +236,9 @@ if __name__ == '__main__':
 
     with open(tmpdir + 'header_symbol.json', 'w') as f:
         json.dump(hdr_sym, f, indent=4)
-    with open(tmpdir + 'sched_boundary_doc.yaml', 'w') as f:
+    with open(tmpdir + 'boundary_doc.yaml', 'w') as f:
         dump(struct_properties, f, Dumper)
-    with open(tmpdir + 'sched_boundary_extract.yaml', 'w') as f:
+    with open(tmpdir + 'boundary_extract.yaml', 'w') as f:
         dump(config, f, Dumper)
     with open(modpath + 'tainted_functions.h', 'w') as f:
         f.write('#include "tainted_functions_sidecar.h"\n')

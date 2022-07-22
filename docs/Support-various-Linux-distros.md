@@ -36,11 +36,11 @@ And because 4.19.91-12.x86_64 shares the longest common prefix length with 4.19.
 And this is how plugsched does config matching, and how to add config for you own kernel.
 
 # How to write the config file
-scheduler_boundary.yaml in configs defines a scheduler boundary for a specific linux kernel,
+boundary.yaml in configs defines a scheduler boundary for a specific linux kernel,
 
 	configs
 	└── 4.19.91
-	    └── sched_boundary.yaml
+	    └── boundary.yaml
 
 It's structured as the yaml file below.
 
@@ -80,18 +80,18 @@ On the contrary, static variables are all private by default (This is a flaw tha
 This will guide you tuning interface functions. Because the most important rule to verify the correctness of interface function list is, does they cover all functions that you want to modify?
 You will go through a little iterations of the workflow below to get the satisfied interface function list.
 
-**The workflow to try tune sched_boundary.yaml** 
+**The workflow to try tune boundary.yaml** 
 
 	Copy from anolis's template
 	        |
 	        v
-	modify sched_boundary.yaml <----------------------------------------+
+	modify boundary.yaml <----------------------------------------+
 	    	|                                                           |
 	    	v                                                           |
 	plugsched init                                                      |
 	    	|                                                           |
 	    	v                                                           |
-	Check working/sched_boundary_extract.yaml and kernel/sched/mod/     |
+	Check working/boundary_extract.yaml and kernel/sched/mod/           |
 	    	|                                                           |
 	    	v                                                           |
 	Get the satisfied boundary result   -----Y--------------------------)---->  Done

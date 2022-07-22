@@ -4,10 +4,9 @@
 include Makefile
 
 GCC_PLUGIN_FLAGS := -fplugin=/usr/lib64/gcc-python-plugin/python.so \
-		    -fplugin-arg-python-script=$(plugsched_tmpdir)/sched_boundary.py \
+		    -fplugin-arg-python-script=$(plugsched_tmpdir)/collect.py \
 		    -fplugin-arg-python-tmpdir=$(plugsched_tmpdir) \
-		    -fplugin-arg-python-modpath=$(plugsched_modpath) \
-		    -fplugin-arg-python-stage=
+		    -fplugin-arg-python-modpath=$(plugsched_modpath)
 
 PHONY += plugsched sidecar collect extract
 
@@ -18,10 +17,10 @@ sidecar: $(plugsched_modpath)/export_jump_sidecar.h
 	python3 $(plugsched_tmpdir)/sidecar.py $< ./vmlinux $(plugsched_tmpdir) $(plugsched_modpath)
 
 collect:
-	$(MAKE) CFLAGS_KERNEL="$(GCC_PLUGIN_FLAGS)collect" \
-		CFLAGS_MODULE="$(GCC_PLUGIN_FLAGS)collect" $(vmlinux-deps)
+	$(MAKE) CFLAGS_KERNEL="$(GCC_PLUGIN_FLAGS)" \
+		CFLAGS_MODULE="$(GCC_PLUGIN_FLAGS)" $(vmlinux-deps)
 analyze:
-	python3 $(plugsched_tmpdir)/process.py ./vmlinux $(plugsched_tmpdir) $(plugsched_modpath)
+	python3 $(plugsched_tmpdir)/analyze.py ./vmlinux $(plugsched_tmpdir) $(plugsched_modpath)
 
 extract: $(objs)
 

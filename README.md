@@ -239,7 +239,7 @@ Yes. We provide the [sidecar](./docs/Advanced-Features.md) mechanism to modify f
 * Cannot modify the init functions because they have been released after rebooting. If you need to, please do it in module initialization.
 * The interface function signature cannot be modified. And the interface function can not be deleted, but you can modify it to make it an empty function.
 * Can not modify the functions with "DON'T MODIFY FUNCTION ******, IT'S NOT PART OF SCHEDMOD" comment;
-* We don't recommend modifying structures and semantics of their members at well. If you really need to, please refer to the working/sched_boundary_doc.yaml documentation.
+* We don't recommend modifying structures and semantics of their members at well. If you really need to, please refer to the working/boundary_doc.yaml documentation.
 * After the scheduler module is loaded, you cannot directly hook a kernel function within the scheduler boundary, such as perf or ftrace tools. If you need to, please specify the scheduler.ko module in the command.
 
 ## License
