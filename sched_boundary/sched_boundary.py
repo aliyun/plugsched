@@ -34,8 +34,6 @@ class SchedBoundary(object):
         self.final_work()
 
     def register_cbs(self):
-        if hasattr(self, 'function_define'):
-            gcc.register_callback(gcc.PLUGIN_FINISH_PARSE_FUNCTION, self.function_define)
         if hasattr(self, 'var_declare'):
             gcc.register_callback(gcc.PLUGIN_FINISH_DECL, self.var_declare)
         if hasattr(self, 'final_work'):
@@ -117,50 +115,26 @@ class SchedBoundaryExtract(SchedBoundary):
         if gcc.get_main_input_filename() in self.mod_srcs | {self.fake}:
             super().register_cbs()
 
-    @staticmethod
-    def add_fn_list(decl, fn_lst):
-        signature = {"fn": decl.name,
-                "ret": GccBugs.fix(decl.result, decl.result.type.str_no_uid),
-                "params": ", ".join(GccBugs.fix(arg, arg.type.str_no_uid) \
-                        for arg in decl.arguments) if decl.arguments else "void"
-            }
-        GccBugs.variadic_function(decl, signature)
-        fn_lst.append([decl,
-            signature,
-            decl.location.line - 1,
-            decl.location.column - 1,
-            decl.function.end.line - 1,
-            decl.function.end.column - 1])
-
-    def function_define(self, decl, _):
-        # only func definition will trigger PLUGIN_FINISH_PARSE_FUNCTION
-        loc = gcc.get_location()
+    def function_location(self):
         src_file = gcc.get_main_input_filename()
+        tmp_config = src_file + ".sched_boundary"
+        self.fn_dict.setdefault(src_file, list())
 
-        # filter out *.h in *.c but excluding fake.c
-        if src_file != self.fake and loc.file != src_file:
-            return
-        # filter out *.h in fake.c but excluding mod headers
-        if src_file == self.fake and loc.file not in self.mod_hdrs:
-            return
+        # FIXME: there is not fake.c.sched_boundary
+        if src_file == self.fake: return
 
-        self.fn_dict.setdefault(loc.file, list())
-        assert(isinstance(decl, gcc.FunctionDecl))
+        with open(tmp_config) as f:
+            self.meta = json.load(f)
 
-        obj = (decl.name, loc.file)
-
-        # translate index to start with 0
-        if obj in self.config['function']['sched_outsider'] or \
-           obj in self.config['function']['init']:
-            self.fn_dict[loc.file].append([decl,
-                decl.function.start.line - 1,
-                decl.function.start.column - 1,
-                decl.function.end.line - 1,
-                decl.function.end.column - 1])
-        elif obj in self.config['function']['fn_ptr']:
-            SchedBoundaryExtract.add_fn_list(decl, self.fn_ptr_list)
-        elif obj in self.config['function']['interface']:
-            SchedBoundaryExtract.add_fn_list(decl, self.interface_list)
+        for fn in self.meta['fn']:
+            obj = tuple(fn['signature'])
+            if obj in self.config['function']['sched_outsider'] or \
+               obj in self.config['function']['init']:
+                self.fn_dict[src_file].append(fn),
+            elif obj in self.config['function']['fn_ptr']:
+                self.fn_ptr_list.append(fn)
+            elif obj in self.config['function']['interface']:
+                self.interface_list.append(fn)
 
     def var_declare(self, decl, _):
         def anonymous_type_var(var_decl):
@@ -193,6 +167,8 @@ class SchedBoundaryExtract(SchedBoundary):
                     loc.line - 1))
 
     def final_work(self):
+        self.function_location()
+
         if gcc.get_main_input_filename() == self.fake:
             # no function definition in sched-pelt.h
             for header in self.mod_hdrs:
@@ -205,40 +181,44 @@ class SchedBoundaryExtract(SchedBoundary):
         with open(src_f) as in_f, open(src_f + '.export_jump.h', 'w') as fn_export_jump:
             lines = in_f.readlines()
 
-            for decl, fn_row_start, fn_col_start, fn_row_end, __ in self.fn_dict[src_f]:
-                if 'always_inline' in decl.attributes or decl.inline is True or \
-                        (decl.name, src_f) in self.config['function']['optimized_out']:
-                    lines[fn_row_end] += "/* DON'T MODIFY FUNCTION {}, IT'S NOT PART OF SCHEDMOD */\n".format(decl.name)
+            for fn in self.fn_dict[src_f]:
+                name, inline = fn['name'], fn['inline']
+                (row_start,col_start), (row_end,_) = fn['l_brace_loc'], fn['r_brace_loc']
+
+                if inline or \
+                        (name, src_f) in self.config['function']['optimized_out']:
+                    lines[row_end] += "/* DON'T MODIFY FUNCTION {}, IT'S NOT PART OF SCHEDMOD */\n".format(name)
                 else:
                     # convert function body "{}" to ";"
                     # only handle normal kernel function definition
-                    lines[fn_row_start] = lines[fn_row_start][: fn_col_start] + ";\n"
-                    for i in range(fn_row_start+1, fn_row_end+1):
+                    lines[row_start] = lines[row_start][:col_start] + ";\n"
+                    for i in range(row_start+1, row_end+1):
                         lines[i] = ''
 
             fn_ptr_export_header_fmt = "PLUGSCHED_FN_PTR({fn}, {ret}, {params})\n"
             fn_ptr_export_c_fmt = "extern {ret} {fn}({params});\n"
-            for decl, signature, fn_row_start, fn_col_start, fn_row_end, fn_col_end in self.fn_ptr_list:
-                fn_export_jump.write(fn_ptr_export_header_fmt.format(**signature))
-                decl.public = True
-                decl.external = True
-                decl.static = False
-                new_name = '__mod_' + decl.name
-                lines[fn_row_start] = lines[fn_row_start][:fn_col_start] + \
-                    lines[fn_row_start][fn_col_start:].replace(decl.name, '__used ' + new_name)
-                lines[fn_row_end] = lines[fn_row_end] + '\n' + \
+            for fn in self.fn_ptr_list:
+                name, decl_str = fn['name'], fn['decl_str']
+                (row_start,col_start), (row_end,_) = fn['name_loc'], fn['r_brace_loc']
+
+                fn_export_jump.write(fn_ptr_export_header_fmt.format(**decl_str))
+                new_name = '__mod_' + name
+                lines[row_start] = lines[row_start][:col_start] + \
+                    lines[row_start][col_start:].replace(name, '__used ' + new_name)
+                lines[row_end] = lines[row_end] + '\n' + \
                     "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S CALLBACK FUNCTION */\n".format(new_name) + \
-                    fn_ptr_export_c_fmt.format(**signature)
+                    fn_ptr_export_c_fmt.format(**decl_str)
 
             interface_export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})\n"
-            for decl, signature, fn_row_start, fn_col_start, fn_row_end, fn_col_end in self.interface_list:
-                fn_export_jump.write(interface_export_fmt.format(**signature))
+            for fn in self.interface_list:
+                name, decl_str, (row_end,_) = fn['name'], fn['decl_str'], fn['r_brace_loc']
+                fn_export_jump.write(interface_export_fmt.format(**decl_str))
 
                 # everyone know that syscall ABI should be consistent
-                if any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']):
+                if any(name.startswith(prefix) for prefix in self.config['interface_prefix']):
                     continue
-                lines[fn_row_end] += \
-                    "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S INTERFACE FUNCTION */\n".format(decl.name)
+                lines[row_end] += \
+                    "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S INTERFACE FUNCTION */\n".format(name)
 
             # General handling all shared variables
             for decl, row_start, row_end in self.var_list:
