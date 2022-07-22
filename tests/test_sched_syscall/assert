@@ -10,7 +10,7 @@ from glob import glob
 
 class TestSchedSyscall:
     def setup_class(self):
-        print("Sched syscall test")
+        print("====>>Sched syscall test<<====")
         cmd = "while :; do :; done"
         self.child = subprocess.Popen(cmd, shell=True)
 

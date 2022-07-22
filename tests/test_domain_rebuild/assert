@@ -11,7 +11,7 @@ from glob import glob
 
 class CPUDomainReuildTest:
     def setup_class(self):
-        print("CPU domain rebuild test")
+        print("====>>CPU domain rebuild test<<====")
         self.init_cpu_set()
 
     def init_cpu_set(self):

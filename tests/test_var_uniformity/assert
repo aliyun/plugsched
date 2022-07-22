@@ -11,7 +11,7 @@ from glob import glob
 
 class TestVarUniformity:
     def setup_class(self):
-        print("Var uniformity test")
+        print("====>>Var uniformity test<<====")
         self.global_name = [
             "/proc/sys/kernel/sched_child_runs_first",
             "/proc/sys/kernel/sched_min_granularity_ns",

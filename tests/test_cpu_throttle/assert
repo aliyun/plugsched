@@ -12,7 +12,7 @@ from glob import glob
 class TestCPUThrottle:
     def setup_class(self):
         self.test_flag = True
-        print("CPU throttle test")
+        print("====>>CPU throttle test<<====")
         sh.mkdir('/sys/fs/cgroup/cpu/test')
         
     def init_cgroup(self):

@@ -11,7 +11,7 @@ from glob import glob
 
 class TestPublicVar:
     def setup_class(self):
-        print("Public vars test")
+        print("====>>Public vars test<<====")
         cur_sys = str(sh.uname('-r')).strip()
         scheduler_rpm = glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
         if len(scheduler_rpm) != 1:

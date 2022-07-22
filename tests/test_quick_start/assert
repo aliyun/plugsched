@@ -2,9 +2,12 @@
 # Copyright 2019-2022 Alibaba Group Holding Limited.
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
+echo "====>>Quick start test<<===="
 rpm -ivh /tmp/work/scheduler-xxx-*.rpm
 if ! dmesg | grep "I am the new scheduler: __schedule"; then
 	2>&1 echo "Failed to install the scheduler module"
+	echo -e "Quick start test \033[31mFAILED\033[0m"
 	exit 1
 fi
 rpm -e scheduler-xxx
+echo -e "Quick start test \033[32mPASS\033[0m"
