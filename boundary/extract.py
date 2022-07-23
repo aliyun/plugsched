@@ -150,6 +150,34 @@ class Extraction(object):
             row_start = var['decl_start_line']
             lines[row_start] += var['decl_str'] + '\n'
 
+    # fix trival code adaption
+    def fix_up(self, lines):
+        delete_strs = ['EXPORT_.*SYMBOL', 'initcall', 'early_param', '__init ', '__initdata ', '__setup']
+        delete_pattern = [re.compile(s) for s in delete_strs]
+        replace_list = [('struct atomic_t', 'atomic_t')]
+
+        for (i, line) in enumerate(lines):
+            # fixup header file path, assume there is one include per line
+            if '#include "' in line:
+                old_header = line.split('"')[1]
+                rel_header = os.path.join(os.path.dirname(self.src_file), old_header)
+                rel_header = os.path.relpath(rel_header)
+                # module header file is extracted to the right place
+                if rel_header in self.mod_files: continue
+
+                lines[i] = line.replace(old_header, os.path.relpath(rel_header, self.modpath))
+                continue
+
+            for p in delete_pattern:
+                if p.search(line):
+                    lines[i] = ''
+                    break
+
+            for (p, repl) in replace_list:
+                if p in line:
+                    lines[i] = line.replace(p, repl)
+                    break;
+
     def extract_file(self):
         src_f = self.src_file
         self.function_location()
@@ -159,6 +187,7 @@ class Extraction(object):
             lines = in_f.readlines()
             self.function_extract(lines, fn_export_jump)
             self.var_extract(lines)
+            self.fix_up(lines)
 
             with open(self.modpath + os.path.basename(src_f), 'w') as out_f:
                 out_f.writelines(lines)
