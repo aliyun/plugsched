@@ -20,30 +20,6 @@ tmpdir = None
 # directory to store schedule module source code
 modpath = None
 
-class SchedBoundary(object):
-    def __init__(self, config):
-        with open(config) as f:
-            self.config = load(f, Loader)
-        self.mod_files = self.config['mod_files']
-        self.mod_srcs = {f for f in self.mod_files if f.endswith('.c')}
-        self.mod_hdrs = self.mod_files - self.mod_srcs
-
-    def process_passes(self, p, _):
-        if p.name != '*free_lang_data':
-            return
-        self.final_work()
-
-    def register_cbs(self):
-        if hasattr(self, 'function_define'):
-            gcc.register_callback(gcc.PLUGIN_FINISH_PARSE_FUNCTION, self.function_define)
-        if hasattr(self, 'var_declare'):
-            gcc.register_callback(gcc.PLUGIN_FINISH_DECL, self.var_declare)
-        if hasattr(self, 'final_work'):
-            gcc.register_callback(gcc.PLUGIN_PASS_EXECUTION, self.process_passes)
-        if hasattr(self, 'include_file'):
-            gcc.register_callback(gcc.PLUGIN_INCLUDE_FILE, self.include_file)
-
-# Workarounds
 class GccBugs(object):
     array_pointer_re = re.compile(r'(.*)\[([0-9]*)\] \*\s*([^,\);]*)')
 
@@ -104,183 +80,14 @@ class GccBugs(object):
         if decl.str_decl.find("...") >= 0:
             signature["params"] += ", ..."
 
-class SchedBoundaryExtract(SchedBoundary):
+
+class SchedBoundaryCollect(object):
     def __init__(self):
-        super().__init__(tmpdir + 'sched_boundary_extract.yaml')
-        self.fn_dict = {}
-        self.fn_ptr_list = []
-        self.interface_list = []
-        self.var_list = []
-        self.fake = 'kernel/sched/fake.c'
-
-    def register_cbs(self):
-        if gcc.get_main_input_filename() in self.mod_srcs | {self.fake}:
-            super().register_cbs()
-
-    @staticmethod
-    def add_fn_list(decl, fn_lst):
-        signature = {"fn": decl.name,
-                "ret": GccBugs.fix(decl.result, decl.result.type.str_no_uid),
-                "params": ", ".join(GccBugs.fix(arg, arg.type.str_no_uid) \
-                        for arg in decl.arguments) if decl.arguments else "void"
-            }
-        GccBugs.variadic_function(decl, signature)
-        fn_lst.append([decl,
-            signature,
-            decl.location.line - 1,
-            decl.location.column - 1,
-            decl.function.end.line - 1,
-            decl.function.end.column - 1])
-
-    def function_define(self, decl, _):
-        # only func definition will trigger PLUGIN_FINISH_PARSE_FUNCTION
-        loc = gcc.get_location()
-        src_file = gcc.get_main_input_filename()
-
-        # filter out *.h in *.c but excluding fake.c
-        if src_file != self.fake and loc.file != src_file:
-            return
-        # filter out *.h in fake.c but excluding mod headers
-        if src_file == self.fake and loc.file not in self.mod_hdrs:
-            return
-
-        self.fn_dict.setdefault(loc.file, list())
-        assert(isinstance(decl, gcc.FunctionDecl))
-
-        obj = (decl.name, loc.file)
-
-        # translate index to start with 0
-        if obj in self.config['function']['sched_outsider'] or \
-           obj in self.config['function']['init']:
-            self.fn_dict[loc.file].append([decl,
-                decl.function.start.line - 1,
-                decl.function.start.column - 1,
-                decl.function.end.line - 1,
-                decl.function.end.column - 1])
-        elif obj in self.config['function']['fn_ptr']:
-            SchedBoundaryExtract.add_fn_list(decl, self.fn_ptr_list)
-        elif obj in self.config['function']['interface']:
-            SchedBoundaryExtract.add_fn_list(decl, self.interface_list)
-
-    def var_declare(self, decl, _):
-        def anonymous_type_var(var_decl):
-            t = var_decl.type
-            while isinstance(t, (gcc.PointerType, gcc.ArrayType)):
-                t = t.type
-            return t.name is None
-
-        loc = gcc.get_location()
-
-        # filter out *.h
-        if decl.location.file != gcc.get_main_input_filename():
-            return
-
-        if not isinstance(decl, gcc.VarDecl):
-            return
-
-        if decl.name in self.config['global_var']['force_private']:
-            return
-
-        # share public (non-static) variables by default
-        if decl.public or decl.name in self.config['global_var']['extra_public']:
-            if anonymous_type_var(decl):
-                self.var_list.append((decl,
-                    decl.type.stub.location.line - 1,
-                    loc.line - 1))
-            else:
-                self.var_list.append((decl,
-                    decl.location.line - 1,
-                    loc.line - 1))
-
-    def final_work(self):
-        if gcc.get_main_input_filename() == self.fake:
-            # no function definition in sched-pelt.h
-            for header in self.mod_hdrs:
-                self.fn_dict.setdefault(header, list())
-
-        for src_f in self.fn_dict.keys():
-            self.extract_file(src_f)
-
-    def extract_file(self, src_f):
-        with open(src_f) as in_f, open(src_f + '.export_jump.h', 'w') as fn_export_jump:
-            lines = in_f.readlines()
-
-            for decl, fn_row_start, fn_col_start, fn_row_end, __ in self.fn_dict[src_f]:
-                if 'always_inline' in decl.attributes or decl.inline is True or \
-                        (decl.name, src_f) in self.config['function']['optimized_out']:
-                    lines[fn_row_end] += "/* DON'T MODIFY FUNCTION {}, IT'S NOT PART OF SCHEDMOD */\n".format(decl.name)
-                else:
-                    # convert function body "{}" to ";"
-                    # only handle normal kernel function definition
-                    lines[fn_row_start] = lines[fn_row_start][: fn_col_start] + ";\n"
-                    for i in range(fn_row_start+1, fn_row_end+1):
-                        lines[i] = ''
-
-            fn_ptr_export_header_fmt = "PLUGSCHED_FN_PTR({fn}, {ret}, {params})\n"
-            fn_ptr_export_c_fmt = "extern {ret} {fn}({params});\n"
-            for decl, signature, fn_row_start, fn_col_start, fn_row_end, fn_col_end in self.fn_ptr_list:
-                fn_export_jump.write(fn_ptr_export_header_fmt.format(**signature))
-                decl.public = True
-                decl.external = True
-                decl.static = False
-                new_name = '__mod_' + decl.name
-                lines[fn_row_start] = lines[fn_row_start][:fn_col_start] + \
-                    lines[fn_row_start][fn_col_start:].replace(decl.name, '__used ' + new_name)
-                lines[fn_row_end] = lines[fn_row_end] + '\n' + \
-                    "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S CALLBACK FUNCTION */\n".format(new_name) + \
-                    fn_ptr_export_c_fmt.format(**signature)
-
-            interface_export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})\n"
-            for decl, signature, fn_row_start, fn_col_start, fn_row_end, fn_col_end in self.interface_list:
-                fn_export_jump.write(interface_export_fmt.format(**signature))
-
-                # everyone know that syscall ABI should be consistent
-                if any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']):
-                    continue
-                lines[fn_row_end] += \
-                    "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S INTERFACE FUNCTION */\n".format(decl.name)
-
-            # General handling all shared variables
-            for decl, row_start, row_end in self.var_list:
-                for i in range(row_start+1, row_end+1):
-                    lines[i] = ''
-
-            # Specially handling shared per_cpu and static_key variables to improve readability
-            orig_lines = list(lines)
-            for decl, row_start, row_end in list(self.var_list):
-                line = orig_lines[row_start]
-                if 'DEFINE_PER_CPU(' in line:
-                    line = line.replace('DEFINE_PER_CPU(', 'DECLARE_PER_CPU(').replace('static ', '')
-                elif 'DEFINE_PER_CPU_SHARED_ALIGNED(' in line:
-                    line = line.replace('DEFINE_PER_CPU_SHARED_ALIGNED(', 'DECLARE_PER_CPU_SHARED_ALIGNED(').replace('static ', '')
-                elif 'DEFINE_STATIC_KEY_FALSE(' in line:
-                    line = line.replace('DEFINE_STATIC_KEY_FALSE(', 'DECLARE_STATIC_KEY_FALSE(').replace('static ', '')
-                elif 'DEFINE_STATIC_KEY_TRUE(' in line:
-                    line = line.replace('DEFINE_STATIC_KEY_TRUE(', 'DECLARE_STATIC_KEY_TRUE(').replace('static ', '')
-                elif 'EXPORT_' in line and '_SYMBOL' in line:
-                    line = ''
-                else:
-                    lines[row_start] = ''
-                    continue
-                lines[row_start] = line
-                self.var_list.remove((decl, row_start, row_end))
-
-            # General handling shared variables
-            for decl, row_start, row_end in self.var_list:
-                decl.static = False
-                decl.external = True
-                decl.public = True
-                decl.initial = 0
-
-                line = GccBugs.fix(decl, decl.str_decl) + '\n'
-                lines[row_start] += line
-
-            with open(modpath + os.path.basename(src_f), 'w') as out_f:
-                out_f.writelines(lines)
-
-class SchedBoundaryCollect(SchedBoundary):
-    def __init__(self):
-        super().__init__(tmpdir + 'sched_boundary.yaml')
+        with open(tmpdir + 'sched_boundary.yaml') as f:
+            self.config = load(f, Loader)
+        self.mod_files = self.config['mod_files']
+        self.mod_srcs = {f for f in self.mod_files if f.endswith('.c')}
+        self.mod_hdrs = self.mod_files - self.mod_srcs
         self.fn_properties = []
         self.var_properties = []
         self.edge_properties = []
@@ -288,6 +95,19 @@ class SchedBoundaryCollect(SchedBoundary):
         self.fn_ptr_properties = []
         self.interface_properties = []
         self.seek_public_field = False
+
+    def process_passes(self, p, _):
+        if p.name != '*free_lang_data':
+            return
+        self.final_work()
+
+    def register_cbs(self):
+        if hasattr(self, 'var_declare'):
+            gcc.register_callback(gcc.PLUGIN_FINISH_DECL, self.var_declare)
+        if hasattr(self, 'final_work'):
+            gcc.register_callback(gcc.PLUGIN_PASS_EXECUTION, self.process_passes)
+        if hasattr(self, 'include_file'):
+            gcc.register_callback(gcc.PLUGIN_INCLUDE_FILE, self.include_file)
 
     def decl_in_section(self, decl, section):
         for name, val in decl.attributes.items():
@@ -316,19 +136,31 @@ class SchedBoundaryCollect(SchedBoundary):
                 "name": decl.name,
                 "init": self.decl_in_section(decl, '.init.text'),
                 "file": os.path.relpath(decl.location.file),
-                "l_brace_loc": (decl.function.start.line, decl.function.start.column),
-                "r_brace_loc": (decl.function.end.line, decl.function.end.column),
-                "fn_name_loc": (decl.location.line, decl.location.column),
+                "l_brace_loc": (decl.function.start.line - 1, decl.function.start.column - 1),
+                "r_brace_loc": (decl.function.end.line - 1, decl.function.end.column - 1),
+                "name_loc": (decl.location.line - 1, decl.location.column - 1),
                 "external": decl.external,
                 "public": decl.public,
                 "static": decl.static,
+                "inline": decl.inline or 'always_inline' in decl.attributes,
                 "signature": (decl.name, os.path.relpath(decl.location.file)),
+                "decl_str": None,
             }
             self.fn_properties.append(properties)
 
             # interface candidates must belongs to module source files
             if not src_f in self.mod_srcs:
                 continue
+
+            decl_str = {
+                "fn": decl.name,
+                "ret": GccBugs.fix(decl.result, decl.result.type.str_no_uid),
+                "params": ', '.join(GccBugs.fix(arg, arg.type.str_no_uid) \
+                        for arg in decl.arguments) if decl.arguments else 'void'
+            }
+
+            GccBugs.variadic_function(decl, decl_str)
+            properties['decl_str'] = decl_str
 
             if decl.name in self.config['function']['interface'] or \
                any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']):
@@ -359,13 +191,21 @@ class SchedBoundaryCollect(SchedBoundary):
         properties = {
             "name": decl.name,
             "file": os.path.relpath(decl.location.file),
-            "var_name_loc": (decl.location.line, decl.location.column),
-            "dec_start_loc_line": var_decl_start_loc(decl).line,
-            "dec_end_loc_line": loc.line,
+            "name_loc": (decl.location.line - 1, decl.location.column - 1),
+            "decl_start_line": var_decl_start_loc(decl).line - 1,
+            "decl_end_line": loc.line - 1,
             "external": decl.external,
             "public": decl.public,
             "static": decl.static,
+            "decl_str": None,
         }
+
+        # tricky skill to get right str_decl
+        if loc.file in self.mod_srcs:
+           decl_str = decl.str_decl.split('=')[0].strip(' ;') + ';'
+           decl_str = decl_str.replace('static ', 'extern ')
+           properties['decl_str'] = GccBugs.fix(decl, decl_str)
+
         self.var_properties.append(properties)
 
     def collect_fn_ptrs(self):
@@ -485,6 +325,7 @@ class SchedBoundaryCollect(SchedBoundary):
         with open(gcc.get_main_input_filename() + '.sched_boundary', 'w') as f:
             json.dump(collect, f, indent=4)
 
+
 if __name__ == '__main__':
     import gcc
 
@@ -492,11 +333,5 @@ if __name__ == '__main__':
     tmpdir = gcc.argument_dict['tmpdir']
     modpath = gcc.argument_dict['modpath']
 
-    if stage == 'extract':
-        sched_boundary = SchedBoundaryExtract()
-    elif stage == "collect":
-        sched_boundary = SchedBoundaryCollect()
-    else:
-        raise Exception("")
-
+    sched_boundary = SchedBoundaryCollect()
     sched_boundary.register_cbs()

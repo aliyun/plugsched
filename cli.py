@@ -85,13 +85,12 @@ class Plugsched(object):
             'src/Makefile':             self.mod_path,
             'src/scheduler.lds':        self.mod_path,
             'src/.gitignore':           './',
-            'sched_boundary/fake.c':    './kernel/sched',
         }
         self.threads = cpu_count()
         self.mod_files = self.config['mod_files']
         self.mod_srcs = [f for f in self.mod_files if f.endswith('.c')]
         self.mod_hdrs = [f for f in self.mod_files if f.endswith('.h')]
-        self.mod_objs = [f[:-2]+'.o' for f in self.mod_srcs] + ['kernel/sched/fake.o']
+        self.mod_objs = [f+'.extract' for f in self.mod_files]
         self.extracted_mod_files = [os.path.join(self.mod_path, os.path.basename(f)) for f in self.mod_files]
 
     def get_kernel_version(self, makefile):

@@ -164,6 +164,7 @@ if __name__ == '__main__':
     }
 
     edges= []
+    hdr_sym = {'fn':list(), 'var':list()}
 
     # first pass: calc init and interface set
     for meta in metas:
@@ -172,6 +173,7 @@ if __name__ == '__main__':
             func_class['fn'].add(signature)
 
             if file in config['mod_files']: func_class['mod_fns'].add(signature)
+            if file in config['mod_header_files']: hdr_sym['fn'].append(fn)
             if init: func_class['init'].add(signature)
             if publ: global_fn_dict[name] = file
 
@@ -232,6 +234,8 @@ if __name__ == '__main__':
         struct_properties[struct]['public_fields'] = field_set
         struct_properties[struct]['public_users'] = user_set
 
+    with open(tmpdir + 'header_symbol.json', 'w') as f:
+        json.dump(hdr_sym, f, indent=4)
     with open(tmpdir + 'sched_boundary_doc.yaml', 'w') as f:
         dump(struct_properties, f, Dumper)
     with open(tmpdir + 'sched_boundary_extract.yaml', 'w') as f:
