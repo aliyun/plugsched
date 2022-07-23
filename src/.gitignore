@@ -1,2 +1,2 @@
-*.sched_boundary
+*.boundary
 *.export_jump
