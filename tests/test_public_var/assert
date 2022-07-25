@@ -44,7 +44,6 @@ class TestPublicVar:
     def error_handler(self, var):
         print("Public var: " + str(var) + "is not UND")
         self.teardown_class()
-        print("Public vars test " + "\033[31mFAILED\033[0m")
         sys.exit(1)
 
     def teardown_class(self):
@@ -57,4 +56,3 @@ if __name__ == '__main__':
     test_unit.setup_class()
     test_unit.test_syms()
     test_unit.teardown_class()
-    print("Public vars test " + "\033[32mPASS\033[0m")

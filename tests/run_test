@@ -5,9 +5,17 @@
 source $(dirname "$0")/libs/working_dir
 source libs/catch_error
 
+export RED="\033[31m"
+export GREEN="\033[32m"
+export RESET="\033[0m"
+
 tests=$(cat bundles/$1)
 prep_env
 for T in ${tests}; do
 	build_case test_$T
-	test_$T/assert
+	if test_$T/assert; then
+		echo -e "$T test ${GREEN}PASS${RESET}"
+	else
+		echo -e "$T test ${RED}FAILED${RESET}"
+	fi
 done

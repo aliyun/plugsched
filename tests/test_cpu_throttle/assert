@@ -92,7 +92,6 @@ class TestCPUThrottle:
     def error_handler(self, ty, bound):
         err_msg = "CPU util should " + ("less than" if ty == 0 else "greater than") + str(bound)
         print(err_msg)
-        print("CPU throttle test " + "\033[31mFAILED\033[0m")
         self.teardown_class()
         sys.exit(1)
 
@@ -102,4 +101,3 @@ if __name__ == '__main__':
     test_unit.setup_class()
     test_unit.test_all()
     test_unit.teardown_class()
-    print("CPU throttle test " + "\033[32mPASS\033[0m")
