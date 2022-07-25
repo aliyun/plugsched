@@ -31,6 +31,7 @@ class Extraction(object):
         self.mod_files = self.config['mod_files']
         self.mod_srcs = {f for f in self.mod_files if f.endswith('.c')}
         self.mod_hdrs = self.mod_files - self.mod_srcs
+        self.sdcr_srcs = [f[1] for f in self.config['sidecar']]
         self.fn_list = []
         self.fn_ptr_list = []
         self.interface_list = []
@@ -58,6 +59,7 @@ class Extraction(object):
             unique.add(obj)
 
             if obj in self.config['function']['sched_outsider'] or \
+               obj in self.config['function']['sdcr_out'] or \
                obj in self.config['function']['init']:
                 self.fn_list.append(fn),
             elif obj in self.config['function']['fn_ptr']:
@@ -66,6 +68,11 @@ class Extraction(object):
                 self.interface_list.append(fn)
 
     def var_location(self):
+        # sidecar shares all global variables with vmlinux
+        if self.src_file in self.sdcr_srcs:
+            self.var_list = self.meta_var
+            return
+
         for var in self.meta_var:
             if var['file'] != self.src_file:
                 continue

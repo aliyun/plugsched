@@ -88,9 +88,11 @@ class Plugsched(object):
         }
         self.threads = cpu_count()
         self.mod_files = self.config['mod_files']
-        self.mod_srcs = [f for f in self.mod_files if f.endswith('.c')]
-        self.mod_hdrs = [f for f in self.mod_files if f.endswith('.h')]
-        self.mod_objs = [f+'.extract' for f in self.mod_files]
+        self.mod_srcs  = [f for f in self.mod_files if f.endswith('.c')]
+        self.mod_hdrs  = [f for f in self.mod_files if f.endswith('.h')]
+        self.sdcr      = [] if self.config['sidecar'] is None else self.config['sidecar']
+        self.sdcr_srcs = [f[1] for f in self.sdcr]
+        self.mod_objs  = [f+'.extract' for f in self.mod_files + self.sdcr_srcs]
 
     def get_kernel_version(self, makefile):
         VERSION = self.plugsched_sh.awk('-F=', '/^VERSION/{print $2}', makefile).strip()

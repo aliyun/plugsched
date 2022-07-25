@@ -86,8 +86,10 @@ class Collection(object):
         with open(tmpdir + 'boundary.yaml') as f:
             self.config = load(f, Loader)
         self.mod_files = self.config['mod_files']
-        self.mod_srcs = {f for f in self.mod_files if f.endswith('.c')}
-        self.mod_hdrs = self.mod_files - self.mod_srcs
+        self.mod_hdrs  = [f for f in self.mod_files if f.endswith('.h')]
+        self.mod_srcs  = [f for f in self.mod_files if f.endswith('.c')]
+        self.sdcr      = [] if self.config['sidecar'] is None else self.config['sidecar']
+        self.sdcr_srcs = [f[1] for f in self.sdcr]
         self.fn_properties = []
         self.var_properties = []
         self.edge_properties = []
@@ -201,7 +203,7 @@ class Collection(object):
         }
 
         # tricky skill to get right str_decl
-        if loc.file in self.mod_srcs:
+        if loc.file in self.mod_srcs + self.sdcr_srcs:
            decl_str = decl.str_decl.split('=')[0].strip(' ;') + ';'
            decl_str = decl_str.replace('static ', 'extern ')
            properties['decl_str'] = GccBugs.fix(decl, decl_str)

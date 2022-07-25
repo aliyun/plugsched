@@ -112,3 +112,4 @@ global_var:
     force_private:
     - sysctl_sched_features
     - sched_feat_keys
+sidecar:

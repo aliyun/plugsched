@@ -59,9 +59,9 @@ def read_meta(filename):
 # Disagreement 3: vmlinux thinks XXX is in usercopy_64.c, plugsched thinks it's in core.c
 # Disagrement: 4: vmlinux optimizes XXX to XXX.isra.1, XXX.constprop.1, etc. plugsched remains XXX.
 
-def get_in_any(key, files):
+def get_in_any(fn, files):
     for file in files:
-        if (key, file) in func_class['fn']:
+        if (fn, file) in func_class['fn']:
             return file
     return None
 
@@ -76,8 +76,8 @@ def find_in_vmlinux(vmlinux_elf):
         if symtype == 'FILE':
             filename = key
             # Disagreement 1:
-            if filename in config['mod_files_basename']:
-                filename = config['mod_files_basename'][filename]
+            if filename in config['fullname']:
+                filename = config['fullname'][filename]
             continue
         elif symtype == 'NOTYPE':
             # find exported function symbol (EXPORT_SYMBOL)
@@ -95,11 +95,12 @@ def find_in_vmlinux(vmlinux_elf):
 
         if scope == 'LOCAL':
             fn_pos[key] = fn_pos.get(key, 0) + 1
-            if filename not in config['mod_files']: continue
+            if filename not in config['all_files']:
+                continue
 
             # Disagreement 2
             if (key, filename) not in func_class['fn']:
-                file = get_in_any(key, config['mod_header_files'])
+                file = get_in_any(key, config['mod_hdrs'])
                 if file is None: continue
 
             # Avoid potential bugs that sympos gets overwritten in the future.
@@ -107,7 +108,7 @@ def find_in_vmlinux(vmlinux_elf):
             local_sympos[(key, file)] = fn_pos[key]
         else:
             # Disagreement 3
-            file = get_in_any(key, config['mod_files'])
+            file = get_in_any(key, config['all_files'])
             if file is None: continue
 
         in_vmlinux.add((key, file))
@@ -124,7 +125,8 @@ def inflect_one(edge):
         if from_sym not in __insiders and \
            from_sym not in func_class['interface'] and \
            from_sym not in func_class['fn_ptr'] and \
-           from_sym not in func_class['init']:
+           from_sym not in func_class['init'] and \
+           from_sym not in func_class['sidecar']:
             return to_sym
     return None
 
@@ -145,14 +147,42 @@ def lookup_if_global(name_and_file):
     file = global_fn_dict.get(name, None) if file == '?' else file
     return (name, file) if file else None
 
+def sidecar_inflect(sidecar, in_vmlinux):
+    assert not (sidecar - in_vmlinux), \
+            'sidecar functions should not be optimzied by GCC'
+
+    leftover = set()
+    for sym in sidecar:
+        meta = read_meta(sym[1] + '.boundary')
+        sidecar_dfs(meta, sym, in_vmlinux, leftover)
+
+    return leftover
+
+def sidecar_dfs(meta, start_sym, in_vmlinux, leftover):
+    if start_sym in leftover: return
+
+    leftover.add(start_sym)
+
+    for edge in meta['edge']:
+        from_sym = tuple(edge['from'])
+        to_sym = tuple(edge['to'])
+        if from_sym == start_sym and \
+                to_sym[1] == start_sym[1] and \
+                to_sym not in in_vmlinux:
+            sidecar_dfs(meta, to_sym, in_vmlinux, leftover)
+
 if __name__ == '__main__':
     vmlinux = sys.argv[1]
     tmpdir = sys.argv[2]
     modpath = sys.argv[3]
 
     config = read_config()
-    config['mod_files_basename'] = {os.path.basename(f): f for f in config['mod_files']}
-    config['mod_header_files'] = [f for f in config['mod_files'] if f.endswith('.h')]
+    config['mod_hdrs']  = [f for f in config['mod_files'] if f.endswith('.h')]
+    config['mod_srcs']  = [f for f in config['mod_files'] if f.endswith('.c')]
+    config['sidecar']   = set() if config['sidecar'] is None else config['sidecar']
+    config['sdcr_srcs'] = [f[1] for f in config['sidecar']]
+    config['all_files'] = config['mod_hdrs'] + config['mod_srcs'] + config['sdcr_srcs']
+    config['fullname']  = {os.path.basename(f):f for f in config['all_files']}
     metas = list(map(read_meta, all_meta_files()))
 
     func_class = {
@@ -160,7 +190,8 @@ if __name__ == '__main__':
         'init':      set(),
         'interface': set(),
         'fn_ptr':    set(),
-        'mod_fns':   set()
+        'mod_fns':   set(),
+        'sdcr_fns':  set(),
     }
 
     edges= []
@@ -173,7 +204,8 @@ if __name__ == '__main__':
             func_class['fn'].add(signature)
 
             if file in config['mod_files']: func_class['mod_fns'].add(signature)
-            if file in config['mod_header_files']: hdr_sym['fn'].append(fn)
+            if file in config['mod_hdrs']: hdr_sym['fn'].append(fn)
+            if file in config['sdcr_srcs']: func_class['sdcr_fns'].add(signature)
             if init: func_class['init'].add(signature)
             if publ: global_fn_dict[name] = file
 
@@ -201,6 +233,11 @@ if __name__ == '__main__':
     # exported function maybe used by kernel modules, it can't be internal function
     func_class['initial_insider'] = func_class['mod_fns'] - func_class['border'] - func_class['export']
 
+    # calc sidecar extraction functions
+    func_class['sidecar'] = set(config['sidecar'])
+    func_class['sdcr_left'] = sidecar_inflect(func_class['sidecar'], func_class['in_vmlinux'])
+    func_class['sdcr_out'] = func_class['sdcr_fns'] - func_class['sdcr_left']
+
     # Inflect outsider functions
     func_class['insider'] = inflect(func_class['initial_insider'], edges)
     func_class['sched_outsider'] = (func_class['mod_fns'] - func_class['insider'] - func_class['border']) | func_class['fn_ptr_optimized']
@@ -209,7 +246,7 @@ if __name__ == '__main__':
     func_class['tainted'] = (func_class['border'] | func_class['insider']) & func_class['in_vmlinux']
     func_class['undefined'] = func_class['sched_outsider'] | func_class['border']
 
-    for output_item in ['sched_outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out', 'export']:
+    for output_item in ['sched_outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out', 'export', 'sdcr_out']:
         config['function'][output_item] = func_class[output_item]
 
     # Handle Struct public fields. The right hand side gives an example
