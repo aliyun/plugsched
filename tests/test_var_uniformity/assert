@@ -27,7 +27,6 @@ class TestVarUniformity:
             "/proc/sys/kernel/numa_balancing_scan_size_mb",
             "/proc/sys/kernel/numa_balancing",
             "/proc/sys/kernel/sched_rt_period_us",
-            "/proc/sys/kernel/sched_rt_runtime_us",
             "/proc/sys/kernel/sched_rr_timeslice_ms",
             "/proc/sys/kernel/sched_autogroup_enabled",
             "/proc/sys/kernel/sched_cfs_bandwidth_slice_us",
