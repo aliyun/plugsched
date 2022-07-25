@@ -26,19 +26,18 @@ index 5ec2ca5..3b8925a 100644
  static __always_inline struct rq *
  context_switch(struct rq *rq, struct task_struct *prev,
  	       struct task_struct *next, struct rq_flags *rf)
-@@ -2634,7 +2636,44 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -2634,7 +2636,43 @@ context_switch(struct rq *rq, struct task_struct *prev,
  	prepare_lock_switch(rq, next, rf);
  
  	/* Here we just switch the register state and the stack. */
 -	switch_to(prev, next, prev);
 +#ifdef CONFIG_X86_64
 +	prepare_switch_to(next);
-+	__asm__("mov %%rbp,%%rsp\n\t"
-+		"sub %0,%%rsp\n\t"
++	__asm__("add %0,%%rsp\n\t"
 +		"pushq %1\n\t"
 +		"jmp __switch_to_asm"
 +		:
-+		:"i"(STACKSIZE_SCHEDULE + 0x28), "r"(sched_springboard), "D"(prev), "S"(next)
++		:"i"(STACKSIZE_MOD - STACKSIZE_VMLINUX), "r"(sched_springboard), "D"(prev), "S"(next)
 +		:"rbx","r12","r13","r14","r15"
 +	);
 +#endif
@@ -62,7 +61,7 @@ index 5ec2ca5..3b8925a 100644
 +		"ldr x30,%1\n\t"
 +		"b __switch_to"
 +		:
-+		:"i"(STACKSIZE_SCHEDULE), "m"(sched_springboard),"r"(prev),"r"(next)
++		:"i"(STACKSIZE_VMLINUX), "m"(sched_springboard),"r"(prev),"r"(next)
 +		:"x19","x20","x21","x22","x23","x24","x25",
 +		 "x26","x27","x28","x30","x0","x1"
 +	);

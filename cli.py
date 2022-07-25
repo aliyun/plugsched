@@ -76,15 +76,16 @@ class Plugsched(object):
         with open(os.path.join(self.config_dir, 'boundary.yaml')) as f:
             self.config = load(f, Loader)
         self.file_mapping = {
-            self.config_dir + '/*':     self.tmp_dir,
-            'boundary/*.py':            self.tmp_dir,
-            'tools/symbol_resolve':     self.tmp_dir,
-            'src/sidecar.py':           self.tmp_dir,
-            'src/Makefile.plugsched':   self.tmp_dir,
-            'src/*.[ch]':               self.mod_path,
-            'src/Makefile':             self.mod_path,
-            'src/scheduler.lds':        self.mod_path,
-            'src/.gitignore':           './',
+            self.config_dir + '/*':         self.tmp_dir,
+            'boundary/*.py':                self.tmp_dir,
+            'tools/symbol_resolve':         self.tmp_dir,
+            'tools/springboard_search.sh':  self.tmp_dir,
+            'src/sidecar.py':               self.tmp_dir,
+            'src/Makefile.plugsched':       self.tmp_dir,
+            'src/*.[ch]':                   self.mod_path,
+            'src/Makefile':                 self.mod_path,
+            'src/scheduler.lds':            self.mod_path,
+            'src/.gitignore':               './',
         }
         self.threads = cpu_count()
         self.mod_files = self.config['mod_files']
@@ -207,7 +208,7 @@ class Plugsched(object):
             self.apply_patch('dynamic_springboard.patch')
 
         with open(os.path.join(self.mod_path, 'Makefile'), 'a') as f:
-            self.search_springboard(self.vmlinux, kernel_config, _out=f)
+            self.search_springboard('init', self.vmlinux, kernel_config, _out=f)
 
         logging.info("Succeed!")
 
