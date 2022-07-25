@@ -21,9 +21,9 @@ tmpdir = None
 # directory to store schedule module source code
 modpath = None
 
-class SchedBoundaryExtract(object):
+class Extraction(object):
     def __init__(self, src_file, tmpdir, modpath):
-        with open(tmpdir + 'sched_boundary_extract.yaml') as f:
+        with open(tmpdir + 'boundary_extract.yaml') as f:
             self.config = load(f, Loader)
 
         self.src_file = src_file
@@ -39,7 +39,7 @@ class SchedBoundaryExtract(object):
         if src_file in self.mod_hdrs:
             file_name = tmpdir + 'header_symbol.json'
         else:
-            file_name = src_file + '.sched_boundary'
+            file_name = src_file + '.boundary'
 
         with open(file_name) as f:
             metas = json.load(f)
@@ -168,5 +168,5 @@ if __name__ == '__main__':
     src_file = sys.argv[1]
     tmpdir = sys.argv[2]
     modpath = sys.argv[3]
-    extract = SchedBoundaryExtract(src_file, tmpdir, modpath)
+    extract = Extraction(src_file, tmpdir, modpath)
     extract.extract_file()

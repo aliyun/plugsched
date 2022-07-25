@@ -21,7 +21,7 @@ class TestPublicVar:
         scheduler_rpm = scheduler_rpm[0]
         sh.rpm('-ivh', scheduler_rpm)
         module = '/var/plugsched/' + cur_sys + '/scheduler.ko'
-        yaml_file = '/tmp/work/scheduler/working/sched_boundary.yaml'
+        yaml_file = '/tmp/work/scheduler/working/boundary.yaml'
         with open(yaml_file, 'r') as f:
             yaml_version = float(yaml.__version__)
             if yaml_version >= 5.1:
