@@ -57,7 +57,7 @@ def read_meta(filename):
 # Disagreement 1: vmlinux thinks XXX is in core.c, plugsched thinks it's in kernel/sched/core.c
 # Disagreement 2: vmlinux thinks XXX is in core.c, plugsched thinks it's in sched.h
 # Disagreement 3: vmlinux thinks XXX is in usercopy_64.c, plugsched thinks it's in core.c
-# Disagrement: 4: vmlinux optimizes XXX to XXX.isra.1, XXX.constprop.1, etc. plugsched remains XXX.
+# Disagreement 4: vmlinux optimizes XXX to XXX.isra.1, XXX.constprop.1, etc. plugsched remains XXX.
 
 def get_in_any(key, files):
     for file in files:
