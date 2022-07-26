@@ -92,7 +92,6 @@ class Plugsched(object):
         self.mod_srcs = [f for f in self.mod_files if f.endswith('.c')]
         self.mod_hdrs = [f for f in self.mod_files if f.endswith('.h')]
         self.mod_objs = [f+'.extract' for f in self.mod_files]
-        self.extracted_mod_files = [os.path.join(self.mod_path, os.path.basename(f)) for f in self.mod_files]
 
     def get_kernel_version(self, makefile):
         VERSION = self.plugsched_sh.awk('-F=', '/^VERSION/{print $2}', makefile).strip()
@@ -145,25 +144,6 @@ class Plugsched(object):
                          _out=sys.stdout,
                          _err=sys.stderr)
 
-    def fix_up(self):
-        self.mod_sh.sed("s/#include \"/#include \"..\//g;"  + \
-                        "/EXPORT_.*SYMBOL/d;"               + \
-                        "/initcall/d;"                      + \
-                        "/early_param/d;"                   + \
-                        "/\<__init\>/d;"                    + \
-                        "/\<__initdata\>/d;"                + \
-                        "/__setup/d;"                       + \
-                        "s/struct atomic_t /atomic_t /g",
-                        self.extracted_mod_files,
-                        in_place=True)
-
-        # mod headers are extracted to mod path, fix their include path.
-        cmd_str = ""
-        for header in self.mod_hdrs:
-            header = os.path.basename(header)
-            cmd_str += "s/#include \"..\/%s/#include \"%s/g;" % (header, header)
-        self.mod_sh.sed(cmd_str, self.extracted_mod_files, in_place=True)
-
     def extract(self):
         logging.info('Extracting scheduler module objs: %s', ' '.join(self.mod_objs))
         self.make(stage = 'collect', plugsched_tmpdir = self.tmp_dir, plugsched_modpath = self.mod_path)
@@ -195,8 +175,6 @@ class Plugsched(object):
         logging.info('Patching kernel with pre_extract patch')
         self.apply_patch('pre_extract.patch')
         self.extract()
-        logging.info('Fixing up extracted scheduler module')
-        self.fix_up()
         logging.info('Patching extracted scheduler module with post_extractd patch')
         self.apply_patch('post_extract.patch')
 
