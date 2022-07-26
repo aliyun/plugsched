@@ -129,7 +129,7 @@ static void reset_balance_callback(void)
 }
 
 
-#if defined(CONFIG_ARM64) && defined(CONFIG_STACKPROTECTOR_PER_TASK)
+#if defined(CONFIG_ARM64) && defined(STACK_PROTECTOR)
 #define NOP 0xd503201f
 static void disable_stack_protector(void)
 {
