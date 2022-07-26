@@ -194,7 +194,8 @@ if __name__ == '__main__':
         'sdcr_fns':  set(),
     }
 
-    edges= []
+    edges = []
+    decls = {}
     hdr_sym = {'fn':list(), 'var':list()}
 
     # first pass: calc init and interface set
@@ -203,9 +204,14 @@ if __name__ == '__main__':
             init, publ, signature, file, name = fn['init'], fn['public'], tuple(fn['signature']), fn['file'], fn['name']
             func_class['fn'].add(signature)
 
-            if file in config['mod_files']: func_class['mod_fns'].add(signature)
+            if file in config['mod_files']:
+                func_class['mod_fns'].add(signature)
+                decls[signature] = fn['decl_str']
+            if file in config['sdcr_srcs']:
+                func_class['sdcr_fns'].add(signature)
+                decls[signature] = fn['decl_str']
+
             if file in config['mod_hdrs']: hdr_sym['fn'].append(fn)
-            if file in config['sdcr_srcs']: func_class['sdcr_fns'].add(signature)
             if init: func_class['init'].add(signature)
             if publ: global_fn_dict[name] = file
 
@@ -286,6 +292,11 @@ if __name__ == '__main__':
                 for fn in func_class['undefined']])
         f.write('{%s}' % array)
     with open(tmpdir + 'interface_fn_ptrs', 'w') as f:
-        f.write('\n'.join([fn[0] for fn in config['function']['interface']]))
-        f.write('\n')
+        f.write('\n'.join([fn[0] for fn in func_class['interface'] | func_class['sidecar']]) + '\n')
         f.write('\n'.join(['__mod_' + fn[0] for fn in config['function']['fn_ptr']]))
+    with open(modpath + 'export_jump.h', 'w') as f:
+        fn_ptr_export_fmt = "PLUGSCHED_FN_PTR({fn}, {ret}, {params})"
+        export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})"
+        f.write('\n'.join([fn_ptr_export_fmt.format(**decls[fn]) for fn in func_class['fn_ptr']]) + '\n')
+        f.write('\n'.join([export_fmt.format(**decls[fn]) for fn in func_class['interface']]) + '\n')
+        f.write('\n'.join([export_fmt.format(**decls[fn]) for fn in func_class['sidecar']]))

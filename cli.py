@@ -155,8 +155,6 @@ class Plugsched(object):
         self.make(stage = 'analyze', plugsched_tmpdir = self.tmp_dir, plugsched_modpath = self.mod_path)
         self.make(stage = 'extract', plugsched_tmpdir = self.tmp_dir, plugsched_modpath = self.mod_path,
                   objs = self.mod_objs)
-        with open(os.path.join(self.work_dir, 'kernel/sched/mod/export_jump.h'), 'w') as f:
-            sh.sort(glob('kernel/sched/*.export_jump.h', _cwd=self.work_dir), _out=f)
 
     def create_sandbox(self, kernel_src):
         logging.info('Creating mod build directory structure')

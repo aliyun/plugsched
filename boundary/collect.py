@@ -151,7 +151,7 @@ class Collection(object):
             self.fn_properties.append(properties)
 
             # interface candidates must belongs to module source files
-            if not src_f in self.mod_srcs:
+            if not src_f in self.mod_srcs + self.sdcr_srcs:
                 continue
 
             decl_str = {
