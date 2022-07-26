@@ -13,6 +13,7 @@ class TestSchedSyscall:
         print("Sched syscall test")
         cmd = "while :; do :; done"
         self.child = subprocess.Popen(cmd, shell=True)
+        self.rt_runtime_us = int(sh.sysctl('kernel.sched_rt_runtime_us').split()[-1])
 
     def load_scheduler(self):
         scheduler_rpm = glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
@@ -37,6 +38,7 @@ class TestSchedSyscall:
         self.remove_file()
         
     def test_policy_and_prio(self):
+        sh.sysctl('-w', 'kernel.sched_rt_runtime_us=-1')
         cmd = "chrt -p -f 10 " + str(self.child.pid)
         subprocess.Popen(cmd, shell=True)
         res = sh.chrt('-p', self.child.pid).split('\n')
@@ -52,6 +54,7 @@ class TestSchedSyscall:
         self.child.wait()
         self.remove_file()
         self.unload_scheduler()
+        sh.sysctl('-w', 'kernel.sched_rt_runtime_us={}'.format(self.rt_runtime_us))
         sys.exit(1)
 
     def remove_file(self):
@@ -67,6 +70,7 @@ class TestSchedSyscall:
         self.child.kill()
         self.child.wait()
         self.unload_scheduler()
+        sh.sysctl('-w', 'kernel.sched_rt_runtime_us={}'.format(self.rt_runtime_us))
 
 if __name__ == '__main__':
     test_unit = TestSchedSyscall()
