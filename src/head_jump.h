@@ -6,8 +6,7 @@
 #ifndef __HEAD_JUMP_H
 #define __HEAD_JUMP_H
 
-#include <linux/cpu.h>
-#include <linux/kallsyms.h>
+#include "helper.h"
 
 #define EXPORT_SIDECAR(fn, file, ...) EXPORT_PLUGSCHED(fn, __VA_ARGS__)
 #define EXPORT_CALLBACK EXPORT_PLUGSCHED
@@ -53,8 +52,8 @@ static unsigned long mod_func_size[NR_INTERFACE_FN];
  * 2) For functions set:
  *    1. Add the function to export_jump.h file
  *    2. Call jump_init_all() to init all functions data
- *    3. Use JUMP_OPERATION(install) macro to replace the functions set
- *    4. Use JUMP_OPERATION(remove) macro to restore the functions set
+ *    3. Use jump_install() to replace the functions set
+ *    4. Use jump_remove() to restore the functions set
  */
 
 #ifdef CONFIG_X86_64
@@ -93,14 +92,6 @@ extern void __orig___fentry__(void);
 #define JUMP_REMOVE_FUNC(func) 	\
 	memcpy((unsigned char *)__orig_##func, store_orig_##func, HEAD_LEN)
 
-
-/* Must be used in stop machine context */
-#define JUMP_OPERATION(ops) do { 	\
-		void *unused = disable_write_protect(NULL); \
-		jump_##ops();	\
-		enable_write_protect(); \
-	} while(0)
-
 #else /* For ARM64 */
 #define DEFINE_JUMP_FUNC(func)				\
 	static u32 store_orig_##func;			\
@@ -122,10 +113,6 @@ extern void __orig___fentry__(void);
 #define JUMP_REMOVE_FUNC(func)  \
 	aarch64_insn_patch_text_nosync(__orig_##func, store_orig_##func)
 
-#define JUMP_OPERATION(ops) do {	\
-		jump_##ops();	\
-	} while(0)
-
 #endif /* CONFIG_X86_64 */
 
 #define EXPORT_PLUGSCHED(fn, ...) DEFINE_JUMP_FUNC(fn);
@@ -135,14 +122,18 @@ extern void __orig___fentry__(void);
 #define EXPORT_PLUGSCHED(fn, ...) JUMP_INSTALL_FUNC(fn);
 static inline void jump_install(void)
 {
+	disable_write_protect_global();
 	#include "export_jump.h"
+	enable_write_protect_global();
 }
 #undef EXPORT_PLUGSCHED
 
 #define EXPORT_PLUGSCHED(fn, ...) JUMP_REMOVE_FUNC(fn);
 static inline void jump_remove(void)
 {
+	disable_write_protect_global();
 	#include "export_jump.h"
+	enable_write_protect_global();
 }
 #undef EXPORT_PLUGSCHED
 

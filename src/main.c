@@ -172,7 +172,7 @@ static int __sync_sched_install(void *arg)
 
 	if (is_first_process()) {
 		switch_sched_class(true);
-		JUMP_OPERATION(install);
+		jump_install();
 		disable_stack_protector();
 		sched_alloc_extrapad();
 		reset_balance_callback();
@@ -220,7 +220,7 @@ static int __sync_sched_restore(void *arg)
 
 	if (is_first_process()) {
 		switch_sched_class(false);
-		JUMP_OPERATION(remove);
+		jump_remove();
 		reset_balance_callback();
 		sched_free_extrapad();
 	}
