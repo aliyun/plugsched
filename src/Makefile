@@ -22,7 +22,7 @@ objs-$(CONFIG_SCHEDSTATS) += stats.o
 objs-$(CONFIG_SCHED_DEBUG) += debug.o
 
 obj-m += scheduler.o
-scheduler-objs := $(objs-y) $(sidecar_objs) main.o sched_rebuild.o
+scheduler-objs := $(objs-y) $(sidecar_objs) main.o tainted.o sched_rebuild.o
 
 search_cb  := {if (/CALLBACK/) {print "__cb_"$$2} else {print $$2}}
 search_und := grep "UND __mod_" | awk '{print substr($$8,7)}' | sort | uniq
