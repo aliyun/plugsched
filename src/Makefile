@@ -18,7 +18,6 @@ OBJCOPYFLAGS := --globalize-symbols $(plugsched_tmpdir)/interface_fn_ptrs
 
 objs-y += core.o
 objs-y += idle.o fair.o rt.o deadline.o
-objs-y += sidecar.o
 
 objs-$(CONFIG_SMP) += cpupri.o cpudeadline.o topology.o stop_task.o pelt.o
 objs-$(CONFIG_SCHEDSTATS) += stats.o

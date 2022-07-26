@@ -40,7 +40,7 @@ make KBUILD_MODPOST_WARN=1 plugsched_tmpdir=%{_tmpdir} plugsched_modpath=%{_modp
 make -C %{_tmpdir}/symbol_resolve
 
 # Generate the tainted_functions file
-awk -F '[(,)]' '$2!=""{print $2" "$3" vmlinux"}' %{_modpath}/tainted_functions{.h,_sidecar.h} > %{_sourcedir}/tainted_functions
+awk -F '[(,)]' '$2!=""{print $2" "$3" vmlinux"}' %{_modpath}/tainted_functions.h > %{_sourcedir}/tainted_functions
 chmod 0444 %{_sourcedir}/tainted_functions
 
 %install
