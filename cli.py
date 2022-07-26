@@ -92,6 +92,7 @@ class Plugsched(object):
         self.mod_hdrs  = [f for f in self.mod_files if f.endswith('.h')]
         self.sdcr      = [] if self.config['sidecar'] is None else self.config['sidecar']
         self.sdcr_srcs = [f[1] for f in self.sdcr]
+        self.sdcr_objs = [os.path.basename(f).replace('.c', '.o') for f in self.sdcr_srcs]
         self.mod_objs  = [f+'.extract' for f in self.mod_files + self.sdcr_srcs]
 
     def get_kernel_version(self, makefile):
@@ -220,6 +221,7 @@ class Plugsched(object):
                             '--define', '%%_kerneldir %s' % os.path.realpath(self.work_dir),
                             '--define', '%%_tmpdir %s' % self.tmp_dir,
                             '--define', '%%_modpath %s' % self.mod_path,
+                            '--define', '%%_sdcrobjs %s' % ' '.join(self.sdcr_objs) + '""',
                             '--define', '%%KVER %s' % self.KVER,
                             '--define', '%%KREL %s' % self.KREL,
                             '--define', '%%threads %d' % self.threads,

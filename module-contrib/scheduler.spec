@@ -34,7 +34,8 @@ rm -f %{_sourcedir}/scheduler.spec
 %build
 # Build sched_mod
 make KBUILD_MODPOST_WARN=1 plugsched_tmpdir=%{_tmpdir} plugsched_modpath=%{_modpath} \
-	-C %{_kerneldir} -f %{_tmpdir}/Makefile.plugsched plugsched -j %{threads}
+	sidecar_objs=%{_sdcrobjs} -C %{_kerneldir} -f %{_tmpdir}/Makefile.plugsched \
+	plugsched -j %{threads}
 
 # Build symbol resolve tool
 make -C %{_tmpdir}/symbol_resolve
