@@ -135,11 +135,30 @@ class Extraction(object):
             lines[row_end] += \
                 "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S INTERFACE FUNCTION */\n".format(name)
 
+    def merge_down_lines(self, lines, curr):
+            next = curr
+            merged = lines[curr].strip()
+            l_paren = merged.count('(')
+            r_paren = merged.count(')')
+
+            while l_paren > r_paren:
+                next += 1
+                line = lines[next]
+                merged  += line.strip()
+                r_paren += line.count(')')
+                lines[next] = ''
+
+            lines[curr] = merged + '\n'
+            return curr
+
     def var_extract(self, lines):
         # General handling all shared variables
         orig_lines = list(lines)
         for var in list(self.var_list):
             name, row_start, row_end = var['name'], var['decl_start_line'], var['decl_end_line']
+
+            # merge multi-var-definition lines into one
+            self.merge_down_lines(lines, row_start)
 
             # delete data initialization code
             for i in range(row_start+1, row_end+1):
