@@ -18,8 +18,7 @@ uname_noarch=${uname_r%.*}
 yum install anolis-repos -y
 yum install sysstat -y
 yum install podman yum-utils kernel-debuginfo-${uname_r} kernel-devel-${uname_r} --enablerepo=Plus-debuginfo --enablerepo=Plus -y
-pip3 install sh
-pip3 install pyyaml
+pip3 install sh pyyaml coloredlogs
 
 container=$(podman ps -a | awk '$NF=="plugsched"{print $1}')
 if [ -n "$container" ]; then

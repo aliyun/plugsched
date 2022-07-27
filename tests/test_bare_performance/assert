@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+from glob import glob
+from sh import wget, unzip, make, grep, lsmod, rpm, yum, Command
+import coloredlogs
+coloredlogs.install(level='INFO')
+
+class TestMemPressure:
+    def setup_class(self):
+        yum.install(['unzip', 'perl-Time-HiRes', 'hwloc-devel', 'python39'], assumeyes=True)
+        self.rpm = self.get_rpm()
+        self.install_unixbench()
+        self.install_will_it_scale()
+
+    def install_unixbench(self):
+        wget('https://github.com/kdlucas/byte-unixbench/archive/refs/heads/master.zip',
+		output_document='unixbench.zip')
+        unzip('-o', 'unixbench.zip')
+        make(_cwd='byte-unixbench-master/UnixBench')
+
+    def install_will_it_scale(self):
+        wget('https://github.com/antonblanchard/will-it-scale/archive/refs/heads/master.zip',
+		output_document='will-it-scale.zip')
+        unzip('-o', 'will-it-scale.zip')
+        make(_cwd='will-it-scale-master')
+
+    def teardown_class(self):
+        if grep(lsmod(), 'scheduler', word_regexp=True, _ok_code=[0,1]).exit_code == 0:
+            rpm('scheduler-xxx', erase=True)
+
+    def get_rpm(self):
+        scheduler_rpm = glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
+        if len(scheduler_rpm) != 1:
+            print("Please check your scheduler rpm");
+            sys.exit(1)
+        return scheduler_rpm
+
+    def __test_all(self):
+        for case in ['getppid1', 'futex1', 'futex2', 'futex3', 'futex4',
+                     'lock1', 'posix_semaphore1', 'pthread_mutex1',
+                     'pthread_mutex2', 'pthread_mutex3',
+                     'pthread_mutex4', 'sched_yield', 'signal1']:
+            Command('python3.9')('./runtest.py', case, _cwd='will-it-scale-master', _out=sys.stdout)
+        Command('./Run')(_cwd='byte-unixbench-master/UnixBench', _out=sys.stdout)
+
+    def test_all(self):
+        self.__test_all()
+        rpm(self.rpm, install=True)
+        self.__test_all()
+
+if __name__ == '__main__':
+    test_unit = TestMemPressure()
+    test_unit.setup_class()
+    test_unit.test_all()
+    test_unit.teardown_class()
