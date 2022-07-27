@@ -90,7 +90,6 @@ class CPUDomainReuildTest:
             sh.echo(v, _out=k)
 
     def error_handler(self):
-        print("CPU domain rebuild test " + "\033[31mFAILED\033[0m")
         self.unload_scheduler()
         self.reload_cpu_state()
         sys.exit(1)
@@ -104,6 +103,5 @@ if __name__ == '__main__':
     unit_test.setup_class()
     unit_test.test_cpu_rebuild()
     unit_test.teardown_class()
-    print("CPU domain rebuild test " + "\033[32mPASS\033[0m")
         
 

@@ -88,7 +88,6 @@ class TestVarUniformity:
             self.error_handler()
 
     def error_handler(self):
-        print("Var uniformity test " + "\033[31mFAILED\033[0m")
         self.teardown_class()
         sys.exit(1)
 
@@ -97,4 +96,3 @@ if __name__ == '__main__':
     unit_test.setup_class()
     unit_test.test_data_uniformity()
     unit_test.teardown_class()
-    print("Var uniformity test " + "\033[32mPASS\033[0m")
