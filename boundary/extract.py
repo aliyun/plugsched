@@ -82,6 +82,22 @@ class Extraction(object):
             if var['public'] or var['name'] in self.config['global_var']['extra_public']:
                 self.var_list.append(var)
 
+    # merge multi decl lines and return the merged line number
+    def merge_up_lines(self, lines, curr):
+        terminator = re.compile(';|}|#|//|\*/|^\n$')
+        merged = lines[curr].strip()
+
+        while curr >= 1:
+            line = lines[curr-1]
+            if terminator.search(line):
+                break;
+            merged = line.strip() + ' ' + merged
+            lines[curr] = ''
+            curr -= 1
+
+        lines[curr] = merged.replace(' ;', ';') + '\n'
+        return curr;
+
     def function_extract(self, lines):
         for fn in self.fn_list:
             name, inline = fn['name'], fn['inline']
@@ -94,6 +110,7 @@ class Extraction(object):
                 # convert function body "{}" to ";"
                 # only handle normal kernel function definition
                 lines[row_start] = lines[row_start][:col_start] + ";\n"
+                self.merge_up_lines(lines, row_start)
                 for i in range(row_start+1, row_end+1):
                     lines[i] = ''
 
