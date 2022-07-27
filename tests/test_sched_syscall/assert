@@ -34,7 +34,7 @@ class TestSchedSyscall:
         ch_cpus = sh.cat("/sys/fs/cgroup/cpuset/test/cpuset.cpus").split()[0]
         if fa_mems != ch_mems or fa_cpus != ch_cpus:
             self.error_handler()
-        sh.rmdir("/sys/fs/cgroup/cpuset/test")
+        self.remove_file()
         
     def test_policy_and_prio(self):
         cmd = "chrt -p -f 10 " + str(self.child.pid)
@@ -50,10 +50,14 @@ class TestSchedSyscall:
     def error_handler(self):
         self.child.kill()
         self.child.wait()
-        sh.rmdir("/sys/fs/cgroup/cpuset/test")
+        self.remove_file()
         self.unload_scheduler()
         print("Sched syscall test " + "\033[31mFAILED\033[0m")
         sys.exit(1)
+
+    def remove_file(self):
+        if os.path.exists("/sys/fs/cgroup/cpuset/test"):
+            sh.rmdir("/sys/fs/cgroup/cpuset/test")
 
     def unload_scheduler(self):
         tmp = subprocess.Popen("lsmod | grep scheduler", shell=True, stdout=subprocess.PIPE)
