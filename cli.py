@@ -33,7 +33,7 @@ from yaml import load, dump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
-    print >> sys.stderr, "WARNING: YAML CLoader is not presented, it can be slow."
+    print("WARNING: YAML CLoader is not presented, it can be slow.")
     from yaml import Loader, Dumper
 from docopt import docopt
 import sh
