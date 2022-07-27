@@ -31,6 +31,7 @@ class Extraction(object):
         self.mod_files = self.config['mod_files']
         self.mod_srcs = {f for f in self.mod_files if f.endswith('.c')}
         self.mod_hdrs = self.mod_files - self.mod_srcs
+        self.sdcr_srcs = [f[1] for f in self.config['sidecar']]
         self.fn_list = []
         self.fn_ptr_list = []
         self.interface_list = []
@@ -58,6 +59,7 @@ class Extraction(object):
             unique.add(obj)
 
             if obj in self.config['function']['sched_outsider'] or \
+               obj in self.config['function']['sdcr_out'] or \
                obj in self.config['function']['init']:
                 self.fn_list.append(fn),
             elif obj in self.config['function']['fn_ptr']:
@@ -66,6 +68,11 @@ class Extraction(object):
                 self.interface_list.append(fn)
 
     def var_location(self):
+        # sidecar shares all global variables with vmlinux
+        if self.src_file in self.sdcr_srcs:
+            self.var_list = self.meta_var
+            return
+
         for var in self.meta_var:
             if var['file'] != self.src_file:
                 continue
@@ -75,7 +82,7 @@ class Extraction(object):
             if var['public'] or var['name'] in self.config['global_var']['extra_public']:
                 self.var_list.append(var)
 
-    def function_extract(self, lines, fn_export_jump):
+    def function_extract(self, lines):
         for fn in self.fn_list:
             name, inline = fn['name'], fn['inline']
             (row_start,col_start), (row_end,_) = fn['l_brace_loc'], fn['r_brace_loc']
@@ -90,13 +97,11 @@ class Extraction(object):
                 for i in range(row_start+1, row_end+1):
                     lines[i] = ''
 
-        fn_ptr_export_header_fmt = "PLUGSCHED_FN_PTR({fn}, {ret}, {params})\n"
         fn_ptr_export_c_fmt = "extern {ret} {fn}({params});\n"
         for fn in self.fn_ptr_list:
             name, decl_str = fn['name'], fn['decl_str']
             (row_start,col_start), (row_end,_) = fn['name_loc'], fn['r_brace_loc']
 
-            fn_export_jump.write(fn_ptr_export_header_fmt.format(**decl_str))
             new_name = '__mod_' + name
             lines[row_start] = lines[row_start][:col_start] + \
                 lines[row_start][col_start:].replace(name, '__used ' + new_name)
@@ -104,10 +109,8 @@ class Extraction(object):
                 "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S CALLBACK FUNCTION */\n".format(new_name) + \
                 fn_ptr_export_c_fmt.format(**decl_str)
 
-        interface_export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})\n"
         for fn in self.interface_list:
             name, decl_str, (row_end,_) = fn['name'], fn['decl_str'], fn['r_brace_loc']
-            fn_export_jump.write(interface_export_fmt.format(**decl_str))
 
             # everyone know that syscall ABI should be consistent
             if any(name.startswith(prefix) for prefix in self.config['interface_prefix']):
@@ -183,14 +186,12 @@ class Extraction(object):
         self.function_location()
         self.var_location()
 
-        with open(src_f) as in_f, open(src_f + '.export_jump.h', 'w') as fn_export_jump:
+        with open(src_f) as in_f, open(self.modpath + os.path.basename(src_f), 'w') as out_f:
             lines = in_f.readlines()
-            self.function_extract(lines, fn_export_jump)
+            self.function_extract(lines)
             self.var_extract(lines)
             self.fix_up(lines)
-
-            with open(self.modpath + os.path.basename(src_f), 'w') as out_f:
-                out_f.writelines(lines)
+            out_f.writelines(lines)
 
 if __name__ == '__main__':
 

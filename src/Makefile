@@ -18,7 +18,6 @@ OBJCOPYFLAGS := --globalize-symbols $(plugsched_tmpdir)/interface_fn_ptrs
 
 objs-y += core.o
 objs-y += idle.o fair.o rt.o deadline.o
-objs-y += sidecar.o
 
 objs-$(CONFIG_SMP) += cpupri.o cpudeadline.o topology.o stop_task.o pelt.o
 objs-$(CONFIG_SCHEDSTATS) += stats.o
@@ -39,7 +38,7 @@ $(obj)/%.o: $(src)/%.c GET_STACK_SIZE FORCE
 	$(call if_changed_rule,cc_o_c)
 	$(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS_$(@F)) $@
 
-scheduler-objs := $(objs-y) main.o sched_rebuild.o
+scheduler-objs := $(objs-y) $(sidecar_objs) main.o sched_rebuild.o
 
 ldflags-y += -T $(plugsched_modpath)/scheduler.lds
 ccflags-n += -DSCHEDMOD_MEMPOOL

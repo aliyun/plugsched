@@ -80,7 +80,6 @@ class Plugsched(object):
             'boundary/*.py':                self.tmp_dir,
             'tools/symbol_resolve':         self.tmp_dir,
             'tools/springboard_search.sh':  self.tmp_dir,
-            'src/sidecar.py':               self.tmp_dir,
             'src/Makefile.plugsched':       self.tmp_dir,
             'src/*.[ch]':                   self.mod_path,
             'src/Makefile':                 self.mod_path,
@@ -89,9 +88,12 @@ class Plugsched(object):
         }
         self.threads = cpu_count()
         self.mod_files = self.config['mod_files']
-        self.mod_srcs = [f for f in self.mod_files if f.endswith('.c')]
-        self.mod_hdrs = [f for f in self.mod_files if f.endswith('.h')]
-        self.mod_objs = [f+'.extract' for f in self.mod_files]
+        self.mod_srcs  = [f for f in self.mod_files if f.endswith('.c')]
+        self.mod_hdrs  = [f for f in self.mod_files if f.endswith('.h')]
+        self.sdcr      = [] if self.config['sidecar'] is None else self.config['sidecar']
+        self.sdcr_srcs = [f[1] for f in self.sdcr]
+        self.sdcr_objs = [os.path.basename(f).replace('.c', '.o') for f in self.sdcr_srcs]
+        self.mod_objs  = [f+'.extract' for f in self.mod_files + self.sdcr_srcs]
 
     def get_kernel_version(self, makefile):
         VERSION = self.plugsched_sh.awk('-F=', '/^VERSION/{print $2}', makefile).strip()
@@ -153,9 +155,6 @@ class Plugsched(object):
         self.make(stage = 'analyze', plugsched_tmpdir = self.tmp_dir, plugsched_modpath = self.mod_path)
         self.make(stage = 'extract', plugsched_tmpdir = self.tmp_dir, plugsched_modpath = self.mod_path,
                   objs = self.mod_objs)
-        with open(os.path.join(self.work_dir, 'kernel/sched/mod/export_jump.h'), 'w') as f:
-            sh.sort(glob('kernel/sched/*.export_jump.h', _cwd=self.work_dir), _out=f)
-            f.write('#include "export_jump_sidecar.h"')
 
     def create_sandbox(self, kernel_src):
         logging.info('Creating mod build directory structure')
@@ -220,6 +219,7 @@ class Plugsched(object):
                             '--define', '%%_kerneldir %s' % os.path.realpath(self.work_dir),
                             '--define', '%%_tmpdir %s' % self.tmp_dir,
                             '--define', '%%_modpath %s' % self.mod_path,
+                            '--define', '%%_sdcrobjs %s' % ' '.join(self.sdcr_objs) + '""',
                             '--define', '%%KVER %s' % self.KVER,
                             '--define', '%%KREL %s' % self.KREL,
                             '--define', '%%threads %d' % self.threads,
