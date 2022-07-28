@@ -191,8 +191,7 @@ class Extraction(object):
 
     # fix trival code adaption
     def fix_up(self, lines):
-        delete_strs = ['EXPORT_.*SYMBOL', 'initcall', 'early_param', '__init ', '__initdata ', '__setup']
-        delete_pattern = [re.compile(s) for s in delete_strs]
+        delete_patt = re.compile('EXPORT_.*SYMBOL|initcall|early_param|__init |__initdata |__setup')
         replace_list = [('struct atomic_t', 'atomic_t')]
 
         for (i, line) in enumerate(lines):
@@ -207,10 +206,16 @@ class Extraction(object):
                 lines[i] = line.replace(old_header, os.path.relpath(rel_header, self.modpath))
                 continue
 
-            for p in delete_pattern:
-                if p.search(line):
-                    lines[i] = ''
-                    break
+            if delete_patt.search(line):
+                # handle backslash(\) corner case, for e.g:
+                # #define BPF_TRACE_DEFN_x(x)                \
+                #        void bpf_trace_run##x();            \
+                #        EXPORT_SYMBOL_GPL(bpf_trace_run##x)
+                prev = lines[i-1] if i > 0 else ''
+                if prev.endswith('\\\n') and not line.endswith('\\\n'):
+                    lines[i-1] = prev[:-2].rstrip() + '\n'
+                lines[i] = ''
+                continue
 
             for (p, repl) in replace_list:
                 if p in line:
