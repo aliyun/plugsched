@@ -123,8 +123,7 @@ def inflect_one(edge):
     if to_sym in __insiders:
         from_sym = tuple(edge['from'])
         if from_sym not in __insiders and \
-           from_sym not in func_class['interface'] and \
-           from_sym not in func_class['fn_ptr'] and \
+           from_sym not in func_class['border'] and \
            from_sym not in func_class['init'] and \
            from_sym not in func_class['sidecar']:
             return to_sym
@@ -245,9 +244,9 @@ if __name__ == '__main__':
     func_class['sdcr_out'] = func_class['sdcr_fns'] - func_class['sdcr_left']
 
     # Inflect outsider functions
-    func_class['insider'] = inflect(func_class['initial_insider'], edges)
+    func_class['insider'] = inflect(func_class['initial_insider'], edges) - func_class['init']
     func_class['sched_outsider'] = (func_class['mod_fns'] - func_class['insider'] - func_class['border']) | func_class['fn_ptr_optimized']
-    func_class['optimized_out'] = func_class['sched_outsider'] - func_class['in_vmlinux']
+    func_class['optimized_out'] = func_class['sched_outsider'] - func_class['in_vmlinux'] - func_class['init']
     func_class['public_user'] = func_class['fn'] - func_class['insider'] - func_class['border']
     func_class['tainted'] = (func_class['border'] | func_class['insider'] | func_class['sidecar']) & func_class['in_vmlinux']
     func_class['undefined'] = func_class['sched_outsider'] | func_class['border'] | func_class['sidecar']

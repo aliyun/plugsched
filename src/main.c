@@ -78,6 +78,7 @@ struct tainted_function {
 
 struct tainted_function tainted_functions[] = {
 	#include "tainted_functions.h"
+	{}
 };
 
 static inline void parallel_state_check_init(void)
@@ -514,12 +515,11 @@ static void unregister_plugsched_enable(void)
 
 static int register_tainted_functions(void)
 {
-	int i;
+	struct tainted_function *tf;
 
-	for (i = 0; i < ARRAY_SIZE(tainted_functions); i++) {
-		tainted_functions[i].kobj =
-			kobject_create_and_add(tainted_functions[i].name, vmlinux_moddir);
-		if (!(tainted_functions[i].kobj))
+	for (tf = tainted_functions; tf->name; tf++) {
+		tf->kobj = kobject_create_and_add(tf->name, vmlinux_moddir);
+		if (!tf->kobj)
 			return -ENOMEM;
 	}
 
@@ -528,13 +528,12 @@ static int register_tainted_functions(void)
 
 static void unregister_tainted_functions(void)
 {
-	int i;
+	struct tainted_function *tf;
 
-	for (i = 0; i < ARRAY_SIZE(tainted_functions); i++) {
-		if (!(tainted_functions[i].kobj))
+	for (tf = tainted_functions; tf->name; tf++) {
+		if (!tf->kobj)
 			return;
-
-		kobject_put(tainted_functions[i].kobj);
+		kobject_put(tf->kobj);
 	}
 }
 
