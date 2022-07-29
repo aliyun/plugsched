@@ -1,0 +1,93 @@
+diff --git a/arch/arm64/include/asm/stackprotector.h b/arch/arm64/include/asm/stackprotector.h
+index 7263e0bac..e01b6fc93 100644
+--- a/arch/arm64/include/asm/stackprotector.h
++++ b/arch/arm64/include/asm/stackprotector.h
+@@ -17,7 +17,9 @@
+ #include <linux/version.h>
+ #include <asm/pointer_auth.h>
+ 
++#ifndef CONFIG_STACKPROTECTOR_PER_TASK
+ extern unsigned long __stack_chk_guard;
++#endif
+ 
+ /*
+  * Initialize the stackprotector canary value.
+@@ -36,8 +38,10 @@ static __always_inline void boot_init_stack_canary(void)
+ 	canary &= CANARY_MASK;
+ 
+ 	current->stack_canary = canary;
++#ifndef CONFIG_STACKPROTECTOR_PER_TASK
+ 	if (!IS_ENABLED(CONFIG_STACKPROTECTOR_PER_TASK))
+ 		__stack_chk_guard = current->stack_canary;
++#endif
+ #endif
+ 	ptrauth_thread_init_kernel(current);
+ 	ptrauth_thread_switch_kernel(current);
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index 8c87a2e0b..ac5719391 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -52,7 +52,7 @@ static inline void cr4_clear_bits(unsigned long mask)
+ 	local_irq_restore(flags);
+ }
+ 
+-#ifndef MODULE
++#if 1
+ /*
+  * 6 because 6 should be plenty and struct tlb_state will fit in two cache
+  * lines.
+diff --git a/include/linux/preempt.h b/include/linux/preempt.h
+index 7d9c1c0e1..d63971e5a 100644
+--- a/include/linux/preempt.h
++++ b/include/linux/preempt.h
+@@ -252,7 +252,7 @@ do { \
+ 
+ #endif /* CONFIG_PREEMPT_COUNT */
+ 
+-#ifdef MODULE
++#if 0
+ /*
+  * Modules have no business playing preemption tricks.
+  */
+diff --git a/kernel/sched/mod/core.c b/kernel/sched/mod/core.c
+index e977763c9..d665eac45 100644
+--- a/kernel/sched/mod/core.c
++++ b/kernel/sched/mod/core.c
+@@ -6,9 +6,7 @@
+  *
+  *  Copyright (C) 1991-2002  Linus Torvalds
+  */
+-#define CREATE_TRACE_POINTS
+ #include <trace/events/sched.h>
+-#undef CREATE_TRACE_POINTS
+ 
+ #include "sched.h"
+ 
+@@ -5965,9 +5963,13 @@ extern int sched_cpu_dying(unsigned int);
+ }
+ #endif /* CONFIG_SMP */
+ 
++extern char __mod_sched_start[], __mod_sched_end[];
++
+ int in_sched_functions(unsigned long addr)
+ {
+ 	return in_lock_functions(addr) ||
++		(addr >= (unsigned long)__mod_sched_start
++		&& addr < (unsigned long)__mod_sched_end) ||
+ 		(addr >= (unsigned long)__sched_text_start
+ 		&& addr < (unsigned long)__sched_text_end);
+ }
+diff --git a/kernel/sched/mod/sched.h b/kernel/sched/mod/sched.h
+index d251ce5c8..1402ceb9f 100644
+--- a/kernel/sched/mod/sched.h
++++ b/kernel/sched/mod/sched.h
+@@ -62,6 +62,9 @@
+ #include <linux/stop_machine.h>
+ #include <linux/suspend.h>
+ #include <linux/swait.h>
++
++#undef CONFIG_FTRACE_SYSCALLS
++
+ #include <linux/syscalls.h>
+ #include <linux/task_work.h>
+ #include <linux/tsacct_kern.h>
