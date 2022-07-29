@@ -13,9 +13,9 @@ PHONY += plugsched collect extract
 plugsched: scripts prepare
 	$(MAKE) -C $(srctree) M=$(plugsched_modpath) modules
 
-collect:
+collect: modules_prepare
 	$(MAKE) CFLAGS_KERNEL="$(GCC_PLUGIN_FLAGS)" \
-		CFLAGS_MODULE="$(GCC_PLUGIN_FLAGS)" $(vmlinux-deps)
+		CFLAGS_MODULE="$(GCC_PLUGIN_FLAGS)" $(vmlinux-dirs)
 analyze:
 	python3 $(plugsched_tmpdir)/analyze.py ./vmlinux $(plugsched_tmpdir) $(plugsched_modpath)
 
