@@ -77,7 +77,7 @@ static void resolve_ref(const char *fname, kallsym_collection &kallsyms, sympos_
 			continue;
 		/*
 		 * Filter out the "__orig_" prefix, which represents interface
-		 * functions or function pointers defined in vmlinux.
+		 * or callback functions defined in vmlinux.
 		 */
 		if (strstr(name, "__orig_"))
 			name += sizeof("__orig_") - 1;

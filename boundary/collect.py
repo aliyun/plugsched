@@ -94,7 +94,7 @@ class Collection(object):
         self.var_properties = []
         self.edge_properties = []
         self.struct_properties = {}
-        self.fn_ptr_properties = []
+        self.callback_properties = []
         self.interface_properties = []
         self.seek_public_field = False
 
@@ -210,15 +210,15 @@ class Collection(object):
 
         self.var_properties.append(properties)
 
-    def collect_fn_ptrs(self):
+    def collect_callbacks(self):
         # return True means we stop walk subtree
-        def mark_fn_ptr(op, caller):
+        def mark_callback(op, caller):
             if isinstance(op, gcc.FunctionDecl) and not self.decl_in_section(op, '.init.text'):
-                self.fn_ptr_properties.append(
+                self.callback_properties.append(
                     [op.name, os.path.relpath(op.location.file) if op.function else '?']
                 )
 
-        # Find fn ptrs in function body
+        # Find callbacks in function body
         for node in gcc.get_callgraph_nodes():
             # Ignore alias, it's insignificant at all
             if node.decl.function is None:
@@ -227,11 +227,11 @@ class Collection(object):
                 if isinstance(stmt, gcc.GimpleCall):
                     # Ignore direct calls
                     for rhs in stmt.rhs[1:]:
-                        if rhs: rhs.walk_tree(mark_fn_ptr, node.decl)
+                        if rhs: rhs.walk_tree(mark_callback, node.decl)
                 else:
-                    stmt.walk_tree(mark_fn_ptr, node.decl)
+                    stmt.walk_tree(mark_callback, node.decl)
 
-        # Find fn ptrs in variable init value
+        # Find callbacks in variable init value
         for var in gcc.get_variables():
             decl = var.decl
             type_name = '' if not decl.type.name else decl.type.name.name
@@ -239,7 +239,7 @@ class Collection(object):
             # struct sched_class is purely private
             if decl.initial and type_name != 'sched_class' and \
                     not self.decl_in_section(decl, '.discard.addressable'):
-                decl.initial.walk_tree(mark_fn_ptr, decl)
+                decl.initial.walk_tree(mark_callback, decl)
 
     def collect_struct(self):
         public_fields = defaultdict(set)
@@ -318,14 +318,14 @@ class Collection(object):
     def final_work(self):
         self.collect_edges()
         self.collect_fn()
-        self.collect_fn_ptrs()
+        self.collect_callbacks()
         self.collect_struct()
 
         collect = {
             "fn": self.fn_properties,
             "var": self.var_properties,
             "edge": self.edge_properties,
-            "fn_ptr": self.fn_ptr_properties,
+            "callback": self.callback_properties,
             "interface": self.interface_properties,
             "struct": self.struct_properties
         }

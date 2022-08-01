@@ -33,7 +33,7 @@ class Extraction(object):
         self.mod_hdrs = self.mod_files - self.mod_srcs
         self.sdcr_srcs = [f[1] for f in self.config['sidecar']]
         self.fn_list = []
-        self.fn_ptr_list = []
+        self.callback_list = []
         self.interface_list = []
         self.var_list = []
 
@@ -61,8 +61,8 @@ class Extraction(object):
             if obj in self.config['function']['sched_outsider'] or \
                obj in self.config['function']['sdcr_out']:
                 self.fn_list.append(fn),
-            elif obj in self.config['function']['fn_ptr']:
-                self.fn_ptr_list.append(fn)
+            elif obj in self.config['function']['callback']:
+                self.callback_list.append(fn)
             elif obj in self.config['function']['interface']:
                 self.interface_list.append(fn)
 
@@ -113,8 +113,8 @@ class Extraction(object):
                 for i in range(row_start+1, row_end+1):
                     lines[i] = ''
 
-        fn_ptr_export_c_fmt = "extern {ret} {fn}({params});\n"
-        for fn in self.fn_ptr_list:
+        callback_export_c_fmt = "extern {ret} {fn}({params});\n"
+        for fn in self.callback_list:
             name, decl_str = fn['name'], fn['decl_str']
             (row_start,col_start), (row_end,_) = fn['name_loc'], fn['r_brace_loc']
 
@@ -123,7 +123,7 @@ class Extraction(object):
                 lines[row_start][col_start:].replace(name, '__used ' + new_name)
             lines[row_end] = lines[row_end] + '\n' + \
                 "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S CALLBACK FUNCTION */\n".format(new_name) + \
-                fn_ptr_export_c_fmt.format(**decl_str)
+                callback_export_c_fmt.format(**decl_str)
 
         for fn in self.interface_list:
             name, decl_str, (row_end,_) = fn['name'], fn['decl_str'], fn['r_brace_loc']
