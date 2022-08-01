@@ -276,6 +276,9 @@ if __name__ == '__main__':
         struct_properties[struct]['public_fields'] = field_set
         struct_properties[struct]['public_users'] = user_set
 
+    assert not struct_properties['sched_class']['public_users'], \
+            'struct sched_class should be purely private'
+
     with open(tmpdir + 'header_symbol.json', 'w') as f:
         json.dump(hdr_sym, f, indent=4)
     with open(tmpdir + 'boundary_doc.yaml', 'w') as f:

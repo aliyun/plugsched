@@ -8,8 +8,48 @@
 
 extern void __orig_set_rq_offline(struct rq*);
 extern void __orig_set_rq_online(struct rq*);
-
 extern unsigned int process_id[];
+
+extern const struct sched_class __orig_stop_sched_class;
+extern const struct sched_class __orig_dl_sched_class;
+extern const struct sched_class __orig_rt_sched_class;
+extern const struct sched_class __orig_fair_sched_class;
+extern const struct sched_class __orig_idle_sched_class;
+
+static struct sched_class* class[][7] = {
+	{
+		&fair_sched_class,
+		&rt_sched_class,
+		&rt_sched_class,
+		&fair_sched_class,
+		NULL,
+		&idle_sched_class,
+		&dl_sched_class,
+		&stop_sched_class,
+	},
+	{
+		&__orig_fair_sched_class,
+		&__orig_rt_sched_class,
+		&__orig_rt_sched_class,
+		&__orig_fair_sched_class,
+		NULL,
+		&__orig_idle_sched_class,
+		&__orig_dl_sched_class,
+		&__orig_stop_sched_class,
+	}
+};
+
+static void switch_sched_class(struct task_struct *p, int mod)
+{
+	int policy = p->policy;
+	int idx = mod ? 0 : 1;
+
+	if (p == (task_rq(p)->stop))
+		policy = 7;
+
+	p->sched_class = class[idx][policy];
+	return;
+}
 
 void clear_sched_state(bool mod)
 {
@@ -58,6 +98,8 @@ void rebuild_sched_state(bool mod)
 	for_each_process_thread(g, p) {
 		if (rq != task_rq(p))
 			continue;
+
+		switch_sched_class(p, mod);
 
 		if (p == rq->stop)
 			continue;

@@ -79,6 +79,8 @@ function:
         - sched_online_group
         - id_nr_invalid
         - finish_task_switch
+        - sched_exec
+        - yield
 global_var:
     extra_public:
     - cpu_idle_force_poll
@@ -112,4 +114,9 @@ global_var:
     force_private:
     - sysctl_sched_features
     - sched_feat_keys
+    - stop_sched_class
+    - dl_sched_class
+    - rt_sched_class
+    - fair_sched_class
+    - idle_sched_class
 sidecar:

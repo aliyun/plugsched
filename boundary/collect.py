@@ -233,8 +233,13 @@ class Collection(object):
 
         # Find fn ptrs in variable init value
         for var in gcc.get_variables():
-            if var.decl.initial and not self.decl_in_section(var.decl, '.discard.addressable'):
-                var.decl.initial.walk_tree(mark_fn_ptr, var.decl)
+            decl = var.decl
+            type_name = '' if not decl.type.name else decl.type.name.name
+
+            # struct sched_class is purely private
+            if decl.initial and type_name != 'sched_class' and \
+                    not self.decl_in_section(decl, '.discard.addressable'):
+                decl.initial.walk_tree(mark_fn_ptr, decl)
 
     def collect_struct(self):
         public_fields = defaultdict(set)
