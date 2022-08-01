@@ -114,4 +114,9 @@ global_var:
     force_private:
     - sysctl_sched_features
     - sched_feat_keys
+    - stop_sched_class
+    - dl_sched_class
+    - rt_sched_class
+    - fair_sched_class
+    - idle_sched_class
 sidecar:
