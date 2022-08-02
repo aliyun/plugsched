@@ -190,7 +190,7 @@ class Extraction(object):
 
     # fix trival code adaption
     def fix_up(self, lines):
-        delete_patt = re.compile('EXPORT_.*SYMBOL|initcall|early_param|__init |__initdata |__setup')
+        delete_patt = re.compile('initcall|early_param|__init |__initdata |__setup')
         replace_list = [('struct atomic_t', 'atomic_t')]
 
         for (i, line) in enumerate(lines):
@@ -206,13 +206,6 @@ class Extraction(object):
                 continue
 
             if delete_patt.search(line):
-                # handle backslash(\) corner case, for e.g:
-                # #define BPF_TRACE_DEFN_x(x)                \
-                #        void bpf_trace_run##x();            \
-                #        EXPORT_SYMBOL_GPL(bpf_trace_run##x)
-                prev = lines[i-1] if i > 0 else ''
-                if prev.endswith('\\\n') and not line.endswith('\\\n'):
-                    lines[i-1] = prev[:-2].rstrip() + '\n'
                 lines[i] = ''
                 continue
 
