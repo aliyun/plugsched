@@ -15,7 +15,7 @@ extern int process_id[];
 
 static void stack_check_init(void)
 {
-	#define PLUGSCHED_FN_PTR EXPORT_PLUGSCHED
+	#define EXPORT_CALLBACK EXPORT_PLUGSCHED
 	#define EXPORT_PLUGSCHED(fn, ...) 				\
 		kallsyms_lookup_size_offset((unsigned long)__orig_##fn,			 \
 				&orig_##fn##_size, NULL); 		\
@@ -23,11 +23,11 @@ static void stack_check_init(void)
 
 	#include "export_jump.h"
 	#undef EXPORT_PLUGSCHED
-	#undef PLUGSCHED_FN_PTR
+	#undef EXPORT_CALLBACK
 
 	addr_sort(vm_func_addr, vm_func_size, NR_INTERFACE_FN);
 
-	#define PLUGSCHED_FN_PTR(fn, ...) 				\
+	#define EXPORT_CALLBACK(fn, ...) 				\
 		kallsyms_lookup_size_offset((unsigned long)__mod_##fn, 	\
 				&mod_##fn##_size, NULL); 		\
 		mod_func_size[NR_##fn] = mod_##fn##_size;
@@ -39,7 +39,7 @@ static void stack_check_init(void)
 
 	#include "export_jump.h"
 	#undef EXPORT_PLUGSCHED
-	#undef PLUGSCHED_FN_PTR
+	#undef EXPORT_CALLBACK
 
 	addr_sort(mod_func_addr, mod_func_size, NR_INTERFACE_FN);
 }

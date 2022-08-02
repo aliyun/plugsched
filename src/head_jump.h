@@ -10,14 +10,14 @@
 #include <linux/kallsyms.h>
 
 #define EXPORT_SIDECAR(fn, file, ...) EXPORT_PLUGSCHED(fn, __VA_ARGS__)
-#define PLUGSCHED_FN_PTR EXPORT_PLUGSCHED
+#define EXPORT_CALLBACK EXPORT_PLUGSCHED
 #define EXPORT_PLUGSCHED(fn, ...) NR_##fn,
 enum {
 	#include "export_jump.h"
 	NR_INTERFACE_FN
 } nr_inter_fn;
 #undef EXPORT_PLUGSCHED
-#undef PLUGSCHED_FN_PTR
+#undef EXPORT_CALLBACK
 
 static unsigned long vm_func_addr[NR_INTERFACE_FN];
 static unsigned long vm_func_size[NR_INTERFACE_FN];
@@ -25,21 +25,21 @@ static unsigned long mod_func_addr[NR_INTERFACE_FN];
 static unsigned long mod_func_size[NR_INTERFACE_FN];
 
 /* Used to declare the extern function set */
-#define PLUGSCHED_FN_PTR(fn, ret, ...) extern ret __mod_##fn(__VA_ARGS__);
+#define EXPORT_CALLBACK(fn, ret, ...) extern ret __mod_##fn(__VA_ARGS__);
 #define EXPORT_PLUGSCHED(fn, ret, ...) extern ret fn(__VA_ARGS__);
 #include "export_jump.h"
 #undef EXPORT_PLUGSCHED
-#undef PLUGSCHED_FN_PTR
+#undef EXPORT_CALLBACK
 
 /* Used to declare extern functions defined in vmlinux*/
-#define PLUGSCHED_FN_PTR(fn, ret, ...) extern ret __orig_##fn(__VA_ARGS__);
+#define EXPORT_CALLBACK(fn, ret, ...) extern ret __orig_##fn(__VA_ARGS__);
 #define EXPORT_PLUGSCHED(fn, ret, ...) extern ret __orig_##fn(__VA_ARGS__);
 #include "export_jump.h"
 #undef EXPORT_PLUGSCHED
-#undef PLUGSCHED_FN_PTR
+#undef EXPORT_CALLBACK
 
 /* They are completely identical unless specified */
-#define PLUGSCHED_FN_PTR EXPORT_PLUGSCHED
+#define EXPORT_CALLBACK EXPORT_PLUGSCHED
 
 /* This APIs set is used to replace the function in vmlinux with other
  * function(have the same name) in module. Usage by fallow:
@@ -143,8 +143,8 @@ static inline void jump_remove(void)
 #undef EXPORT_PLUGSCHED
 
 
-#undef PLUGSCHED_FN_PTR
-#define PLUGSCHED_FN_PTR(fn, prefix, ...) JUMP_INIT_FUNC(fn, __mod_);
+#undef EXPORT_CALLBACK
+#define EXPORT_CALLBACK(fn, prefix, ...) JUMP_INIT_FUNC(fn, __mod_);
 #define EXPORT_PLUGSCHED(fn, ...) JUMP_INIT_FUNC(fn, );
 static int __maybe_unused jump_init_all(void)
 {
@@ -152,6 +152,6 @@ static int __maybe_unused jump_init_all(void)
 	return 0;
 }
 #undef EXPORT_PLUGSCHED
-#undef PLUGSCHED_FN_PTR
+#undef EXPORT_CALLBACK
 
 #endif

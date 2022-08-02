@@ -188,7 +188,7 @@ if __name__ == '__main__':
         'fn':        set(),
         'init':      set(),
         'interface': set(),
-        'fn_ptr':    set(),
+        'callback':  set(),
         'mod_fns':   set(),
         'sdcr_fns':  set(),
     }
@@ -217,12 +217,12 @@ if __name__ == '__main__':
         for fn in meta['interface']:
             func_class['interface'].add(tuple(fn))
 
-    # second pass: fix vague filename, calc fn_ptr and edge set
+    # second pass: fix vague filename, calc callback and edge set
     for meta in metas:
-        for fn_ptr in meta['fn_ptr']:
-            fn_ptr = lookup_if_global(fn_ptr)
-            if fn_ptr and fn_ptr[1] in config['mod_files']:
-                func_class['fn_ptr'].add(fn_ptr)
+        for callback in meta['callback']:
+            callback = lookup_if_global(callback)
+            if callback and callback[1] in config['mod_files']:
+                func_class['callback'].add(callback)
 
         for edge in meta['edge']:
             edge['to'] = lookup_if_global(edge['to'])
@@ -231,10 +231,10 @@ if __name__ == '__main__':
 
     func_class['in_vmlinux'] = find_in_vmlinux(vmlinux)
     func_class['export'] = export_func
-    func_class['fn_ptr'] -= func_class['interface']
-    func_class['fn_ptr_optimized'] = func_class['fn_ptr'] - func_class['in_vmlinux']
-    func_class['fn_ptr'] -= func_class['fn_ptr_optimized']
-    func_class['border'] = func_class['interface'] | func_class['fn_ptr']
+    func_class['callback'] -= func_class['interface']
+    func_class['callback_optimized'] = func_class['callback'] - func_class['in_vmlinux']
+    func_class['callback'] -= func_class['callback_optimized']
+    func_class['border'] = func_class['interface'] | func_class['callback']
     # exported function maybe used by kernel modules, it can't be internal function
     func_class['initial_insider'] = func_class['mod_fns'] - func_class['border'] - func_class['export']
 
@@ -245,13 +245,13 @@ if __name__ == '__main__':
 
     # Inflect outsider functions
     func_class['insider'] = inflect(func_class['initial_insider'], edges) - func_class['init']
-    func_class['sched_outsider'] = (func_class['mod_fns'] - func_class['insider'] - func_class['border']) | func_class['fn_ptr_optimized']
+    func_class['sched_outsider'] = (func_class['mod_fns'] - func_class['insider'] - func_class['border']) | func_class['callback_optimized']
     func_class['optimized_out'] = func_class['sched_outsider'] - func_class['in_vmlinux'] - func_class['init']
     func_class['public_user'] = func_class['fn'] - func_class['insider'] - func_class['border']
     func_class['tainted'] = (func_class['border'] | func_class['insider'] | func_class['sidecar']) & func_class['in_vmlinux']
     func_class['undefined'] = func_class['sched_outsider'] | func_class['border'] | func_class['sidecar']
 
-    for output_item in ['sched_outsider', 'fn_ptr', 'interface', 'init', 'insider', 'optimized_out', 'export', 'sdcr_out']:
+    for output_item in ['sched_outsider', 'callback', 'interface', 'init', 'insider', 'optimized_out', 'export', 'sdcr_out']:
         config['function'][output_item] = func_class[output_item]
 
     # Handle Struct public fields. The right hand side gives an example
@@ -293,12 +293,12 @@ if __name__ == '__main__':
         array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) \
                 for fn in func_class['undefined']])
         f.write('{%s}' % array)
-    with open(tmpdir + 'interface_fn_ptrs', 'w') as f:
+    with open(tmpdir + 'interface_callbacks', 'w') as f:
         f.write('\n'.join([fn[0] for fn in func_class['interface'] | func_class['sidecar']]) + '\n')
-        f.write('\n'.join(['__mod_' + fn[0] for fn in config['function']['fn_ptr']]))
+        f.write('\n'.join(['__mod_' + fn[0] for fn in config['function']['callback']]))
     with open(modpath + 'export_jump.h', 'w') as f:
-        fn_ptr_export_fmt = "PLUGSCHED_FN_PTR({fn}, {ret}, {params})"
+        callback_export_fmt = "EXPORT_CALLBACK({fn}, {ret}, {params})"
         export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})"
-        f.write('\n'.join([fn_ptr_export_fmt.format(**decls[fn]) for fn in func_class['fn_ptr']]) + '\n')
+        f.write('\n'.join([callback_export_fmt.format(**decls[fn]) for fn in func_class['callback']]) + '\n')
         f.write('\n'.join([export_fmt.format(**decls[fn]) for fn in func_class['interface']]) + '\n')
         f.write('\n'.join([export_fmt.format(**decls[fn]) for fn in func_class['sidecar']]))

@@ -14,7 +14,7 @@ ifneq ($(CONFIG_SCHED_OMIT_FRAME_POINTER),y)
 CFLAGS_core.o := $(PROFILING) -fno-omit-frame-pointer
 endif
 
-OBJCOPYFLAGS := --globalize-symbols $(plugsched_tmpdir)/interface_fn_ptrs
+OBJCOPYFLAGS := --globalize-symbols $(plugsched_tmpdir)/interface_callbacks
 
 objs-y += core.o
 objs-y += idle.o fair.o rt.o deadline.o
