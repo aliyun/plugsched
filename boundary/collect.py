@@ -98,19 +98,6 @@ class Collection(object):
         self.interface_properties = []
         self.seek_public_field = False
 
-    def process_passes(self, p, _):
-        if p.name != '*free_lang_data':
-            return
-        self.final_work()
-
-    def register_cbs(self):
-        if hasattr(self, 'var_declare'):
-            gcc.register_callback(gcc.PLUGIN_FINISH_DECL, self.var_declare)
-        if hasattr(self, 'final_work'):
-            gcc.register_callback(gcc.PLUGIN_PASS_EXECUTION, self.process_passes)
-        if hasattr(self, 'include_file'):
-            gcc.register_callback(gcc.PLUGIN_INCLUDE_FILE, self.include_file)
-
     def decl_in_section(self, decl, section):
         for name, val in decl.attributes.items():
             # Canonicalized name "section" since gcc-8.1.0, and
@@ -119,10 +106,6 @@ class Collection(object):
                 assert len(val) == 1
                 return val[0].constant == section
         return False
-
-    def include_file(self, header, _):
-        if header in self.mod_hdrs:
-            self.seek_public_field = True
 
     def collect_fn(self):
         src_f = gcc.get_main_input_filename()
@@ -171,7 +154,7 @@ class Collection(object):
                     os.path.relpath(decl.location.file),
                 ])
 
-    def var_declare(self, decl, _):
+    def collect_var(self):
         def var_decl_start_loc(decl):
             base_type = decl.type
             while isinstance(base_type, (gcc.PointerType, gcc.ArrayType)):
@@ -183,32 +166,29 @@ class Collection(object):
                 return base_type.stub.location
             return decl.location
 
-        if not isinstance(decl, gcc.VarDecl):
-            return
-        if isinstance(decl.context, gcc.FunctionDecl):
-            return
-        loc = gcc.get_location()
-        if loc.file != gcc.get_main_input_filename():
-            return
-        properties = {
-            "name": decl.name,
-            "file": os.path.relpath(decl.location.file),
-            "name_loc": (decl.location.line - 1, decl.location.column - 1),
-            "decl_start_line": var_decl_start_loc(decl).line - 1,
-            "decl_end_line": loc.line - 1,
-            "external": decl.external,
-            "public": decl.public,
-            "static": decl.static,
-            "decl_str": None,
-        }
+        for var in gcc.get_variables():
+            decl = var.decl
+            if not decl.location:
+                continue
 
-        # tricky skill to get right str_decl
-        if loc.file in self.mod_srcs + self.sdcr_srcs:
-           decl_str = decl.str_decl.split('=')[0].strip(' ;') + ';'
-           decl_str = decl_str.replace('static ', 'extern ')
-           properties['decl_str'] = GccBugs.fix(decl, decl_str)
+            properties = {
+                "name": decl.name,
+                "file": os.path.relpath(decl.location.file),
+                "name_loc": (decl.location.line - 1, decl.location.column - 1),
+                "decl_start_line": var_decl_start_loc(decl).line - 1,
+                "external": decl.external,
+                "public": decl.public,
+                "static": decl.static,
+                "decl_str": None,
+            }
 
-        self.var_properties.append(properties)
+            # tricky skill to get right str_decl
+            if decl.location.file in self.mod_srcs + self.sdcr_srcs:
+                decl_str = decl.str_decl.split('=')[0].strip(' ;') + ';'
+                decl_str = decl_str.replace('static ', 'extern ')
+                properties['decl_str'] = GccBugs.fix(decl, decl_str)
+
+            self.var_properties.append(properties)
 
     def collect_callbacks(self):
         # return True means we stop walk subtree
@@ -315,11 +295,15 @@ class Collection(object):
                 if isinstance(stmt, gcc.GimpleCall):
                     yield stmt
 
-    def final_work(self):
+    def process_passes(self, p, _):
+        if p.name != '*free_lang_data':
+            return
+
         self.collect_edges()
         self.collect_fn()
         self.collect_callbacks()
         self.collect_struct()
+        self.collect_var()
 
         collect = {
             "fn": self.fn_properties,
@@ -331,6 +315,9 @@ class Collection(object):
         }
         with open(gcc.get_main_input_filename() + '.boundary', 'w') as f:
             json.dump(collect, f, indent=4)
+
+    def register_cbs(self):
+        gcc.register_callback(gcc.PLUGIN_PASS_EXECUTION, self.process_passes)
 
 
 if __name__ == '__main__':
