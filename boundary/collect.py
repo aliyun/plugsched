@@ -224,18 +224,27 @@ class Collection(object):
     def collect_struct(self):
         public_fields = defaultdict(set)
 
-        def mark_public_field(op, node):
+        def mark_public_field(op, node, parent_component_ref):
             if isinstance(op, gcc.ComponentRef):
-                loc_file = os.path.relpath(op.field.context.stub.location.file)
-                if loc_file in self.mod_hdrs and op.field.context.name is not None:
-                    public_fields[op.field.context].add((node.decl, op.field))
+                if isinstance(op.target, gcc.ComponentRef):
+                    parent_component_ref[op.target] = op
+
+                context = op.field.context
+                while isinstance(op.field.type, gcc.UnionType) and op.field.name is None \
+                        and op in parent_component_ref:
+                    op = parent_component_ref[op]
+                field = op.field
+
+                loc_file = os.path.relpath(context.stub.location.file)
+                if loc_file in self.mod_hdrs and context.name is not None:
+                    public_fields[context].add((node.decl, field))
 
         for node in gcc.get_callgraph_nodes():
             # Ignore alias, it's insignificant at all
             if node.decl.function is None:
                 continue
             for stmt in self.each_stmt(node):
-                stmt.walk_tree(mark_public_field, node)
+                stmt.walk_tree(mark_public_field, node, {})
 
         def groupby(it, grouper, selector):
             sorted_list = sorted(it, key=grouper)
