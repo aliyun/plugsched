@@ -73,7 +73,7 @@ class Extraction(object):
             return
 
         for var in self.meta_var:
-            if var['file'] != self.src_file:
+            if var['file'] != self.src_file or var['external']:
                 continue
             if var['name'] in self.config['global_var']['force_private']:
                 continue
@@ -135,36 +135,33 @@ class Extraction(object):
                 "/* DON'T MODIFY SIGNATURE OF FUNCTION {}, IT'S INTERFACE FUNCTION */\n".format(name)
 
     def merge_down_lines(self, lines, curr):
-            next = curr
-            merged = lines[curr].strip()
-            l_paren = merged.count('(')
-            r_paren = merged.count(')')
+            merged = ''
+            start = curr
 
-            while l_paren > r_paren:
-                next += 1
-                line = lines[next]
-                merged  += line.strip()
-                r_paren += line.count(')')
-                lines[next] = ''
+            while curr < len(lines) and ';' not in lines[curr]:
+                merged += lines[curr].strip() + ' '
+                lines[curr] = ''
+                curr += 1
 
-            lines[curr] = merged + '\n'
+            merged += lines[curr]
+            lines[curr] = ''
+            lines[start] = merged
             return curr
 
     def var_extract(self, lines):
         # General handling all shared variables
-        orig_lines = list(lines)
         for var in list(self.var_list):
-            name, row_start, row_end = var['name'], var['decl_start_line'], var['decl_end_line']
+            name, row_start, (row_name,_) = var['name'], var['decl_start_line'], var['name_loc']
 
-            # merge multi-var-definition lines into one
-            self.merge_down_lines(lines, row_start)
-
-            # delete data initialization code
-            for i in range(row_start+1, row_end+1):
+            # Fixed variable name not on first line, e.g. nohz
+            for i in range(row_start+1, row_name):
                 lines[i] = ''
 
+            # merge multi-lines-var-definition into one line
+            self.merge_down_lines(lines, row_start)
+
             # Specially handling shared per_cpu and static_key variables to improve readability
-            line = orig_lines[row_start]
+            line = lines[row_start]
             if 'DEFINE_PER_CPU(' in line:
                 line = line.replace('DEFINE_PER_CPU(', 'DECLARE_PER_CPU(').replace('static ', '')
             elif 'DEFINE_PER_CPU_SHARED_ALIGNED(' in line:
@@ -173,15 +170,16 @@ class Extraction(object):
                 line = line.replace('DEFINE_STATIC_KEY_FALSE(', 'DECLARE_STATIC_KEY_FALSE(').replace('static ', '')
             elif 'DEFINE_STATIC_KEY_TRUE(' in line:
                 line = line.replace('DEFINE_STATIC_KEY_TRUE(', 'DECLARE_STATIC_KEY_TRUE(').replace('static ', '')
-            elif 'EXPORT_' in line and '_SYMBOL' in line:
-                line = ''
             else:
-                # delete data definition
-                lines[row_start] = ''
                 continue
 
             lines[row_start] = line
             self.var_list.remove(var)
+
+        # delete data definition
+        for var in self.var_list:
+            row_start = var['decl_start_line']
+            lines[row_start] = ''
 
         # convert data definition to declarition
         for var in self.var_list:
@@ -190,7 +188,7 @@ class Extraction(object):
 
     # fix trival code adaption
     def fix_up(self, lines):
-        delete_patt = re.compile('EXPORT_.*SYMBOL|initcall|early_param|__init |__initdata |__setup')
+        delete_patt = re.compile('initcall|early_param|__init |__initdata |__setup')
         replace_list = [('struct atomic_t', 'atomic_t')]
 
         for (i, line) in enumerate(lines):
@@ -206,13 +204,6 @@ class Extraction(object):
                 continue
 
             if delete_patt.search(line):
-                # handle backslash(\) corner case, for e.g:
-                # #define BPF_TRACE_DEFN_x(x)                \
-                #        void bpf_trace_run##x();            \
-                #        EXPORT_SYMBOL_GPL(bpf_trace_run##x)
-                prev = lines[i-1] if i > 0 else ''
-                if prev.endswith('\\\n') and not line.endswith('\\\n'):
-                    lines[i-1] = prev[:-2].rstrip() + '\n'
                 lines[i] = ''
                 continue
 
