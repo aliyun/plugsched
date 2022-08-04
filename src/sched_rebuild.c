@@ -16,7 +16,7 @@ extern const struct sched_class __orig_rt_sched_class;
 extern const struct sched_class __orig_fair_sched_class;
 extern const struct sched_class __orig_idle_sched_class;
 
-static struct sched_class* class[][7] = {
+static const struct sched_class* class[][8] = {
 	{
 		&fair_sched_class,
 		&rt_sched_class,
