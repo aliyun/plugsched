@@ -60,6 +60,7 @@ ktime_t main_start, main_end, init_start, init_end;
 
 extern void clear_sched_state(bool mod);
 extern void rebuild_sched_state(bool mod);
+extern void switch_sched_class(bool mod);
 
 static int scheduler_enable = 0;
 struct kobject *plugsched_dir, *plugsched_subdir, *vmlinux_moddir;
@@ -173,6 +174,7 @@ static int __sync_sched_install(void *arg)
 		stop_time_p1 = ktime_get();
 
 	clear_sched_state(false);
+	switch_sched_class(true);
 
 	if (is_first_process()) {
 		JUMP_OPERATION(install);
@@ -215,6 +217,7 @@ static int __sync_sched_restore(void *arg)
 		stop_time_p1 = ktime_get();
 
 	clear_sched_state(true);
+	switch_sched_class(false);
 
 	if (is_first_process()) {
 		JUMP_OPERATION(remove);
