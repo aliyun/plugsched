@@ -136,7 +136,7 @@ class Plugsched(object):
     def apply_patch(self, f, **kwargs):
         path = os.path.join(self.tmp_dir, f)
         if os.path.exists(path):
-            self.mod_sh.patch(input=path, strip=1, **kwargs)
+            self.mod_sh.patch(input=path, strip=1, _out=sys.stdout, _err=sys.stderr, **kwargs)
 
     def make(self, stage, objs=[], **kwargs):
         self.mod_sh.make(stage,
@@ -246,7 +246,9 @@ class Plugsched(object):
                             '--define', '%%KVER %s' % self.KVER,
                             '--define', '%%KREL %s' % self.KREL,
                             '--define', '%%threads %d' % self.threads,
-                            '-bb', 'SPECS/scheduler.spec')
+                            '-bb', 'SPECS/scheduler.spec',
+                            _out=sys.stdout,
+                            _err=sys.stderr)
         logging.info("Succeed!")
 
 if __name__ == '__main__':
