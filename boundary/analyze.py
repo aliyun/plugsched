@@ -13,6 +13,11 @@ import sys
 chain = _chain.from_iterable
 
 config = None
+# store sympos for local functions in module files
+local_sympos = {}
+
+# store exported function symbol (EXPORT_SYMBOL, EXPORT_SYMBOL_GPL)
+export_func = set()
 
 # tmp directory to store middle files
 tmpdir = None
@@ -61,11 +66,6 @@ def get_in_any(fn, files):
     return None
 
 def find_in_vmlinux(vmlinux_elf):
-    # store sympos for local functions in module files
-    local_sympos = {}
-    # store exported function symbol (EXPORT_SYMBOL, EXPORT_SYMBOL_GPL)
-    export_func = set()
-    mangled = set()
     in_vmlinux = set()
     fn_pos = {}
     for line in skipline(readelf(vmlinux_elf, syms=True, wide=True, _iter=True), 3, None):
@@ -91,13 +91,7 @@ def find_in_vmlinux(vmlinux_elf):
 
         file = filename
         # Disagreement 4
-        if '.' in key:
-            # If function A has at least one mangled version, eg. A.isra, then function A
-            # may be called through the mangled one. But A.cold doesn't lead to this problem
-            # because A.cold is only called by A.
-            if '.cold' not in key:
-                mangled.add((key[:key.index('.')], file))
-            continue
+        if '.' in key: continue
 
         if scope == 'LOCAL':
             fn_pos[key] = fn_pos.get(key, 0) + 1
@@ -119,12 +113,7 @@ def find_in_vmlinux(vmlinux_elf):
 
         in_vmlinux.add((key, file))
 
-    return {
-        'in_vmlinux': in_vmlinux,
-        'mangled': mangled,
-        'local_sympos': local_sympos,
-        'export': export_func
-    }
+    return in_vmlinux
 
 # __insiders is a global variable only used by these two functions
 __insiders = None
@@ -240,11 +229,8 @@ if __name__ == '__main__':
             if edge['to']:
                 edges.append(edge)
 
-    vmlinux_info = find_in_vmlinux(vmlinux)
-    local_sympos = vmlinux_info['local_sympos']
-    func_class['in_vmlinux'] = vmlinux_info['in_vmlinux']
-    func_class['mangled'] = vmlinux_info['mangled']
-    func_class['export'] = vmlinux_info['export']
+    func_class['in_vmlinux'] = find_in_vmlinux(vmlinux)
+    func_class['export'] = export_func
     func_class['callback'] -= func_class['interface']
     func_class['callback_optimized'] = func_class['callback'] - func_class['in_vmlinux']
     func_class['callback'] -= func_class['callback_optimized']
@@ -290,9 +276,6 @@ if __name__ == '__main__':
         struct_properties[struct]['public_fields'] = field_set
         struct_properties[struct]['public_users'] = user_set
 
-    # Sanity checks
-    assert (func_class['sidecar'] | func_class['border']) & func_class['mangled'], \
-            'trying to redirect mangled functions'
     assert not struct_properties['sched_class']['public_users'], \
             'struct sched_class should be purely private'
 
