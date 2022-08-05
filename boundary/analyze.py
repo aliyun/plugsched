@@ -291,7 +291,7 @@ if __name__ == '__main__':
         struct_properties[struct]['public_users'] = user_set
 
     # Sanity checks
-    assert not (func_class['sidecar'] | func_class['border']) & func_class['mangled'], \
+    assert (func_class['sidecar'] | func_class['border']) & func_class['mangled'], \
             'trying to redirect mangled functions'
     assert not struct_properties['sched_class']['public_users'], \
             'struct sched_class should be purely private'
