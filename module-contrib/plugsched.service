@@ -7,7 +7,14 @@ ConditionKernelCommandLine=!plugsched.enable=0
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/bash -c "/var/plugsched/$(uname -r)/scheduler-installer install"
+RemainAfterExit=yes
+ExecStart=/usr/bin/bash -c "\
+	if [ -d /var/plugsched/$(uname -r) ]; then \
+		/var/plugsched/$(uname -r)/scheduler-installer install; \
+	else \
+		echo \"Scheduler for the current kernel version is not installed. Start service failed!\"; \
+		exit 1; \
+	fi"
 
 [Install]
 WantedBy=multi-user.target
