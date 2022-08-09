@@ -87,6 +87,7 @@ function get_stack_check_off_AArch64()
 		start == 1 && $3 == "ldp" {print "ldp"; next}
 		start == 1 && $3 == "ret" {print "ret"; next}
 		start == 1 && $5 == "<__schedule+'$stack_chk_fail_off'>" {print "chk"; next}
+		start == 1 && $6 == "<__schedule+'$stack_chk_fail_off'>" {print "chk"; next}
 		start == 1 {print "any"}' <<< "$schedule_asm")
 
 
