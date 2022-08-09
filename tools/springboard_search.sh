@@ -117,7 +117,7 @@ function output()
 
 function read_config()
 {
-	if grep -q CONFIG_STACKPROTECTOR_PER_TASK=y $config; then
+	if grep -q CONFIG_STACKPROTECTOR=y $config; then
 		flag_stack_protector=Y
 	else
 		flag_stack_protector=N
