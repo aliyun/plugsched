@@ -35,7 +35,9 @@ def all_meta_files():
     for r, dirs, files in os.walk('.'):
         for file in files:
             if file.endswith('.boundary'):
-                yield os.path.join(r, file)
+                path = os.path.join(r, file)
+                assert path.startswith('./')
+                yield path[2:]
 
 def read_meta(filename):
     with open(filename) as f:
@@ -161,7 +163,7 @@ def sidecar_inflect(sidecar, in_vmlinux):
 
     leftover = set()
     for sym in sidecar:
-        meta = read_meta(sym[1] + '.boundary')
+        meta = metas_by_name[sym[1] + '.boundary']
         sidecar_dfs(meta, sym, in_vmlinux, leftover)
 
     return leftover
@@ -210,7 +212,13 @@ if __name__ == '__main__':
     config['sdcr_srcs'] = [f[1] for f in config['sidecar']]
     config['all_files'] = config['mod_hdrs'] + config['mod_srcs'] + config['sdcr_srcs']
     config['fullname']  = {os.path.basename(f):f for f in config['all_files']}
-    metas = list(map(read_meta, all_meta_files()))
+
+    metas = []
+    metas_by_name = {}
+    for file in all_meta_files():
+        meta = read_meta(file)
+        metas.append(meta)
+        metas_by_name[file] = meta
 
     func_class = {
         'fn':        set(),
@@ -309,7 +317,7 @@ if __name__ == '__main__':
 
     # Sanity checks
     for sym in (func_class['sidecar'] | func_class['border']) & func_class['mangled']:
-        meta = read_meta(sym[1] + '.boundary')
+        meta = metas_by_name[sym[1] + '.boundary']
         assert not check_redirect_mangled(sym, meta), \
                 "trying to redirect the mangled function %s (%s)" % sym
     assert not struct_properties['sched_class']['public_users'], \
