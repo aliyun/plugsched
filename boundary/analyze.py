@@ -103,8 +103,6 @@ def find_in_vmlinux(vmlinux_elf):
                 file = get_in_any(key, config['mod_hdrs'])
                 if file is None: continue
 
-            # Avoid potential bugs that sympos gets overwritten in the future.
-            assert (key, file) not in local_sympos
             local_sympos[(key, file)] = fn_pos[key]
         else:
             # Disagreement 3
