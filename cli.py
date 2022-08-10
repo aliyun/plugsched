@@ -164,7 +164,7 @@ class Plugsched(object):
 
     def delete_export_symbol(self):
         delete_patt = re.compile('EXPORT_.*SYMBOL')
-        for src_f in self.mod_srcs:
+        for src_f in self.mod_files + self.sdcr_srcs:
             with open(os.path.join(self.work_dir, src_f), 'r+') as f:
                 lines = f.readlines()
                 for (i, line) in enumerate(lines):
