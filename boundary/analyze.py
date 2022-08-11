@@ -343,17 +343,24 @@ if __name__ == '__main__':
         dump(struct_properties, f, Dumper)
     with open(tmpdir + 'boundary_extract.yaml', 'w') as f:
         dump(dict(config), f, Dumper)
+
+    tnt_fmt = 'TAINTED_FUNCTION({},{})'
+    und_fmt = '"{}", {}'
+    cb_fmt = "EXPORT_CALLBACK({fn}, {ret}, {params})"
+    export = "EXPORT_PLUGSCHED({fn}, {ret}, {params})"
+    mod_fmt = '__mod_{}'
+    unds, taints = [], []
+    for fn in func_class.undefined:
+        unds.append(und_fmt.format(fn[0], local_sympos.get(fn, 0)))
+    # Consistent with kpatch and livepatch: set global symbol's sympos to 1 in sysfs
+    for fn in func_class.tainted:
+        taints.append(tnt_fmt.format(fn[0], local_sympos.get(fn, 0) or 1))
+
     with open(modpath + 'tainted_functions.h', 'w') as f:
-        # Consistent with kpatch and livepatch: set global symbol's sympos to 1 in sysfs
-        f.write('\n'.join(["TAINTED_FUNCTION({fn},{val})".format(fn=fn[0], val=local_sympos.get(fn, 0) \
-                if local_sympos.get(fn, 0) else 1) for fn in func_class.tainted]))
+        f.write('\n'.join(taints))
     with open(tmpdir + 'symbol_resolve/undefined_functions.h', 'w') as f:
-        array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) \
-                for fn in func_class.undefined])
-        f.write('{%s}' % array)
+        f.write('{%s}' % '},\n{'.join(unds))
     with open(modpath + 'export_jump.h', 'w') as f:
-        callback_export_fmt = "EXPORT_CALLBACK({fn}, {ret}, {params})"
-        export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})"
-        f.write('\n'.join([callback_export_fmt.format(**decls[fn]) for fn in func_class.callback]) + '\n')
-        f.write('\n'.join([export_fmt.format(**decls[fn]) for fn in func_class.interface]) + '\n')
-        f.write('\n'.join([export_fmt.format(**decls[fn]) for fn in func_class.sidecar]))
+        f.write('\n'.join([cb_fmt.format(**decls[fn]) for fn in func_class.callback]) + '\n')
+        f.write('\n'.join([export.format(**decls[fn]) for fn in func_class.interface]) + '\n')
+        f.write('\n'.join([export.format(**decls[fn]) for fn in func_class.sidecar]))
