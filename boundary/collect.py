@@ -230,8 +230,7 @@ class Collection(object):
                     parent_component_ref[op.target] = op
 
                 context = op.field.context
-                while isinstance(op.field.type, gcc.UnionType) and op.field.name is None \
-                        and op in parent_component_ref:
+                while op.field.name is None and op in parent_component_ref:
                     op = parent_component_ref[op]
                 field = op.field
 
