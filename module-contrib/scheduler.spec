@@ -1,7 +1,6 @@
 # Copyright 2019-2022 Alibaba Group Holding Limited.
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
-%define _prefix /usr/local
 %define minor_name xxx
 %define release yyy
 
@@ -46,12 +45,12 @@ chmod 0444 %{_sourcedir}/tainted_functions
 
 %install
 #install tool, module and systemd service
-mkdir -p %{buildroot}%{_prefix}/lib/systemd/system
+mkdir -p %{buildroot}/usr/lib/systemd/system
 mkdir -p %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
 
 install -m 755 %{_tmpdir}/symbol_resolve/symbol_resolve %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/symbol_resolve
 install -m 755 %{_modpath}/scheduler.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
-install -m 644 %{_sourcedir}/plugsched.service %{buildroot}%{_prefix}/lib/systemd/system
+install -m 644 %{_sourcedir}/plugsched.service %{buildroot}/usr/lib/systemd/system
 
 cp %{_sourcedir}/* %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
 rm -f %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/plugsched.service
@@ -61,30 +60,30 @@ rm -f %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/plugsched
 sync
 
 if [ "$(uname -r)" != "%{KVER}-%{KREL}.%{_arch}" ]; then
-	echo "INFO: scheduler dose not match kernel, skip load module..."
+	echo "INFO: scheduler does not match current kernel version, skip starting service ..."
 	exit 0
 fi
 
 echo "Start plugsched.service"
-systemctl daemon-reload
 systemctl enable plugsched
 systemctl start plugsched
 
 #uninstall kernel module before remove this rpm-package
 %preun
 if [ "$(uname -r)" != "%{KVER}-%{KREL}.%{_arch}" ]; then
-	echo "INFO: scheduler dose not match kernel, skip unload module..."
+	echo "INFO: scheduler does not match current kernel version, skip unloading module..."
 	exit 0
 fi
 
 echo "Stop plugsched.service"
 /var/plugsched/$(uname -r)/scheduler-installer uninstall || exit 1
+systemctl stop plugsched
 
 %postun
-systemctl daemon-reload
+systemctl reset-failed plugsched
 
 %files
-%{_prefix}/lib/systemd/system/plugsched.service
+/usr/lib/systemd/system/plugsched.service
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/*
 
 %dir

@@ -37,30 +37,30 @@ install_module() {
 
 uninstall_module() {
 	local i=0
-	if [ -f "$enablefile" ]; then
-		while true; do
-			out="$(export LC_ALL=C; sh -c "echo 0 > $enablefile" 2>&1)"
-			[[ -z "$out" ]] && break
-			echo "$out" 1>&2
+	while true; do
+		out="$(export LC_ALL=C; sh -c "echo 0 > $enablefile" 2>&1)"
+		[[ -z "$out" ]] && break
+		echo "$out" 1>&2
 
-			# Safety check failed! Retry in a few seconds.
-			i=$((i+1))
-			if [[ $i -eq $MAX_LOAD_ATTEMPTS ]]; then
-				warn "disable module failed!"
-				exit 1
-			else
-				warn "retrying..."
-				sleep $RETRY_INTERVAL
-			fi
-		done
-		rmmod scheduler
-	else
-		echo "scheduler: scheduler module has been removed! Skip ..."
-		exit
-	fi
+		# Safety check failed! Retry in a few seconds.
+		i=$((i+1))
+		if [[ $i -eq $MAX_LOAD_ATTEMPTS ]]; then
+			warn "disable module failed!"
+			exit 1
+		else
+			warn "retrying..."
+			sleep $RETRY_INTERVAL
+		fi
+	done
+	rmmod scheduler
 }
 
 if [ "$1" == "install" ]; then
+	if [ -f "$enablefile" ]; then
+		echo "scheduler: scheduler module has been installed! Skip..."
+		exit
+	fi
+
 	if [ "$cursys" == "$mod" ]; then
 		$hotfix_conflict_check $tainted_functions || exit 1
 		/usr/bin/mkdir -p /run/plugsched
@@ -72,7 +72,12 @@ if [ "$1" == "install" ]; then
 		exit 1
 	fi
 elif [ "$1" == "uninstall" ]; then
-	uninstall_module
+	if [ -f "$enablefile" ]; then
+		uninstall_module
+	else
+		echo "scheduler: scheduler module has been removed! Skip ..."
+	fi
+
 	/usr/bin/rm -rf /run/plugsched
 else
 	warn "Error: Unknown operation"
