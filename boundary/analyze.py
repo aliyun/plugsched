@@ -344,23 +344,22 @@ if __name__ == '__main__':
     with open(tmpdir + 'boundary_extract.yaml', 'w') as f:
         dump(dict(config), f, Dumper)
 
-    tnt_fmt = 'TAINTED_FUNCTION({},{})'
+    tnt_fmt = 'TAINTED_FUNCTION({},{})\n'
     und_fmt = '"{}", {}'
-    cb_fmt = "EXPORT_CALLBACK({fn}, {ret}, {params})"
-    export = "EXPORT_PLUGSCHED({fn}, {ret}, {params})"
-    mod_fmt = '__mod_{}'
+    cb_fmt = "EXPORT_CALLBACK({fn}, {ret}, {params})\n"
+    export = "EXPORT_PLUGSCHED({fn}, {ret}, {params})\n"
+    mod_fmt = '__mod_{}\n'
     unds, taints = [], []
     for fn in func_class.undefined:
         unds.append(und_fmt.format(fn[0], local_sympos.get(fn, 0)))
     # Consistent with kpatch and livepatch: set global symbol's sympos to 1 in sysfs
     for fn in func_class.tainted:
         taints.append(tnt_fmt.format(fn[0], local_sympos.get(fn, 0) or 1))
-
     with open(modpath + 'tainted_functions.h', 'w') as f:
-        f.write('\n'.join(taints))
+        f.writelines(taints)
     with open(tmpdir + 'symbol_resolve/undefined_functions.h', 'w') as f:
         f.write('{%s}' % '},\n{'.join(unds))
     with open(modpath + 'export_jump.h', 'w') as f:
-        f.write('\n'.join([cb_fmt.format(**decls[fn]) for fn in func_class.callback]) + '\n')
-        f.write('\n'.join([export.format(**decls[fn]) for fn in func_class.interface]) + '\n')
-        f.write('\n'.join([export.format(**decls[fn]) for fn in func_class.sidecar]))
+        f.writelines(cb_fmt.format(**decls[fn]) for fn in func_class.callback)
+        f.writelines(export.format(**decls[fn]) for fn in func_class.interface)
+        f.writelines(export.format(**decls[fn]) for fn in func_class.sidecar)
