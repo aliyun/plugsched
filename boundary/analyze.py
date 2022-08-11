@@ -27,10 +27,12 @@ Dumper.add_representer(str,
                        lambda dumper, data: dumper.represent_scalar(u'tag:yaml.org,2002:str', data))
 
 def read_config():
+    """Read the main input config file"""
     with open(tmpdir + 'boundary.yaml') as f:
         return load(f, Loader)
 
 def all_meta_files():
+    """Enumerate metadata files provided by collect.py"""
     for r, dirs, files in os.walk('.'):
         for file in files:
             if file.endswith('.boundary'):
@@ -39,29 +41,39 @@ def all_meta_files():
                 yield path[2:]
 
 def read_meta(filename):
+    """Read metadata files provided by collect.py"""
     with open(filename) as f:
         return json.load(f)
 
-# This method connects gcc-plugin with vmlinux (or the ld linker)
-# It serves two purposes right now:
-#   1. find functions in vmlinux, to calc optimized_out later
-#   2. find sympos from vmlinux, which will be used to check confliction with kpatch
-# This must be called after we have read all files, and all vagueness has been solved.
-#
-# Four pitfalls because of disagreement between vmlinux and gcc-plugin, illustrated with examples
-#
-# Disagreement 1: vmlinux thinks XXX is in core.c, plugsched thinks it's in kernel/sched/core.c
-# Disagreement 2: vmlinux thinks XXX is in core.c, plugsched thinks it's in sched.h
-# Disagreement 3: vmlinux thinks XXX is in usercopy_64.c, plugsched thinks it's in core.c
-# Disagrement: 4: vmlinux optimizes XXX to XXX.isra.1, XXX.constprop.1, etc. plugsched remains XXX.
-
-def get_in_any(fn, files):
-    for file in files:
-        if (fn, file) in func_class.fn:
-            return file
-    return None
-
 def find_in_vmlinux(vmlinux_elf):
+    """This method connects gcc-plugin with vmlinux (or the ld linker).
+    Call this after reading all files and all vagueness has been solved.
+    It serves 4 purposes right now:
+      - find non-optimized functions.
+      - calc sympos, to check confliction with kpatch.
+      - find EXPORT_SYMBOL functions, to avoid violating rules that
+        outsiders in kernel modules call insiders directly.
+      - find mangled functions, to avoid violating rules that outsiders
+        in mod_files call insiders directly because of GCC optimization.
+
+    There are four pitfalls because of disagreement between vmlinux and
+    gcc-plugin, illustrated with examples below,
+
+      - Disagreement 1: vmlinux thinks XXX is in core.c
+                        plugsched thinks it's in kernel/sched/core.c
+      - Disagreement 2: vmlinux thinks XXX is in core.c
+                        plugsched thinks it's in sched.h
+      - Disagreement 3: vmlinux thinks XXX is in usercopy_64.c,
+                        plugsched thinks it's in core.c
+      - Disagreement 4: vmlinux optimizes XXX->XXX.isra(or .constprop).1
+                        plugsched thinks it's XXX.
+    """
+    def get_in_any(fn, files):
+        for file in files:
+            if (fn, file) in func_class.fn:
+                return file
+        return None
+
     # store sympos for local functions in module files
     local_sympos = {}
     # store exported function symbol (EXPORT_SYMBOL, EXPORT_SYMBOL_GPL)
@@ -93,9 +105,11 @@ def find_in_vmlinux(vmlinux_elf):
         file = filename
         # Disagreement 4
         if '.' in key:
-            # If function A has at least one mangled version, eg. A.isra, then function A
-            # may be called through the mangled one. But A.cold doesn't lead to this problem
-            # because A.cold is only called by A.
+            """If function A has one or more mangled version, eg. A.isra
+            Then function A may be called by the mangled one.
+            But A.cold doesn't lead to this problem,
+            because A.cold is only called by A.
+            """
             if '.cold' not in key:
                 mangled.add((key[:key.index('.')], file))
             continue
@@ -125,49 +139,60 @@ def find_in_vmlinux(vmlinux_elf):
         'export': export_func
     }
 
-# __insiders is a global variable only used by these two functions
-__insiders = None
-
-def inflect_one(edge):
-    to_sym = tuple(edge['to'])
-    if to_sym in __insiders:
-        from_sym = tuple(edge['from'])
-        if from_sym not in __insiders and \
-           from_sym not in func_class.border and \
-           from_sym not in func_class.init and \
-           from_sym not in func_class.sidecar:
-            return to_sym
-    return None
-
 def inflect(initial_insiders, edges):
-    global __insiders
-    __insiders = copy.deepcopy(initial_insiders)
+    """Mark functions called by outsiders as outsiders too, unless
+    they're interface or sidecar or callback functions.
+    """
+    def inflect_one(edge):
+        to_sym = tuple(edge['to'])
+        if to_sym in insiders:
+            from_sym = tuple(edge['from'])
+            if from_sym not in insiders and \
+            from_sym not in func_class.border and \
+            from_sym not in func_class.init and \
+            from_sym not in func_class.sidecar:
+                return to_sym
+        return None
+
+    insiders = copy.deepcopy(initial_insiders)
     while True:
         delete_insider = list(filter(None, list(map(inflect_one, edges))))
         if not delete_insider:
             break
-        __insiders -= set(delete_insider)
-    return __insiders
+        insiders -= set(delete_insider)
+    return insiders
 
 global_fn_dict = {}
-def lookup_if_global(name_and_file):
-    # Returns None if function is a gcc built-in or assembly function
-    name, file = name_and_file
+def lookup_if_global(signature):
+    """Lookup symbols according to explicit/implicit signatures.
+    There are 3 cases for the parameter and corresponding return value,
+    - It's a public symbol (non-static), return the only symbol with the
+      name. There won't others with the same name in vmlinux. The
+      parameter is allowed to be implicit (whose file==?)
+    - It's a static symbol, do nothing but return the parameter. And the
+      parameter is supposed to be explicit (whose file!=?)
+    - It's a GCC built-in or assembly function, return None.
+    """
+    name, file = signature
     file = global_fn_dict.get(name, None) if file == '?' else file
     return (name, file) if file else None
 
 def sidecar_inflect(sidecar, in_vmlinux):
+    """Find functions to keep in the code so sidecars can be compiled.
+    This works by finding descendants of sidecar functions, stop
+    recursion when the current function isn't optimized.
+    """
     assert not (sidecar - in_vmlinux), \
             'sidecar functions should not be optimzied by GCC'
 
     leftover = set()
     for sym in sidecar:
         meta = metas_by_name[sym[1] + '.boundary']
-        sidecar_dfs(meta, sym, in_vmlinux, leftover)
+        __sidecar_dfs(meta, sym, in_vmlinux, leftover)
 
     return leftover
 
-def sidecar_dfs(meta, start_sym, in_vmlinux, leftover):
+def __sidecar_dfs(meta, start_sym, in_vmlinux, leftover):
     if start_sym in leftover: return
 
     leftover.add(start_sym)
@@ -180,9 +205,12 @@ def sidecar_dfs(meta, start_sym, in_vmlinux, leftover):
         if from_sym == start_sym and \
                 to_sym[1] == start_sym[1] and \
                 to_sym not in in_vmlinux:
-            sidecar_dfs(meta, to_sym, in_vmlinux, leftover)
+            __sidecar_dfs(meta, to_sym, in_vmlinux, leftover)
 
 def check_redirect_mangled(f, meta):
+    """Check if it tries to redirect mangled interface/sidecar/callback
+    functions. If it does, halt the algorithm, because it's unsafe.
+    """
     for edge in meta['edge']:
         if edge['to'] is None:
             continue
@@ -195,18 +223,20 @@ def check_redirect_mangled(f, meta):
         # Unsafe if the caller is a sched_outsider
         if from_sym in func_class.sched_outsider:
             return True
-        # If the caller is optimized too, check if it's unsafe recursively
+        # When caller is optimized too, check if it's unsafe recursively
         if from_sym in func_class.mangled or from_sym not in func_class.in_vmlinux:
             if check_redirect_mangled(from_sym, meta):
                 return True
     return False
 
 def func_class_arithmetics(fns):
+    """Core algorithm of plugsched. Set operations and graph theory."""
     fns.callback -= fns.interface
     fns.callback_optimized = fns.callback - fns.in_vmlinux
     fns.callback -= fns.callback_optimized
     fns.border = fns.interface | fns.callback
-    # exported function maybe used by kernel modules, it can't be internal function
+    # exported function maybe used by kernel modules
+    # it can't be internal function
     fns.initial_insider = fns.mod_fns - fns.border - fns.export
 
     # calc sidecar extraction functions
@@ -352,7 +382,8 @@ if __name__ == '__main__':
     unds, taints = [], []
     for fn in func_class.undefined:
         unds.append(und_fmt.format(fn[0], local_sympos.get(fn, 0)))
-    # Consistent with kpatch and livepatch: set global symbol's sympos to 1 in sysfs
+    # Consistent with kpatch and livepatch:
+    # set global symbol's sympos to 1 in sysfs
     for fn in func_class.tainted:
         taints.append(tnt_fmt.format(fn[0], local_sympos.get(fn, 0) or 1))
     with open(modpath + 'tainted_functions.h', 'w') as f:
