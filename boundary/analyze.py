@@ -5,7 +5,6 @@ from yaml import load, dump, resolver, CLoader as Loader, CDumper as Dumper
 from itertools import islice as skipline
 from itertools import chain as _chain
 from sh import readelf
-import logging
 import json
 import os
 import copy
@@ -58,7 +57,7 @@ def read_meta(filename):
 
 def get_in_any(fn, files):
     for file in files:
-        if (fn, file) in func_class['fn']:
+        if (fn, file) in func_class.fn:
             return file
     return None
 
@@ -78,14 +77,14 @@ def find_in_vmlinux(vmlinux_elf):
         if symtype == 'FILE':
             filename = key
             # Disagreement 1:
-            if filename in config['fullname']:
-                filename = config['fullname'][filename]
+            if filename in config.fullname:
+                filename = config.fullname[filename]
             continue
         elif symtype == 'NOTYPE':
             # find exported function symbol (EXPORT_SYMBOL)
-            if key.startswith('__ksymtab_') and filename in config['mod_files']:
+            if key.startswith('__ksymtab_') and filename in config.mod_files:
                 key = key[len('__ksymtab_'):]
-                file = get_in_any(key, config['mod_files'])
+                file = get_in_any(key, config.mod_files)
                 if file: export_func.add((key, file))
             continue
         elif symtype != 'FUNC':
@@ -103,18 +102,18 @@ def find_in_vmlinux(vmlinux_elf):
 
         if scope == 'LOCAL':
             fn_pos[key] = fn_pos.get(key, 0) + 1
-            if filename not in config['all_files']:
+            if filename not in config.all_files:
                 continue
 
             # Disagreement 2
-            if (key, filename) not in func_class['fn']:
-                file = get_in_any(key, config['mod_hdrs'])
+            if (key, filename) not in func_class.fn:
+                file = get_in_any(key, config.mod_hdrs)
                 if file is None: continue
 
             local_sympos[(key, file)] = fn_pos[key]
         else:
             # Disagreement 3
-            file = get_in_any(key, config['all_files'])
+            file = get_in_any(key, config.all_files)
             if file is None: continue
 
         in_vmlinux.add((key, file))
@@ -134,9 +133,9 @@ def inflect_one(edge):
     if to_sym in __insiders:
         from_sym = tuple(edge['from'])
         if from_sym not in __insiders and \
-           from_sym not in func_class['border'] and \
-           from_sym not in func_class['init'] and \
-           from_sym not in func_class['sidecar']:
+           from_sym not in func_class.border and \
+           from_sym not in func_class.init and \
+           from_sym not in func_class.sidecar:
             return to_sym
     return None
 
@@ -194,26 +193,53 @@ def check_redirect_mangled(f, meta):
         if to_sym != f or to_sym[1] != from_sym[1]:
             continue
         # Unsafe if the caller is a sched_outsider
-        if from_sym in func_class['sched_outsider']:
+        if from_sym in func_class.sched_outsider:
             return True
         # If the caller is optimized too, check if it's unsafe recursively
-        if from_sym in func_class['mangled'] or from_sym not in func_class['in_vmlinux']:
+        if from_sym in func_class.mangled or from_sym not in func_class.in_vmlinux:
             if check_redirect_mangled(from_sym, meta):
                 return True
     return False
+
+def func_class_arithmetics(fns):
+    fns.callback -= fns.interface
+    fns.callback_optimized = fns.callback - fns.in_vmlinux
+    fns.callback -= fns.callback_optimized
+    fns.border = fns.interface | fns.callback
+    # exported function maybe used by kernel modules, it can't be internal function
+    fns.initial_insider = fns.mod_fns - fns.border - fns.export
+
+    # calc sidecar extraction functions
+    fns.sidecar = set(config.sidecar)
+    fns.sdcr_left = sidecar_inflect(fns.sidecar, fns.in_vmlinux)
+    fns.sdcr_out = fns.sdcr_fns - fns.sdcr_left
+
+    # Inflect outsider functions
+    fns.insider = inflect(fns.initial_insider, edges) - fns.init
+    fns.sched_outsider = (fns.mod_fns - fns.insider - fns.border) | fns.callback_optimized
+    fns.optimized_out = fns.sched_outsider - fns.in_vmlinux - fns.init
+    fns.public_user = fns.fn - fns.insider - fns.border
+    fns.tainted = (fns.border | fns.insider | fns.sidecar) & fns.in_vmlinux
+    fns.undefined = (fns.sched_outsider - fns.optimized_out) | fns.border | fns.sidecar
+
+class dotdict(dict):
+    """dot.notation access to dictionary attributes"""
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
 
 if __name__ == '__main__':
     vmlinux = sys.argv[1]
     tmpdir = sys.argv[2]
     modpath = sys.argv[3]
 
-    config = read_config()
-    config['mod_hdrs']  = [f for f in config['mod_files'] if f.endswith('.h')]
-    config['mod_srcs']  = [f for f in config['mod_files'] if f.endswith('.c')]
-    config['sidecar']   = set() if config['sidecar'] is None else config['sidecar']
-    config['sdcr_srcs'] = [f[1] for f in config['sidecar']]
-    config['all_files'] = config['mod_hdrs'] + config['mod_srcs'] + config['sdcr_srcs']
-    config['fullname']  = {os.path.basename(f):f for f in config['all_files']}
+    config = dotdict(read_config())
+    config.mod_hdrs  = [f for f in config.mod_files if f.endswith('.h')]
+    config.mod_srcs  = [f for f in config.mod_files if f.endswith('.c')]
+    config.sidecar   = set() if config.sidecar is None else config.sidecar
+    config.sdcr_srcs = [f[1] for f in config.sidecar]
+    config.all_files = config.mod_hdrs + config.mod_srcs + config.sdcr_srcs
+    config.fullname  = {os.path.basename(f):f for f in config.all_files}
 
     metas = []
     metas_by_name = {}
@@ -222,14 +248,14 @@ if __name__ == '__main__':
         metas.append(meta)
         metas_by_name[file] = meta
 
-    func_class = {
+    func_class = dotdict({
         'fn':        set(),
         'init':      set(),
         'interface': set(),
         'callback':  set(),
         'mod_fns':   set(),
         'sdcr_fns':  set(),
-    }
+    })
 
     edges = []
     decls = {}
@@ -238,29 +264,29 @@ if __name__ == '__main__':
     # first pass: calc init and interface set
     for meta in metas:
         for fn in meta['fn']:
-            init, publ, signature, file, name = fn['init'], fn['public'], tuple(fn['signature']), fn['file'], fn['name']
-            func_class['fn'].add(signature)
+            fn = dotdict(fn)
+            fn.signature = tuple(fn.signature)
+            func_class.fn.add(fn.signature)
+            if fn.file in config.mod_files:
+                func_class.mod_fns.add(fn.signature)
+                decls[fn.signature] = fn.decl_str
+            if fn.file in config.sdcr_srcs:
+                func_class.sdcr_fns.add(fn.signature)
+                decls[fn.signature] = fn.decl_str
 
-            if file in config['mod_files']:
-                func_class['mod_fns'].add(signature)
-                decls[signature] = fn['decl_str']
-            if file in config['sdcr_srcs']:
-                func_class['sdcr_fns'].add(signature)
-                decls[signature] = fn['decl_str']
-
-            if file in config['mod_hdrs']: hdr_sym['fn'].append(fn)
-            if init: func_class['init'].add(signature)
-            if publ: global_fn_dict[name] = file
+            if fn.file in config.mod_hdrs: hdr_sym['fn'].append(fn)
+            if fn.init: func_class.init.add(fn.signature)
+            if fn.publ: global_fn_dict[fn.name] = fn.file
 
         for fn in meta['interface']:
-            func_class['interface'].add(tuple(fn))
+            func_class.interface.add(tuple(fn))
 
     # second pass: fix vague filename, calc callback and edge set
     for meta in metas:
         for callback in meta['callback']:
             callback = lookup_if_global(callback)
-            if callback and callback[1] in config['mod_files']:
-                func_class['callback'].add(callback)
+            if callback and callback[1] in config.mod_files:
+                func_class.callback.add(callback)
 
         for edge in meta['edge']:
             edge['to'] = lookup_if_global(edge['to'])
@@ -269,31 +295,17 @@ if __name__ == '__main__':
 
     vmlinux_info = find_in_vmlinux(vmlinux)
     local_sympos = vmlinux_info['local_sympos']
-    func_class['in_vmlinux'] = vmlinux_info['in_vmlinux']
-    func_class['mangled'] = vmlinux_info['mangled']
-    func_class['export'] = vmlinux_info['export']
-    func_class['callback'] -= func_class['interface']
-    func_class['callback_optimized'] = func_class['callback'] - func_class['in_vmlinux']
-    func_class['callback'] -= func_class['callback_optimized']
-    func_class['border'] = func_class['interface'] | func_class['callback']
-    # exported function maybe used by kernel modules, it can't be internal function
-    func_class['initial_insider'] = func_class['mod_fns'] - func_class['border'] - func_class['export']
+    func_class.in_vmlinux = vmlinux_info['in_vmlinux']
+    func_class.mangled = vmlinux_info['mangled']
+    func_class.export = vmlinux_info['export']
+    func_class_arithmetics(func_class)
 
-    # calc sidecar extraction functions
-    func_class['sidecar'] = set(config['sidecar'])
-    func_class['sdcr_left'] = sidecar_inflect(func_class['sidecar'], func_class['in_vmlinux'])
-    func_class['sdcr_out'] = func_class['sdcr_fns'] - func_class['sdcr_left']
-
-    # Inflect outsider functions
-    func_class['insider'] = inflect(func_class['initial_insider'], edges) - func_class['init']
-    func_class['sched_outsider'] = (func_class['mod_fns'] - func_class['insider'] - func_class['border']) | func_class['callback_optimized']
-    func_class['optimized_out'] = func_class['sched_outsider'] - func_class['in_vmlinux'] - func_class['init']
-    func_class['public_user'] = func_class['fn'] - func_class['insider'] - func_class['border']
-    func_class['tainted'] = (func_class['border'] | func_class['insider'] | func_class['sidecar']) & func_class['in_vmlinux']
-    func_class['undefined'] = (func_class['sched_outsider'] - func_class['optimized_out']) | func_class['border'] | func_class['sidecar']
-
-    for output_item in ['sched_outsider', 'callback', 'interface', 'init', 'insider', 'optimized_out', 'export', 'sdcr_out']:
-        config['function'][output_item] = func_class[output_item]
+    classes_out = [
+        'sched_outsider', 'callback', 'interface', 'init', 'insider',
+        'optimized_out', 'export', 'sdcr_out'
+    ]
+    for output_item in classes_out:
+        config.function[output_item] = func_class[output_item]
 
     # Handle Struct public fields. The right hand side gives an example
     struct_properties = dict()
@@ -308,7 +320,7 @@ if __name__ == '__main__':
             all_set |= set(m['struct'][struct]['all_fields'])
 
             for field, users in m['struct'][struct]['public_fields'].items():
-                p_user = set(map(tuple, users)) & func_class['public_user']
+                p_user = set(map(tuple, users)) & func_class.public_user
                 if p_user:
                     user_set |= p_user
                     field_set.add(field)
@@ -318,7 +330,7 @@ if __name__ == '__main__':
         struct_properties[struct]['public_users'] = user_set
 
     # Sanity checks
-    for sym in (func_class['sidecar'] | func_class['border']) & func_class['mangled']:
+    for sym in (func_class.sidecar | func_class.border) & func_class.mangled:
         meta = metas_by_name[sym[1] + '.boundary']
         assert not check_redirect_mangled(sym, meta), \
                 "trying to redirect the mangled function %s (%s)" % sym
@@ -330,18 +342,18 @@ if __name__ == '__main__':
     with open(tmpdir + 'boundary_doc.yaml', 'w') as f:
         dump(struct_properties, f, Dumper)
     with open(tmpdir + 'boundary_extract.yaml', 'w') as f:
-        dump(config, f, Dumper)
+        dump(dict(config), f, Dumper)
     with open(modpath + 'tainted_functions.h', 'w') as f:
         # Consistent with kpatch and livepatch: set global symbol's sympos to 1 in sysfs
         f.write('\n'.join(["TAINTED_FUNCTION({fn},{val})".format(fn=fn[0], val=local_sympos.get(fn, 0) \
-                if local_sympos.get(fn, 0) else 1) for fn in func_class['tainted']]))
+                if local_sympos.get(fn, 0) else 1) for fn in func_class.tainted]))
     with open(tmpdir + 'symbol_resolve/undefined_functions.h', 'w') as f:
         array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) \
-                for fn in func_class['undefined']])
+                for fn in func_class.undefined])
         f.write('{%s}' % array)
     with open(modpath + 'export_jump.h', 'w') as f:
         callback_export_fmt = "EXPORT_CALLBACK({fn}, {ret}, {params})"
         export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})"
-        f.write('\n'.join([callback_export_fmt.format(**decls[fn]) for fn in func_class['callback']]) + '\n')
-        f.write('\n'.join([export_fmt.format(**decls[fn]) for fn in func_class['interface']]) + '\n')
-        f.write('\n'.join([export_fmt.format(**decls[fn]) for fn in func_class['sidecar']]))
+        f.write('\n'.join([callback_export_fmt.format(**decls[fn]) for fn in func_class.callback]) + '\n')
+        f.write('\n'.join([export_fmt.format(**decls[fn]) for fn in func_class.interface]) + '\n')
+        f.write('\n'.join([export_fmt.format(**decls[fn]) for fn in func_class.sidecar]))
