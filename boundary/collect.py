@@ -85,11 +85,8 @@ class GccBugs(object):
         base_type = decl.type
         while isinstance(base_type, (gcc.PointerType, gcc.ArrayType)):
             base_type = base_type.type
-        # It's a bug of gcc-python-plugin doesn't have main_variant for FunctionType
-        if hasattr(base_type, 'main_variant'):
-            base_type = base_type.main_variant
         if base_type.name is None and isinstance(base_type, (gcc.EnumeralType, gcc.RecordType)):
-            return base_type.stub.location
+            return base_type.main_variant.stub.location
         return decl.location
 
 
