@@ -152,7 +152,7 @@ def inflect(initial_insiders, edges):
 
 global_fn_dict = {}
 def lookup_if_global(name_and_file):
-    # Returns None if function is a gcc built-in function
+    # Returns None if function is a gcc built-in or assembly function
     name, file = name_and_file
     file = global_fn_dict.get(name, None) if file == '?' else file
     return (name, file) if file else None
@@ -174,6 +174,8 @@ def sidecar_dfs(meta, start_sym, in_vmlinux, leftover):
     leftover.add(start_sym)
 
     for edge in meta['edge']:
+        if edge['to'] is None:
+            continue
         from_sym = tuple(edge['from'])
         to_sym = tuple(edge['to'])
         if from_sym == start_sym and \
