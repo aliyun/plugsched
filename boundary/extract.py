@@ -99,7 +99,7 @@ class Extraction(object):
 
     def function_extract(self, lines):
         """Generate function code for new module"""
-        warn = "/* DON'T MODIFY FUNCTION {}, IT'S NOT PART OF SCHEDMOD */\n"
+        warn = "/* DON'T MODIFY INLINE EXTERNAL FUNCTION {} */\n"
         cb_warn = "/* DON'T MODIFY SIGNATURE OF CALLBACK FUNCTION {} */\n"
         if_warn = "/* DON'T MODIFY SIGNATURE OF INTERFACE FUNCTION {} */\n"
         decl_fmt = "extern {ret} {fn}({params});\n"
