@@ -205,7 +205,7 @@ GENTLE_FAIR_SLEEPERS START_DEBIT NO_NEXT_BUDDY LAST_BUDDY CACHE_HOT_BUDDY WAKEUP
 
 **Q：可以修改头文件中的函数吗？**
 
-可以。我们对头文件中的函数进行了边界划分，kernel/sched/mod 目录中的头文件不可修改的函数已被加上“DON'T MODIFY FUNCTION ******, IT'S NOT PART OF SCHEDMOD” 的注释，其它函数可以修改。
+可以。我们对头文件中的函数进行了边界划分，kernel/sched/mod 目录中的头文件不可修改的函数已被加上 "DON'T MODIFY INLINE EXTERNAL FUNCTION" 的注释，其它函数可以修改。
 
 **Q：可以修改结构体吗？**
 
@@ -238,7 +238,7 @@ kpatch 是函数粒度的热升级，plugsched 是子系统范围的热升级，
 ## Limitations
 * 不可修改 init 函数，因为 init 函数在系统重启后被释放掉，需要初始化的过程请在加载模块时执行；
 * 不可修改接口函数的签名，也不可删除接口函数，如果要删除，可以将函数修改为空函数；
-* 不可修改任何带有“DON'T MODIFY FUNCTION ******, IT'S NOT PART OF SCHEDMOD”注释的函数；
+* 不可修改任何带有 "DON'T MODIFY INLINE EXTERNAL FUNCTION" 注释的函数；
 * 不可随意修改结构体及成员的语义，需要修改时请参考 working/boundary_doc.yaml 文档进行；
 * 加载调度器模块后，不可直接 hook 内核中属于调度器模块范围内的函数，比如 perf 或者 ftrace 等工具，需要时请指定 scheduler.ko 模块；
 

@@ -80,6 +80,18 @@ class GccBugs(object):
         if decl.str_decl.find("...") >= 0:
             signature["params"] += ", ..."
 
+    @staticmethod
+    def var_decl_start_loc(decl):
+        base_type = decl.type
+        while isinstance(base_type, (gcc.PointerType, gcc.ArrayType)):
+            base_type = base_type.type
+        # It's a bug of gcc-python-plugin doesn't have main_variant for FunctionType
+        if hasattr(base_type, 'main_variant'):
+            base_type = base_type.main_variant
+        if base_type.name is None and isinstance(base_type, (gcc.EnumeralType, gcc.RecordType)):
+            return base_type.stub.location
+        return decl.location
+
 
 class Collection(object):
     def __init__(self):
@@ -155,17 +167,6 @@ class Collection(object):
                 ])
 
     def collect_var(self):
-        def var_decl_start_loc(decl):
-            base_type = decl.type
-            while isinstance(base_type, (gcc.PointerType, gcc.ArrayType)):
-                base_type = base_type.type
-            # It's a bug of gcc-python-plugin doesn't have main_variant for FunctionType
-            if hasattr(base_type, 'main_variant'):
-                base_type = base_type.main_variant
-            if base_type.name is None and isinstance(base_type, (gcc.EnumeralType, gcc.RecordType)):
-                return base_type.stub.location
-            return decl.location
-
         for var in gcc.get_variables():
             decl = var.decl
             if not decl.location:
@@ -175,7 +176,7 @@ class Collection(object):
                 "name": decl.name,
                 "file": os.path.relpath(decl.location.file),
                 "name_loc": (decl.location.line - 1, decl.location.column - 1),
-                "decl_start_line": var_decl_start_loc(decl).line - 1,
+                "decl_start_line": GccBugs.var_decl_start_loc(decl).line - 1,
                 "external": decl.external,
                 "public": decl.public,
                 "static": decl.static,
