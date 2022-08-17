@@ -14,8 +14,6 @@ ifneq ($(CONFIG_SCHED_OMIT_FRAME_POINTER),y)
 CFLAGS_core.o := $(PROFILING) -fno-omit-frame-pointer
 endif
 
-OBJCOPYFLAGS := --globalize-symbols $(plugsched_tmpdir)/interface_callbacks
-
 objs-y += core.o
 objs-y += idle.o fair.o rt.o deadline.o
 
@@ -33,10 +31,13 @@ $(obj)/core.stub.o: $(src)/core.c FORCE
 GET_STACK_SIZE: $(obj)/core.stub.o
 	$(eval CFLAGS_core.o += -DSTACKSIZE_MOD=$(shell bash $(plugsched_tmpdir)/springboard_search.sh build $<))
 
-$(obj)/%.o: $(src)/%.c GET_STACK_SIZE FORCE
+$(obj)/.globalize: $(src)/export_jump.h
+	awk -F'[(,]' '{if (/CALLBACK/) {print "__mod_"$$2} else {print $$2}}' $< > $@
+
+$(obj)/%.o: $(src)/%.c $(obj)/.globalize GET_STACK_SIZE FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
-	$(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS_$(@F)) $@
+	$(OBJCOPY) --globalize-symbols $(obj)/.globalize $@
 
 scheduler-objs := $(objs-y) $(sidecar_objs) main.o sched_rebuild.o
 

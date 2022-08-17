@@ -337,9 +337,6 @@ if __name__ == '__main__':
         array = '},\n{'.join(['"{fn}", {sympos}'.format(fn=fn[0], sympos=local_sympos.get(fn, 0)) \
                 for fn in func_class['undefined']])
         f.write('{%s}' % array)
-    with open(tmpdir + 'interface_callbacks', 'w') as f:
-        f.write('\n'.join([fn[0] for fn in func_class['interface'] | func_class['sidecar']]) + '\n')
-        f.write('\n'.join(['__mod_' + fn[0] for fn in config['function']['callback']]))
     with open(modpath + 'export_jump.h', 'w') as f:
         callback_export_fmt = "EXPORT_CALLBACK({fn}, {ret}, {params})"
         export_fmt = "EXPORT_PLUGSCHED({fn}, {ret}, {params})"
