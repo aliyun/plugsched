@@ -68,7 +68,10 @@ class Extraction(object):
         """Get the source code location of shared global variables"""
         # sidecar shares all global variables with vmlinux
         if self.src_file in self.sdcr_srcs:
-            self.var_list = self.meta_var
+            for var in self.meta_var:
+                if var['file'] != self.src_file or var['external']:
+                    continue
+                self.var_list.append(var)
             return
 
         for var in self.meta_var:
