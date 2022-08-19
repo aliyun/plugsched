@@ -32,7 +32,7 @@ GET_STACK_SIZE: $(obj)/core.stub.o
 	$(eval CFLAGS_core.o += -DSTACKSIZE_MOD=$(shell bash $(plugsched_tmpdir)/springboard_search.sh build $<))
 
 $(obj)/.globalize: $(src)/export_jump.h
-	awk -F'[(,]' '{if (/CALLBACK/) {print "__mod_"$$2} else {print $$2}}' $< > $@
+	awk -F'[(,]' '{if (/CALLBACK/) {print "__cb_"$$2} else {print $$2}}' $< > $@
 
 $(obj)/%.o: $(src)/%.c $(obj)/.globalize GET_STACK_SIZE FORCE
 	$(call cmd,force_checksrc)

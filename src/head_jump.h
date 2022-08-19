@@ -25,7 +25,7 @@ static unsigned long mod_func_addr[NR_INTERFACE_FN];
 static unsigned long mod_func_size[NR_INTERFACE_FN];
 
 /* Used to declare the extern function set */
-#define EXPORT_CALLBACK(fn, ret, ...) extern ret __mod_##fn(__VA_ARGS__);
+#define EXPORT_CALLBACK(fn, ret, ...) extern ret __cb_##fn(__VA_ARGS__);
 #define EXPORT_PLUGSCHED(fn, ret, ...) extern ret fn(__VA_ARGS__);
 #include "export_jump.h"
 #undef EXPORT_PLUGSCHED
@@ -144,7 +144,7 @@ static inline void jump_remove(void)
 
 
 #undef EXPORT_CALLBACK
-#define EXPORT_CALLBACK(fn, prefix, ...) JUMP_INIT_FUNC(fn, __mod_);
+#define EXPORT_CALLBACK(fn, ...) JUMP_INIT_FUNC(fn, __cb_);
 #define EXPORT_PLUGSCHED(fn, ...) JUMP_INIT_FUNC(fn, );
 static int __maybe_unused jump_init_all(void)
 {

@@ -7,7 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
  */
 SECTIONS {
-	PROVIDE(__mod_sched_start = .);
+	PROVIDE(__module_sched_start = .);
 	.sched.text		0 : ALIGN(8) { *(.sched.text) }
-	PROVIDE(__mod_sched_end = .);
+	PROVIDE(__module_sched_end = .);
 }
