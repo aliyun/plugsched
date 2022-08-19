@@ -127,7 +127,7 @@ class Extraction(object):
             name, decl_str = fn['name'], fn['decl_str']
             (row_start, _) = fn['name_loc']
             (row_end, _) = fn['r_brace_loc']
-            new_name = '__mod_' + name
+            new_name = '__cb_' + name
             used_name = '__used ' + new_name
 
             lines[row_start] = lines[row_start].replace(name, used_name)
