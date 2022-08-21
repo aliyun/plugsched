@@ -56,6 +56,10 @@ class Extraction(object):
                 continue
             unique.add(obj)
 
+            # __init function will be deleted during post extract fix_up()
+            if obj in self.config['function']['init']:
+                continue
+
             if (obj in self.config['function']['sched_outsider'] or
                     obj in self.config['function']['sdcr_out']):
                 self.fn_list.append(fn)
@@ -143,7 +147,7 @@ class Extraction(object):
                 continue
             lines[row_end] += if_warn.format(name)
 
-    def merge_down_lines(self, lines, curr):
+    def merge_down_var(self, lines, curr):
         """Merge down multi-lines-var-definition into one line"""
         merged = ''
         start = curr
@@ -169,7 +173,7 @@ class Extraction(object):
             for i in range(row_start + 1, row_name):
                 lines[i] = ''
 
-            self.merge_down_lines(lines, row_start)
+            self.merge_down_var(lines, row_start)
 
             # Specially handling shared per_cpu and static_key variables
             # to improve readability
@@ -209,6 +213,25 @@ class Extraction(object):
         new_header = os.path.relpath(rel_header, self.mod_dir)
         return line.replace(old_header, new_header)
 
+    def merge_down_fn(self, lines, curr):
+        """Merge down multi-lines-function-definition into one line"""
+        merged = ''
+        start = curr
+        l_brace = lines[curr].count('{')
+        r_brace = lines[curr].count('}')
+
+        while l_brace == 0 or l_brace > r_brace:
+            merged += lines[curr].strip() + ' '
+            lines[curr] = ''
+            curr += 1
+            l_brace += lines[curr].count('{')
+            r_brace += lines[curr].count('}')
+
+        merged += lines[curr]
+        lines[curr] = ''
+        lines[start] = merged
+        return curr
+
     def fix_up(self, lines):
         """Post fix trival code adaption"""
         delete = re.compile('initcall|early_param|__init |__initdata |__setup')
@@ -220,6 +243,9 @@ class Extraction(object):
                 continue
 
             if delete.search(line):
+                # skip extern __init sched_tick_offload_init(void);
+                if '__init ' in line and ';' not in line:
+                    self.merge_down_fn(lines, i)
                 lines[i] = ''
                 continue
 
