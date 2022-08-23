@@ -24,11 +24,25 @@ objs-$(CONFIG_SCHED_DEBUG) += debug.o
 obj-m += scheduler.o
 scheduler-objs := $(objs-y) $(sidecar_objs) main.o sched_rebuild.o
 
+search_cb  := {if (/CALLBACK/) {print "__cb_"$$2} else {print $$2}}
 search_und := grep "UND __mod_" | awk '{print substr($$8,7)}' | sort | uniq
 search_rdf := grep "UND __mod_" | awk '{print $$8,substr($$8,7)}'
+error_msg  := access non-existent symbol by using __mod_ prefix
 
 obj-stub := $(addprefix $(obj)/, $(scheduler-objs:.o=.stub.o))
-rdf-file = $(dir $@).$(notdir $@).rdf
+und-file := $(obj)/.und
+rdf-file  = $(dir $@).$(notdir $@).rdf
+
+cmd_find_sym = 			                                         \
+	awk -F'[(,]' '$(search_cb)' $< > $@;                             \
+	readelf -sW $(obj-stub) | $(search_und) | tee $(und-file) >> $@; \
+	count1=$$(cat $(und-file) | wc -l);                              \
+	count2=$$(readelf -sW $(obj-stub) | grep -w -f $(und-file) |     \
+		  grep -v '\.' | wc -l);                                 \
+	if [ "$$count1" != "$$count2" ]; then                            \
+		echo -e '\033[31m'$(error_msg)'\033[0m';                 \
+		exit 1;                                                  \
+	fi
 
 CFLAGS_core.stub.o := -DMODULE -DSTACKSIZE_MOD=0
 $(obj)/%.stub.o: $(src)/%.c FORCE
@@ -36,17 +50,18 @@ $(obj)/%.stub.o: $(src)/%.c FORCE
 	$(call if_changed_rule,cc_o_c)
 
 GET_STACK_SIZE: $(obj)/core.stub.o
-	$(eval CFLAGS_core.o += -DSTACKSIZE_MOD=$(shell bash $(plugsched_tmpdir)/springboard_search.sh build $<))
+	$(eval CFLAGS_core.o += -DSTACKSIZE_MOD=$(shell bash \
+		$(plugsched_tmpdir)/springboard_search.sh build $<))
 
 $(obj)/.globalize: $(src)/export_jump.h $(obj-stub) FORCE
-	awk -F'[(,]' '{if (/CALLBACK/) {print "__cb_"$$2} else {print $$2}}' $< > $@
-	readelf -sW $(obj-stub) | $(search_und) >> $@
+	$(cmd_find_sym)
 
 $(obj)/%.o: $(src)/%.c $(obj)/.globalize GET_STACK_SIZE FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
 	readelf -sW $@ | $(search_rdf) > $(rdf-file)
-	$(OBJCOPY) --globalize-symbols $(obj)/.globalize --redefine-syms $(rdf-file) $@
+	$(OBJCOPY) --globalize-symbols $(obj)/.globalize \
+		   --redefine-syms $(rdf-file) $@
 
 
 ldflags-y += -T $(plugsched_modpath)/scheduler.lds
