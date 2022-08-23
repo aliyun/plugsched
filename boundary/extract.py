@@ -30,7 +30,8 @@ class Extraction(object):
         self.fn_list = []
         self.callback_list = []
         self.interface_list = []
-        self.var_list = []
+        self.shared_var_list = []
+        self.static_var_list = []
 
         if src_file in self.mod_hdrs:
             file_name = tmp_dir + 'header_symbol.json'
@@ -70,23 +71,28 @@ class Extraction(object):
 
     def var_location(self):
         """Get the source code location of shared global variables"""
-        # sidecar shares all global variables with vmlinux
-        if self.src_file in self.sdcr_srcs:
-            for var in self.meta_var:
-                if var['file'] != self.src_file or var['external']:
-                    continue
-                self.var_list.append(var)
-            return
+        meta_var = []
+        var_config = self.config['global_var']
 
         for var in self.meta_var:
             if var['file'] != self.src_file or var['external']:
                 continue
-            if var['name'] in self.config['global_var']['force_private']:
-                continue
-            # share public (non-static) variables by default
-            if (var['public'] or
-                    var['name'] in self.config['global_var']['extra_public']):
-                self.var_list.append(var)
+            meta_var.append(var)
+
+        # sidecar shares all global variables with vmlinux
+        if self.src_file in self.sdcr_srcs:
+            self.shared_var_list = meta_var
+            return
+
+        for var in meta_var:
+            # static variables are treated as private by default
+            if not (var['public'] or
+                    var['name'] in var_config['extra_public']):
+                self.static_var_list.append(var)
+
+            # share public varialbes by default
+            elif var['name'] not in var_config['force_private']:
+                self.shared_var_list.append(var)
 
     def merge_up_lines(self, lines, curr):
         """Merge up multi-lines-function-declaration into one line"""
@@ -131,7 +137,7 @@ class Extraction(object):
             name, decl_str = fn['name'], fn['decl_str']
             (row_start, _) = fn['name_loc']
             (row_end, _) = fn['r_brace_loc']
-            new_name = '__mod_' + name
+            new_name = '__cb_' + name
             used_name = '__used ' + new_name
 
             lines[row_start] = lines[row_start].replace(name, used_name)
@@ -164,8 +170,13 @@ class Extraction(object):
 
     def var_extract(self, lines):
         """Generate data declarition code for new module"""
+        # prevent gcc from removing unused variables
+        for var in list(self.static_var_list):
+            (row, _) = var['name_loc']
+            lines[row] = lines[row].replace('static', 'static __used')
+
         # General handling all shared variables
-        for var in list(self.var_list):
+        for var in list(self.shared_var_list):
             name, row_start = var['name'], var['decl_start_line']
             (row_name, _) = var['name_loc']
 
@@ -187,16 +198,16 @@ class Extraction(object):
                 if p in line:
                     line = line.replace(p, repl).replace('static ', '')
                     lines[row_start] = line
-                    self.var_list.remove(var)
+                    self.shared_var_list.remove(var)
                     break
 
         # delete data definition
-        for var in self.var_list:
+        for var in self.shared_var_list:
             row_start = var['decl_start_line']
             lines[row_start] = ''
 
         # convert data definition to declarition
-        for var in self.var_list:
+        for var in self.shared_var_list:
             row_start = var['decl_start_line']
             lines[row_start] += var['decl_str'] + '\n'
 

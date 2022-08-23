@@ -48,10 +48,9 @@ extern struct percpu_rw_semaphore cpuset_rwsem;
 #endif
 
 extern cpumask_var_t sd_sysctl_cpus;
-extern const struct file_operations sched_feat_fops;
-extern const struct seq_operations sched_debug_sops;
-extern const struct seq_operations schedstat_sops;
-extern unsigned long sched_springboard;
+extern const struct file_operations __mod_sched_feat_fops;
+extern const struct seq_operations __mod_sched_debug_sops;
+extern const struct seq_operations __mod_schedstat_sops;
 
 static struct dentry *sched_features_dir;
 static s64 stop_time;
@@ -292,7 +291,7 @@ void install_sched_debugfs(void)
 	debugfs_remove(find_dentry("/sys/kernel/debug/sched_features"));
 
 	sched_features_dir = debugfs_create_file("sched_features", 0644, NULL, NULL,
-				&sched_feat_fops);
+				&__mod_sched_feat_fops);
 }
 
 extern struct file_operations __orig_sched_feat_fops;
@@ -309,7 +308,7 @@ int install_sched_debug_procfs(void)
 {
 	remove_proc_entry("sched_debug", NULL);
 
-	if (!proc_create_seq("sched_debug", 0444, NULL, &sched_debug_sops))
+	if (!proc_create_seq("sched_debug", 0444, NULL, &__mod_sched_debug_sops))
 		return -ENOMEM;
 
 	return 0;
@@ -334,7 +333,7 @@ int install_proc_schedstat(void)
 {
 	remove_proc_entry("schedstat", NULL);
 
-	if (!proc_create_seq("schedstat", 0444, NULL, &schedstat_sops))
+	if (!proc_create_seq("schedstat", 0444, NULL, &__mod_schedstat_sops))
 		return -ENOMEM;
 
 	return 0;

@@ -22,24 +22,32 @@ objs-$(CONFIG_SCHEDSTATS) += stats.o
 objs-$(CONFIG_SCHED_DEBUG) += debug.o
 
 obj-m += scheduler.o
+scheduler-objs := $(objs-y) $(sidecar_objs) main.o sched_rebuild.o
+
+search_und := grep "UND __mod_" | awk '{print substr($$8,7)}' | sort | uniq
+search_rdf := grep "UND __mod_" | awk '{print $$8,substr($$8,7)}'
+
+obj-stub := $(addprefix $(obj)/, $(scheduler-objs:.o=.stub.o))
+rdf-file = $(dir $@).$(notdir $@).rdf
 
 CFLAGS_core.stub.o := -DMODULE -DSTACKSIZE_MOD=0
-$(obj)/core.stub.o: $(src)/core.c FORCE
+$(obj)/%.stub.o: $(src)/%.c FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
 
 GET_STACK_SIZE: $(obj)/core.stub.o
 	$(eval CFLAGS_core.o += -DSTACKSIZE_MOD=$(shell bash $(plugsched_tmpdir)/springboard_search.sh build $<))
 
-$(obj)/.globalize: $(src)/export_jump.h
-	awk -F'[(,]' '{if (/CALLBACK/) {print "__mod_"$$2} else {print $$2}}' $< > $@
+$(obj)/.globalize: $(src)/export_jump.h $(obj-stub) FORCE
+	awk -F'[(,]' '{if (/CALLBACK/) {print "__cb_"$$2} else {print $$2}}' $< > $@
+	readelf -sW $(obj-stub) | $(search_und) >> $@
 
 $(obj)/%.o: $(src)/%.c $(obj)/.globalize GET_STACK_SIZE FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
-	$(OBJCOPY) --globalize-symbols $(obj)/.globalize $@
+	readelf -sW $@ | $(search_rdf) > $(rdf-file)
+	$(OBJCOPY) --globalize-symbols $(obj)/.globalize --redefine-syms $(rdf-file) $@
 
-scheduler-objs := $(objs-y) $(sidecar_objs) main.o sched_rebuild.o
 
 ldflags-y += -T $(plugsched_modpath)/scheduler.lds
 ccflags-n += -DSCHEDMOD_MEMPOOL
