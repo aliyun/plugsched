@@ -76,7 +76,7 @@ index 5ec2ca5..3b8925a 100644
   * WARNING: must be called with preemption disabled!
   */
 +__attribute__ ((optimize("no-omit-frame-pointer")))
- static void __sched notrace __schedule(bool preempt)
+ static void __sched notrace __used __schedule(bool preempt)
  {
  	struct task_struct *prev, *next;
 2.20.1.2432.ga663e714
