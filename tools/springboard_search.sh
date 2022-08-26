@@ -4,21 +4,22 @@
 
 function get_function_range()
 {
-        addrs=$(nm -n $object | grep " $1\$" -A1 | awk '{printf " 0x"$1}')
-        read -r start_addr end_addr <<< "$addrs"
+        addr_size=$(nm -S $object | grep " $1\$" | awk '{print "0x"$1,"0x"$2}')
+        read -r start_addr size <<< "$addr_size"
 
-        if [ $start_addr == $end_addr ]; then
+        if [ "$start_addr" == "" ]; then
 		1>&2 echo "ERROR: __schedule function range not found in target object"
                 exit 1
         fi
 
+        end_addr=$(python3 -c "print(hex($start_addr + $size))")
         echo "start_addr=$start_addr; end_addr=$end_addr"
 }
 
 function get_function_asm()
 {
 	if [ "$stage" == "init" ]; then
-		objdump -d $object --start-address=$start_addr --stop-address=$end_addr
+		objdump -d $object --start-address=$start_addr --stop-address=$end_addr | sed -e '/ <.*>:$/d;/^$/d'
 	else
 		objdump -d $object | grep "<__schedule>:" -A30
 	fi

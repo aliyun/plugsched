@@ -197,13 +197,8 @@ class Plugsched(object):
         self.extract()
         logging.info('Patching extracted scheduler module with post_extractd patch')
         self.apply_patch('post_extract.patch')
-
-        # special handle for builtin springboard kernel version
-        try:
-            sh.grep('label_recover', os.path.join(self.work_dir, 'kernel/sched/core.c'))
-        except:
-            logging.info('Patching dynamic springboard')
-            self.apply_patch('dynamic_springboard.patch')
+        logging.info('Patching dynamic springboard')
+        self.apply_patch('dynamic_springboard.patch')
 
         with open(os.path.join(self.mod_path, 'Makefile'), 'a') as f:
             self.search_springboard('init', self.vmlinux, kernel_config, _out=f)
