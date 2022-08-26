@@ -145,12 +145,18 @@ class Extraction(object):
                                decl_fmt.format(**decl_str))
 
         for fn in self.interface_list:
-            name, (row_end, _) = fn['name'], fn['r_brace_loc']
+            name, public = fn['name'], fn['public']
+            (row_start, _), (row_end, _) = fn['name_loc'], fn['r_brace_loc']
+            used_name = '__used ' + name
 
             # everyone know that syscall ABI should be consistent
             if any(name.startswith(prefix)
                    for prefix in self.config['interface_prefix']):
                 continue
+
+            # prevent static interface functions from being optimized.
+            if not public:
+                lines[row_start] = lines[row_start].replace(name, used_name)
             lines[row_end] += if_warn.format(name)
 
     def merge_down_var(self, lines, curr):
