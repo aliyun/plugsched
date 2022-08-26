@@ -26,8 +26,7 @@ index 5ec2ca5..3b8925a 100644
  static __always_inline struct rq *
  context_switch(struct rq *rq, struct task_struct *prev,
  	       struct task_struct *next, struct rq_flags *rf)
-@@ -2634,7 +2636,43 @@ context_switch(struct rq *rq, struct task_struct *prev,
- 	prepare_lock_switch(rq, next, rf);
+@@ -2634,3 +2636,39 @@ context_switch(struct rq *rq, struct task_struct *prev,
  
  	/* Here we just switch the register state and the stack. */
 -	switch_to(prev, next, prev);
@@ -68,9 +67,6 @@ index 5ec2ca5..3b8925a 100644
 +#endif
 +
 +	/* Below will not be executed, we'll return to vmlinux here */
- 	barrier();
- 
- 	return finish_task_switch(prev);
 @@ -3178,6 +3190,7 @@ again:
   *
   * WARNING: must be called with preemption disabled!
