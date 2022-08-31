@@ -83,7 +83,7 @@ function get_stack_check_off_AArch64()
 	stack_chk_fail_off=$(printf "0x%x" $((stack_chk_fail-start_addr)))
 
 	asm_sequence=$(awk '
-		$NF == "<__schedule>:" {start = 1; next}
+		/Disassembly of section/ {start = 1; next}
 		start == 1 && $3 == "ldr" {print "ldr"; next}
 		start == 1 && $3 == "ldp" {print "ldp"; next}
 		start == 1 && $3 == "ret" {print "ret"; next}
