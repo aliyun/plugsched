@@ -230,10 +230,12 @@ class Collection(object):
                 context = op.field.context
                 while op.field.name is None and op in parent_component_ref:
                     op = parent_component_ref[op]
-                field = op.field
 
                 loc_file = os.path.relpath(context.stub.location.file)
                 if loc_file in self.mod_hdrs and context.name is not None:
+                    # When acecssing 2 32bit fields at one time, the AST
+                    # ancestor is BitFieldRef. And op.field.name is None
+                    field = op.field.name or '<unknown>'
                     public_fields[context].add((node.decl, field))
 
         for node in gcc.get_callgraph_nodes():
@@ -251,7 +253,7 @@ class Collection(object):
             self.struct_properties[struct.name.name] = {
                 "all_fields": [f.name for f in struct.fields if f.name],
                 "public_fields": groupby(user_fields,
-                    grouper=lambda user_and_field: user_and_field[1].name,
+                    grouper=lambda user_and_field: user_and_field[1],
                     selector=lambda user_and_field: (user_and_field[0].name, os.path.relpath(user_and_field[0].location.file)))
             }
 
