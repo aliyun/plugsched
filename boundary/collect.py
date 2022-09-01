@@ -1,32 +1,28 @@
 #!/usr/bin/env python3
 # Copyright 2019-2022 Alibaba Group Holding Limited.
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+"""Use GCC Python Plugin to collect source code information"""
 
-from collections import defaultdict
-from itertools import groupby as _groupby
-from yaml import load, dump, resolver, CLoader as Loader, CDumper as Dumper
-import json
 import re
 import os
+import json
+from collections import defaultdict
+from itertools import groupby as _groupby
+from yaml import load, resolver, CLoader as Loader
 
 # Use set as the default sequencer for yaml
-Loader.add_constructor(resolver.BaseResolver.DEFAULT_SEQUENCE_TAG,
-                     lambda loader, node: set(loader.construct_sequence(node)))
-Dumper.add_representer(set, lambda dumper, node: dumper.represent_list(node))
+Loader.add_constructor(
+    resolver.BaseResolver.DEFAULT_SEQUENCE_TAG,
+    lambda loader, node: set(loader.construct_sequence(node)))
 
-# tmp directory to store middle files
-tmpdir = None
-
-# directory to store schedule module source code
-modpath = None
 
 class GccBugs(object):
-    array_pointer_re = re.compile(r'(.*)\[([0-9]*)\] \*\s*([^,\);]*)')
+    array_ptr_re = re.compile(r'(.*)\[([0-9]*)\] \*\s*([^,\);]*)')
 
-    # struct cpumask[1] * doms_cur -> struct cpumask (*doms_cur)[1]
     @staticmethod
     def array_pointer(decl, str):
-        return GccBugs.array_pointer_re.sub(r'\1 (*\3)[\2]', str)
+        """struct cpumask[1] *doms_cur -> struct cpumask (*doms_cur)[1]"""
+        return GccBugs.array_ptr_re.sub(r'\1 (*\3)[\2]', str)
 
     @staticmethod
     def typedef(decl, str):
@@ -51,72 +47,89 @@ class GccBugs(object):
 
     @staticmethod
     def is_val_list(arg):
-        return isinstance(arg.type, gcc.PointerType) and \
-               isinstance(arg.type.dereference, gcc.RecordType) and \
-               isinstance(arg.type.dereference.name, gcc.Declaration) and \
-               arg.type.dereference.name.is_builtin and \
-               arg.type.dereference.name.name == '__va_list_tag'
+        return (isinstance(arg.type, gcc.PointerType)
+                and isinstance(arg.type.dereference, gcc.RecordType)
+                and isinstance(arg.type.dereference.name, gcc.Declaration)
+                and arg.type.dereference.name.is_builtin
+                and arg.type.dereference.name.name == '__va_list_tag')
 
     @staticmethod
     def va_list(decl, str):
         if GccBugs.is_val_list(decl):
-            return str.replace("struct  *", "va_list")
+            return str.replace('struct  *', 'va_list')
         return str
 
-    # extern type array[<unknown>] -> extern type array[]
     @staticmethod
     def array_size(decl, str):
+        """extern type array[<unknown>] -> extern type array[]"""
         return str.replace('[<unknown>]', '[]')
 
     @staticmethod
     def fix(decl, str):
-        for bugfix in [GccBugs.array_pointer, GccBugs.enum_type_name,
-                       GccBugs.array_size, GccBugs.typedef, GccBugs.va_list]:
+        for bugfix in [
+                GccBugs.array_pointer, GccBugs.enum_type_name,
+                GccBugs.array_size, GccBugs.typedef, GccBugs.va_list
+        ]:
             str = bugfix(decl, str)
         return str
 
     @staticmethod
     def variadic_function(decl, signature):
-        if decl.str_decl.find("...") >= 0:
-            signature["params"] += ", ..."
+        if decl.str_decl.find('...') >= 0:
+            signature['params'] += ', ...'
 
     @staticmethod
     def var_decl_start_loc(decl):
         base_type = decl.type
         while isinstance(base_type, (gcc.PointerType, gcc.ArrayType)):
             base_type = base_type.type
-        if base_type.name is None and isinstance(base_type, (gcc.EnumeralType, gcc.RecordType)):
+        if base_type.name is None and isinstance(
+                base_type, (gcc.EnumeralType, gcc.RecordType)):
             return base_type.main_variant.stub.location
         return decl.location
 
 
 class Collection(object):
-    def __init__(self):
-        with open(tmpdir + 'boundary.yaml') as f:
+
+    def __init__(self, tmp_dir):
+        with open(tmp_dir + 'boundary.yaml') as f:
             self.config = load(f, Loader)
+
+        self.fn_prop = []
+        self.cb_prop = []
+        self.var_prop = []
+        self.intf_prop = []
+        self.edge_prop = []
+        self.struct_prop = {}
         self.mod_files = self.config['mod_files']
-        self.mod_hdrs  = [f for f in self.mod_files if f.endswith('.h')]
-        self.mod_srcs  = [f for f in self.mod_files if f.endswith('.c')]
-        self.sdcr      = [] if self.config['sidecar'] is None else self.config['sidecar']
+        self.mod_hdrs = [f for f in self.mod_files if f.endswith('.h')]
+        self.mod_srcs = [f for f in self.mod_files if f.endswith('.c')]
+        self.sdcr = self.config['sidecar'] or set()
         self.sdcr_srcs = [f[1] for f in self.sdcr]
-        self.fn_properties = []
-        self.var_properties = []
-        self.edge_properties = []
-        self.struct_properties = {}
-        self.callback_properties = []
-        self.interface_properties = []
-        self.seek_public_field = False
+
+    def relpath(self, decl):
+        """Get relative path from declaration object"""
+        return os.path.relpath(decl.location.file)
+
+    def decl_sig(self, decl):
+        """Get function signature from declaration object"""
+        if decl.function is None:
+            return (decl.name, '?')
+        return (decl.name, os.path.relpath(decl.location.file))
 
     def decl_in_section(self, decl, section):
+        """Whether declaration is in a specific text section"""
         for name, val in decl.attributes.items():
-            # Canonicalized name "section" since gcc-8.1.0, and
-            # Uncanonicalized legacy name "__section__" before 8.1.0
+            """Canonicalized name "section" since gcc-8.1.0, and
+            uncanonicalized legacy name "__section__" before 8.1.0
+            """
             if name in ('section', '__section__'):
                 assert len(val) == 1
                 return val[0].constant == section
         return False
 
     def collect_fn(self):
+        """Collect all funtion properties, including interface functions"""
         src_f = gcc.get_main_input_filename()
 
         for node in gcc.get_callgraph_nodes():
@@ -126,58 +139,62 @@ class Collection(object):
             # Ignore alias function for now ??
             if decl.function is None:
                 continue
+
+            l_loc = decl.function.start
+            r_loc = decl.function.end
+            name_loc = decl.location
+
             properties = {
-                "name": decl.name,
-                "init": self.decl_in_section(decl, '.init.text'),
-                "file": os.path.relpath(decl.location.file),
-                "l_brace_loc": (decl.function.start.line - 1, decl.function.start.column - 1),
-                "r_brace_loc": (decl.function.end.line - 1, decl.function.end.column - 1),
-                "name_loc": (decl.location.line - 1, decl.location.column - 1),
-                "external": decl.external,
-                "public": decl.public,
-                "static": decl.static,
-                "inline": decl.inline or 'always_inline' in decl.attributes,
-                "signature": (decl.name, os.path.relpath(decl.location.file)),
-                "decl_str": None,
+                'name': decl.name,
+                'init': self.decl_in_section(decl, '.init.text'),
+                'file': self.relpath(decl),
+                'l_brace_loc': (l_loc.line - 1, l_loc.column - 1),
+                'r_brace_loc': (r_loc.line - 1, r_loc.column - 1),
+                'name_loc': (name_loc.line - 1, name_loc.column - 1),
+                'external': decl.external,
+                'public': decl.public,
+                'static': decl.static,
+                'inline': decl.inline or 'always_inline' in decl.attributes,
+                'signature': self.decl_sig(decl),
+                'decl_str': None,
             }
-            self.fn_properties.append(properties)
+            self.fn_prop.append(properties)
 
             # interface candidates must belongs to module source files
             if not src_f in self.mod_srcs + self.sdcr_srcs:
                 continue
 
             decl_str = {
-                "fn": decl.name,
-                "ret": GccBugs.fix(decl.result, decl.result.type.str_no_uid),
-                "params": ', '.join(GccBugs.fix(arg, arg.type.str_no_uid) \
+                'fn': decl.name,
+                'ret': GccBugs.fix(decl.result, decl.result.type.str_no_uid),
+                'params': ', '.join(GccBugs.fix(arg, arg.type.str_no_uid) \
                         for arg in decl.arguments) if decl.arguments else 'void'
             }
 
             GccBugs.variadic_function(decl, decl_str)
             properties['decl_str'] = decl_str
 
-            if decl.name in self.config['function']['interface'] or \
-               any(decl.name.startswith(prefix) for prefix in self.config['interface_prefix']):
-                self.interface_properties.append([
-                    decl.name,
-                    os.path.relpath(decl.location.file),
-                ])
+            if (decl.name in self.config['function']['interface'] or any(
+                    decl.name.startswith(prefix)
+                    for prefix in self.config['interface_prefix'])):
+                self.intf_prop.append(list(self.decl_sig(decl)))
 
     def collect_var(self):
+        """Collect properties of all global variables"""
         for var in gcc.get_variables():
             decl = var.decl
             if not decl.location:
                 continue
 
             properties = {
-                "name": decl.name,
-                "file": os.path.relpath(decl.location.file),
-                "name_loc": (decl.location.line - 1, decl.location.column - 1),
-                "decl_start_line": GccBugs.var_decl_start_loc(decl).line - 1,
-                "external": decl.external,
-                "public": decl.public,
-                "static": decl.static,
-                "decl_str": None,
+                'name': decl.name,
+                'file': self.relpath(decl),
+                'name_loc': (decl.location.line - 1, decl.location.column - 1),
+                'decl_start_line': GccBugs.var_decl_start_loc(decl).line - 1,
+                'external': decl.external,
+                'public': decl.public,
+                'static': decl.static,
+                'decl_str': None,
             }
 
             # tricky skill to get right str_decl
@@ -186,15 +203,16 @@ class Collection(object):
                 decl_str = decl_str.replace('static ', 'extern ')
                 properties['decl_str'] = GccBugs.fix(decl, decl_str)
 
-            self.var_properties.append(properties)
+            self.var_prop.append(properties)
 
-    def collect_callbacks(self):
+    def collect_callback(self):
+        """Collect all callback functions of the current source file"""
+
         # return True means we stop walk subtree
         def mark_callback(op, caller):
-            if isinstance(op, gcc.FunctionDecl) and not self.decl_in_section(op, '.init.text'):
-                self.callback_properties.append(
-                    [op.name, os.path.relpath(op.location.file) if op.function else '?']
-                )
+            if (isinstance(op, gcc.FunctionDecl)
+                    and not self.decl_in_section(op, '.init.text')):
+                self.cb_prop.append(list(self.decl_sig(op)))
 
         # Find callbacks in function body
         for node in gcc.get_callgraph_nodes():
@@ -215,11 +233,12 @@ class Collection(object):
             type_name = '' if not decl.type.name else decl.type.name.name
 
             # struct sched_class is purely private
-            if decl.initial and type_name != 'sched_class' and \
-                    not self.decl_in_section(decl, '.discard.addressable'):
+            if (decl.initial and type_name != 'sched_class' and
+                    not self.decl_in_section(decl, '.discard.addressable')):
                 decl.initial.walk_tree(mark_callback, decl)
 
     def collect_struct(self):
+        """Collect all struct definition information"""
         public_fields = defaultdict(set)
 
         def mark_public_field(op, node, parent_component_ref):
@@ -231,10 +250,11 @@ class Collection(object):
                 while op.field.name is None and op in parent_component_ref:
                     op = parent_component_ref[op]
 
-                loc_file = os.path.relpath(context.stub.location.file)
+                loc_file = self.relpath(context.stub)
                 if loc_file in self.mod_hdrs and context.name is not None:
-                    # When acecssing 2 32bit fields at one time, the AST
-                    # ancestor is BitFieldRef. And op.field.name is None
+                    """When acecssing 2 32bit fields at one time, the AST
+                    ancestor is BitFieldRef. And op.field.name is None
+                    """
                     field = op.field.name or '<unknown>'
                     public_fields[context].add((node.decl, field))
 
@@ -247,29 +267,32 @@ class Collection(object):
 
         def groupby(it, grouper, selector):
             sorted_list = sorted(it, key=grouper)
-            return dict((k, list(map(selector, v))) for k, v in _groupby(sorted_list, grouper))
+            return dict((k, list(map(selector, v)))
+                        for k, v in _groupby(sorted_list, grouper))
 
         for struct, user_fields in public_fields.items():
-            self.struct_properties[struct.name.name] = {
-                "all_fields": [f.name for f in struct.fields if f.name],
-                "public_fields": groupby(user_fields,
-                    grouper=lambda user_and_field: user_and_field[1],
-                    selector=lambda user_and_field: (user_and_field[0].name, os.path.relpath(user_and_field[0].location.file)))
+            self.struct_prop[struct.name.name] = {
+                'all_fields': [f.name for f in struct.fields if f.name],
+                'public_fields': groupby(user_fields,
+                    grouper=lambda user_field: user_field[1],
+                    selector=lambda user_field: self.decl_sig(user_field[0]))
             }
 
-    def collect_edges(self):
+    def collect_edge(self):
+        """Collect all edges of the call graph"""
         for node in gcc.get_callgraph_nodes():
             if self.decl_in_section(node.decl, '.init.text'):
                 continue
 
             # alias function
             if node.decl.function is None:
-                real_name = node.decl.attributes['alias'][0].str_no_uid.replace('"','')
+                alias = node.decl.attributes['alias'][0]
+                real_name = alias.str_no_uid.replace('"', '')
                 properties = {
-                    "from": (node.decl.name, os.path.relpath(node.decl.location.file)),
+                    "from": self.decl_sig(node.decl),
                     "to": (real_name, "?"),
                 }
-                self.edge_properties.append(properties)
+                self.edge_prop.append(properties)
                 continue
 
             for stmt in self.each_call_stmt(node):
@@ -277,24 +300,20 @@ class Collection(object):
                     continue
                 assert node.decl.function
                 properties = {
-                    "from": (
-                        node.decl.name,
-                        os.path.relpath(node.decl.location.file),
-                    ),
-                    "to": (
-                        stmt.fndecl.name,
-                        os.path.relpath(stmt.fndecl.location.file) if stmt.fndecl.function else '?',
-                    ),
+                    'from': self.decl_sig(node.decl),
+                    'to': self.decl_sig(stmt.fndecl),
                 }
-                self.edge_properties.append(properties)
+                self.edge_prop.append(properties)
 
     def each_stmt(self, node):
+        """Iterate each statement of call graph node"""
         for bb in node.decl.function.cfg.basic_blocks:
             if bb.gimple:
                 for stmt in bb.gimple:
                     yield stmt
 
     def each_call_stmt(self, node):
+        """Iterate each call statement of call graph node"""
         for bb in node.decl.function.cfg.basic_blocks:
             if not bb.gimple:
                 continue
@@ -303,36 +322,38 @@ class Collection(object):
                 if isinstance(stmt, gcc.GimpleCall):
                     yield stmt
 
-    def process_passes(self, p, _):
+    def collect_info(self, p, _):
+        """Collect information about the current source file"""
         if p.name != '*free_lang_data':
             return
 
-        self.collect_edges()
         self.collect_fn()
-        self.collect_callbacks()
+        self.collect_callback()
         self.collect_struct()
+        self.collect_edge()
         self.collect_var()
 
-        collect = {
-            "fn": self.fn_properties,
-            "var": self.var_properties,
-            "edge": self.edge_properties,
-            "callback": self.callback_properties,
-            "interface": self.interface_properties,
-            "struct": self.struct_properties
+        collection = {
+            'fn': self.fn_prop,
+            'var': self.var_prop,
+            'edge': self.edge_prop,
+            'callback': self.cb_prop,
+            'interface': self.intf_prop,
+            'struct': self.struct_prop
         }
+
         with open(gcc.get_main_input_filename() + '.boundary', 'w') as f:
-            json.dump(collect, f, indent=4)
+            json.dump(collection, f, indent=4)
 
     def register_cbs(self):
-        gcc.register_callback(gcc.PLUGIN_PASS_EXECUTION, self.process_passes)
+        """Register GCC Python Plugin callback"""
+        gcc.register_callback(gcc.PLUGIN_PASS_EXECUTION, self.collect_info)
 
 
 if __name__ == '__main__':
     import gcc
 
-    tmpdir = gcc.argument_dict['tmpdir']
-    modpath = gcc.argument_dict['modpath']
-
-    collect = Collection()
+    # tmp directory to store middle files
+    tmp_dir = gcc.argument_dict['tmpdir']
+    collect = Collection(tmp_dir)
     collect.register_cbs()
