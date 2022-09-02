@@ -22,8 +22,9 @@
 extern void __orig___schedule(bool);
 int process_id[MAX_CPU_NR];
 atomic_t cpu_finished;
+atomic_t clear_finished;
+atomic_t redirect_finished;
 static atomic_t global_error;
-static atomic_t redirect_done;
 
 DECLARE_PER_CPU(struct callback_head, dl_push_head);
 DECLARE_PER_CPU(struct callback_head, dl_pull_head);
@@ -84,8 +85,9 @@ struct tainted_function tainted_functions[] = {
 static inline void parallel_state_check_init(void)
 {
 	atomic_set(&cpu_finished, num_online_cpus());
+	atomic_set(&clear_finished, num_online_cpus());
+	atomic_set(&redirect_finished, num_online_cpus());
 	atomic_set(&global_error, 0);
-	atomic_set(&redirect_done, 0);
 }
 
 static inline void process_id_init(void)
@@ -173,17 +175,20 @@ static int __sync_sched_install(void *arg)
 		stop_time_p1 = ktime_get();
 
 	clear_sched_state(false);
-	switch_sched_class(true);
+	atomic_dec(&clear_finished);
+	/* wait for all cpu to finish state rebuild */
+	atomic_cond_read_relaxed(&clear_finished, !VAL);
 
+	switch_sched_class(true);
 	if (is_first_process()) {
 		JUMP_OPERATION(install);
 		disable_stack_protector();
 		sched_alloc_extrapad();
 		reset_balance_callback();
-		atomic_set(&redirect_done, 1);
 	}
 
-	atomic_cond_read_relaxed(&redirect_done, VAL);
+	atomic_dec(&redirect_finished);
+	atomic_cond_read_relaxed(&redirect_finished, !VAL);
 	rebuild_sched_state(true);
 
 	if (is_first_process())
@@ -216,16 +221,19 @@ static int __sync_sched_restore(void *arg)
 		stop_time_p1 = ktime_get();
 
 	clear_sched_state(true);
-	switch_sched_class(false);
+	atomic_dec(&clear_finished);
+	/* wait for all cpu to finish state rebuild */
+	atomic_cond_read_relaxed(&clear_finished, !VAL);
 
+	switch_sched_class(false);
 	if (is_first_process()) {
 		JUMP_OPERATION(remove);
 		reset_balance_callback();
 		sched_free_extrapad();
-		atomic_set(&redirect_done, 1);
 	}
 
-	atomic_cond_read_relaxed(&redirect_done, VAL);
+	atomic_dec(&redirect_finished);
+	atomic_cond_read_relaxed(&redirect_finished, !VAL);
 	rebuild_sched_state(false);
 
 	if (is_first_process())
