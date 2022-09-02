@@ -5,8 +5,7 @@ include Makefile
 
 GCC_PLUGIN_FLAGS := -fplugin=/usr/lib64/gcc-python-plugin/python.so \
 		    -fplugin-arg-python-script=$(plugsched_tmpdir)/collect.py \
-		    -fplugin-arg-python-tmpdir=$(plugsched_tmpdir) \
-		    -fplugin-arg-python-modpath=$(plugsched_modpath)
+		    -fplugin-arg-python-tmpdir=$(plugsched_tmpdir)
 
 PHONY += plugsched collect extract
 
