@@ -254,6 +254,9 @@ def func_class_arithmetics(fns):
     fns.sdcr_left = sidecar_inflect(fns.sidecar, fns.in_vmlinux)
     fns.sdcr_out = fns.sdcr_fns - fns.sdcr_left
 
+    assert not (fns.sidecar & fns.border), \
+            'Function boundary conflict, please check your sidecar config'
+
     # Inflect outsider functions
     fns.inflect_cut = fns.border | fns.init | fns.sidecar
     fns.insider = inflect(fns.initial_insider, edges) - fns.init
