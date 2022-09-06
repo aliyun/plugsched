@@ -168,6 +168,8 @@ static int __sync_sched_install(void *arg)
 
 	if ((error = atomic_read(&global_error))) {
 		print_error(error);
+		atomic_dec(&clear_finished);
+		atomic_dec(&redirect_finished);
 		return error;
 	}
 
@@ -214,6 +216,8 @@ static int __sync_sched_restore(void *arg)
 
 	if ((error = atomic_read(&global_error))) {
 		print_error(error);
+		atomic_dec(&clear_finished);
+		atomic_dec(&redirect_finished);
 		return error;
 	}
 
