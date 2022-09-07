@@ -582,7 +582,8 @@ static int __init sched_mod_init(void)
 
 	sched_springboard = (unsigned long)__orig___schedule + SPRINGBOARD;
 
-	jump_init_all();
+	if (jump_init_all())
+		return -EBUSY;
 
 	/* This must after jump_init_all function !!! */
 	stack_check_init();
