@@ -16,6 +16,7 @@ for T in ${tests}; do
 	if test_$T/assert; then
 		echo -e "$T test ${GREEN}PASS${RESET}"
 	else
+		dmesg -c
 		echo -e "$T test ${RED}FAILED${RESET}"
 	fi
 done
