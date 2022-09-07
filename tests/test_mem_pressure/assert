@@ -61,6 +61,7 @@ class TestMemPressure:
             rpm('-e', 'scheduler-xxx')
         except Exception:
             self.check_oom(target)
+            raise
 
     def test_all(self):
         for level in range(1, self.iterations + 4):
