@@ -254,6 +254,9 @@ def func_class_arithmetics(fns):
     fns.sdcr_left = sidecar_inflect(fns.sidecar, fns.in_vmlinux)
     fns.sdcr_out = fns.sdcr_fns - fns.sdcr_left
 
+    assert not (fns.sidecar & fns.border), \
+            'Function boundary conflict, please check your sidecar config'
+
     # Inflect outsider functions
     fns.inflect_cut = fns.border | fns.init | fns.sidecar
     fns.insider = inflect(fns.initial_insider, edges) - fns.init
@@ -262,6 +265,31 @@ def func_class_arithmetics(fns):
     fns.public_user = fns.fn - fns.insider - fns.border
     fns.tainted = (fns.border | fns.insider | fns.sidecar) & fns.in_vmlinux
     fns.und = (fns.sched_outsider - fns.outsider_opt) | fns.border | fns.sidecar
+
+def get_func_decl_strs(signatures, fmt):
+    """Generate function declaration strings. If both strong and weak
+    symbol exist, keep only one.
+    """
+    decl_strs = set()
+    local_syms = set()
+
+    for fn in signatures:
+        (name, file) = fn
+        s = fmt.format(**decls[fn])
+
+        if file != global_fn_dict.get(name):
+            local_syms.add(name)
+
+        """If there are two global symbols, then one must be weak and
+        the other strong. Otherwise, original kernel fails to compile.
+        """
+        if s in decl_strs:
+            assert name not in local_syms, \
+                'Attempt to redirect a repeating local symbol %s' % str(fn)
+            continue
+        decl_strs.add(s)
+
+    return decl_strs
 
 
 class dotdict(dict):
@@ -403,8 +431,8 @@ if __name__ == '__main__':
 
     for fn in func_class.und:
         unds.append(und_fmt.format(fn[0], local_sympos.get(fn, 0)))
-    # Consistent with kpatch and livepatch:
-    # set global symbol's sympos to 1 in sysfs
+
+    # Consistent with kpatch: set global symbol's sympos to 1
     for fn in func_class.tainted:
         taints.append(tnt_fmt.format(fn[0], local_sympos.get(fn, 0) or 1))
     with open(mod_path + 'tainted_functions.h', 'w') as f:
@@ -412,6 +440,7 @@ if __name__ == '__main__':
     with open(tmp_dir + 'symbol_resolve/undefined_functions.h', 'w') as f:
         f.write('{%s}' % '},\n{'.join(unds))
     with open(mod_path + 'export_jump.h', 'w') as f:
-        f.writelines(cb_fmt.format(**decls[fn]) for fn in func_class.callback)
-        f.writelines(export.format(**decls[fn]) for fn in func_class.interface)
-        f.writelines(export.format(**decls[fn]) for fn in func_class.sidecar)
+        strs = get_func_decl_strs(func_class.callback, cb_fmt)
+        strs |= get_func_decl_strs(func_class.interface, export)
+        strs |= get_func_decl_strs(func_class.sidecar, export)
+        f.writelines(sorted(strs))
