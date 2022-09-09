@@ -276,17 +276,10 @@ def get_func_decl_strs(signatures, fmt):
     for fn in signatures:
         (name, file) = fn
         s = fmt.format(**decls[fn])
-
         if file != global_fn_dict.get(name):
-            local_syms.add(name)
-
-        """If there are two global symbols, then one must be weak and
-        the other strong. Otherwise, original kernel fails to compile.
-        """
-        if s in decl_strs:
             assert name not in local_syms, \
                 'Attempt to redirect a repeating local symbol %s' % str(fn)
-            continue
+            local_syms.add(name)
         decl_strs.add(s)
 
     return decl_strs
@@ -298,6 +291,13 @@ class dotdict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+"""Strong symbols override weak symbols. Because arch/built-in.a comes
+before kernel/built-in.a when creating built-in.a, architecture-specific
+weak symbols override general weak symbols.
+"""
+WEAK_NORM = 3
+WEAK_ARCH = 2
+STRONG    = 1
 
 if __name__ == '__main__':
     vmlinux = sys.argv[1]
@@ -328,6 +328,7 @@ if __name__ == '__main__':
         'callback': set(),
         'sdcr_fns': set(),
         'interface': set(),
+        'weak': set(),
     })
 
     edges = []
@@ -353,10 +354,27 @@ if __name__ == '__main__':
             if fn.init:
                 func_class.init.add(fn.signature)
             if fn.public:
-                global_fn_dict[fn.name] = fn.file
+                if fn.weak or fn.file.endswith('.c'):
+                    global_fn_dict.setdefault(fn.name, set())
+
+                if fn.weak and fn.file.startswith('arch/'):
+                    global_fn_dict[fn.name].add((WEAK_ARCH, fn.file))
+                elif fn.weak:
+                    global_fn_dict[fn.name].add((WEAK_NORM, fn.file))
+                elif fn.file.endswith('.c'):
+                    global_fn_dict[fn.name].add((STRONG, fn.file))
+
+            if fn.weak:
+                func_class.weak.add(fn.signature)
 
         for fn in meta['interface']:
             func_class.interface.add(tuple(fn))
+
+    for name, fn_list in global_fn_dict.items():
+        fn_list = sorted(fn_list)
+        if name != 'main' and len(fn_list) != 1 and fn_list[0][0] == fn_list[1][0]:
+            print('warning: Can\'t tell which %s is linked in vmlinux!' % name)
+        global_fn_dict[name] = fn_list[0][1]
 
     # second pass: fix vague filename, calc callback and edge set
     for meta in metas:
