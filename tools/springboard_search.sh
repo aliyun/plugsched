@@ -53,7 +53,7 @@ function get_stack_size_AArch64()
 
 function get_springboard_target()
 {
-	target_addr=$(awk '$NF == "<'$1'>"{getline; print $1; exit}' <<< "$schedule_asm")
+	target_addr=$(awk '$NF == "<'$1'>"{print $1; exit}' <<< "$schedule_asm")
 	target_addr=0x${target_addr%:*}
 	target_off=$((target_addr-start_addr))
 
