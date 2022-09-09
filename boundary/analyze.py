@@ -294,7 +294,7 @@ def get_func_decl_strs(signatures, fmt):
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
-    __getattr__ = dict.get
+    __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
@@ -352,7 +352,7 @@ if __name__ == '__main__':
                 hdr_sym['fn'].append(fn)
             if fn.init:
                 func_class.init.add(fn.signature)
-            if fn.publ:
+            if fn.public:
                 global_fn_dict[fn.name] = fn.file
 
         for fn in meta['interface']:
