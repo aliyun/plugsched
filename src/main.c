@@ -159,9 +159,9 @@ static int __sync_sched_install(void *arg)
 	}
 
 	error = stack_check(true);
-	atomic_dec(&cpu_finished);
 	if (error)
 		atomic_cmpxchg(&global_error, 0, error);
+	atomic_dec(&cpu_finished);
 
 	/* wait for all cpu to finish stack check */
 	atomic_cond_read_relaxed(&cpu_finished, !VAL);
@@ -207,9 +207,9 @@ static int __sync_sched_restore(void *arg)
 		stop_time_p0 = ktime_get();
 
 	error = stack_check(false);
-	atomic_dec(&cpu_finished);
 	if (error)
 		atomic_cmpxchg(&global_error, 0, error);
+	atomic_dec(&cpu_finished);
 
 	/* wait for all cpu to finish stack check */
 	atomic_cond_read_relaxed(&cpu_finished, !VAL);
