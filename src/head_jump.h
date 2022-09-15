@@ -67,13 +67,24 @@ static unsigned long mod_func_size[NR_INTERFACE_FN];
 	static unsigned long orig_##func##_size; 		\
 	static unsigned long mod_##func##_size
 
+extern void __orig___fentry__(void);
+
 #define JUMP_INIT_FUNC(func, prefix) do {		\
+		curr_func = #func;		\
 		vm_func_addr[NR_##func] = (unsigned long)__orig_##func; 	\
 		mod_func_addr[NR_##func] = (unsigned long)prefix##func; \
 		memcpy(store_orig_##func, __orig_##func, HEAD_LEN); \
 		store_jump_##func[0] = 0xe9; 	\
 		(*(int *)(store_jump_##func + 1)) = 	\
 			(long)prefix##func - (long)__orig_##func - HEAD_LEN; \
+		if (store_orig_##func[0] == 0xe8) { \
+			offset = *(int *)(store_orig_##func + 1); \
+			target = (void*)__orig_##func + HEAD_LEN + offset; \
+			if (target != __orig___fentry__) \
+				goto hooked; \
+		} \
+		if (store_orig_##func[0] == 0xe9) \
+			goto hooked; \
 	} while(0)
 
 #define JUMP_INSTALL_FUNC(func) \
@@ -148,8 +159,15 @@ static inline void jump_remove(void)
 #define EXPORT_PLUGSCHED(fn, ...) JUMP_INIT_FUNC(fn, );
 static int __maybe_unused jump_init_all(void)
 {
+	char *curr_func;
+	int offset;
+	void* target;
+
 	#include "export_jump.h"
 	return 0;
+hooked:
+	printk(KBUILD_MODNAME ": Error: function %s is already hooked by someone.\n", curr_func);
+	return 1;
 }
 #undef EXPORT_PLUGSCHED
 #undef EXPORT_CALLBACK
