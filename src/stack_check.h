@@ -63,7 +63,7 @@ static int stack_check_fn(unsigned long *entries, unsigned int nr_entries, bool 
 
 		idx = bsearch(func_addr, 0, NR_INTERFACE_FN - 1, address);
 		if (idx == -1)
-			return 0;
+			continue;
 		if (address < func_addr[idx] + func_size[idx])
 			return -EAGAIN;
 	}
