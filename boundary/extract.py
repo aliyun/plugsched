@@ -252,7 +252,11 @@ class Extraction(object):
     def fix_up(self, lines):
         """Post fix trival code adaption"""
         delete = re.compile('initcall|early_param|__init |__initdata |__setup')
-        replace_list = [('struct atomic_t', 'atomic_t')]
+        replace_list = [
+            (re.compile(r'struct atomic_t'), r'atomic_t'),
+            (re.compile(r'(^const .*) ((stop|dl|rt|fair|idle)_sched_class)'),
+             r'\1 shadow_\2'),
+        ]
 
         for (i, line) in enumerate(lines):
             if '#include "' in line:
@@ -267,8 +271,8 @@ class Extraction(object):
                 continue
 
             for (p, repl) in replace_list:
-                if p in line:
-                    lines[i] = line.replace(p, repl)
+                if p.search(line):
+                    lines[i] = p.sub(repl, line)
                     break
 
     def extract_file(self):
