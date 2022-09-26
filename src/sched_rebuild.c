@@ -10,67 +10,60 @@ extern void __orig_set_rq_offline(struct rq*);
 extern void __orig_set_rq_online(struct rq*);
 extern unsigned int process_id[];
 
-extern const struct sched_class __orig_stop_sched_class;
-extern const struct sched_class __orig_dl_sched_class;
-extern const struct sched_class __orig_rt_sched_class;
-extern const struct sched_class __orig_fair_sched_class;
-extern const struct sched_class __orig_idle_sched_class;
+extern struct sched_class __orig_stop_sched_class;
+extern struct sched_class __orig_dl_sched_class;
+extern struct sched_class __orig_rt_sched_class;
+extern struct sched_class __orig_fair_sched_class;
+extern struct sched_class __orig_idle_sched_class;
+extern struct sched_class shadow_stop_sched_class;
+extern struct sched_class shadow_dl_sched_class;
+extern struct sched_class shadow_rt_sched_class;
+extern struct sched_class shadow_fair_sched_class;
+extern struct sched_class shadow_idle_sched_class;
 
-#define SCHED_STOP 7
-
-static const struct sched_class* class[][SCHED_STOP+1] = {
-	{
-		&fair_sched_class,
-		&rt_sched_class,
-		&rt_sched_class,
-		&fair_sched_class,
-		NULL,
-		&idle_sched_class,
-		&dl_sched_class,
-		&stop_sched_class,
-	},
-	{
-		&__orig_fair_sched_class,
-		&__orig_rt_sched_class,
-		&__orig_rt_sched_class,
-		&__orig_fair_sched_class,
-		NULL,
-		&__orig_idle_sched_class,
-		&__orig_dl_sched_class,
-		&__orig_stop_sched_class,
-	}
+struct sched_class *orig_class[] = {
+	&__orig_stop_sched_class,
+	&__orig_dl_sched_class,
+	&__orig_rt_sched_class,
+	&__orig_fair_sched_class,
+	&__orig_idle_sched_class,
 };
+
+struct sched_class *mod_class[] = {
+	&shadow_stop_sched_class,
+	&shadow_dl_sched_class,
+	&shadow_rt_sched_class,
+	&shadow_fair_sched_class,
+	&shadow_idle_sched_class,
+};
+
+#define NR_SCHED_CLASS 5
+struct sched_class bak_class[NR_SCHED_CLASS];
+
+
+static inline void do_write_cr0(unsigned long val)
+{
+        asm volatile("mov %0,%%cr0": "+r" (val) : : "memory");
+}
 
 void switch_sched_class(bool mod)
 {
-	struct task_struct *g, *p;
-	int task_count = 0;
-	int nr_cpus = num_online_cpus();
-	int cpu = smp_processor_id();
-	int idx = mod ? 0 : 1;
+	int i;
+	int size = sizeof(struct sched_class);
+	unsigned long cr0 = read_cr0();
 
-	for_each_process_thread(g, p) {
-		if ((task_count % nr_cpus) == process_id[cpu]) {
-			int policy = p->policy;
+	do_write_cr0(cr0 & 0xfffeffff);
 
-			/* kernel doesn't set policy for stopper task */
-			if (p == task_rq(p)->stop)
-				policy = SCHED_STOP;
-			p->sched_class = class[idx][policy];
+	for (i = 0; i < NR_SCHED_CLASS; i++) {
+		if (mod) {
+			memcpy(&bak_class[i], orig_class[i], size);
+			memcpy(orig_class[i], mod_class[i], size);
+		} else {
+			memcpy(orig_class[i], &bak_class[i], size);
 		}
-		task_count++;
 	}
 
-	if (process_id[cpu])
-		return;
-
-	for_each_possible_cpu(cpu) {
-		/* kernel doesn't set policy for idle task */
-		p = idle_task(cpu);
-		p->sched_class = class[idx][SCHED_IDLE];
-	}
-
-	return;
+	do_write_cr0(cr0);
 }
 
 void clear_sched_state(bool mod)

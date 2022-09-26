@@ -181,8 +181,8 @@ static int __sync_sched_install(void *arg)
 	/* wait for all cpu to finish state rebuild */
 	atomic_cond_read_relaxed(&clear_finished, !VAL);
 
-	switch_sched_class(true);
 	if (is_first_process()) {
+		switch_sched_class(true);
 		JUMP_OPERATION(install);
 		disable_stack_protector();
 		sched_alloc_extrapad();
@@ -229,8 +229,8 @@ static int __sync_sched_restore(void *arg)
 	/* wait for all cpu to finish state rebuild */
 	atomic_cond_read_relaxed(&clear_finished, !VAL);
 
-	switch_sched_class(false);
 	if (is_first_process()) {
+		switch_sched_class(false);
 		JUMP_OPERATION(remove);
 		reset_balance_callback();
 		sched_free_extrapad();
