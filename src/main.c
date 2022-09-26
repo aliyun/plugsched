@@ -396,10 +396,12 @@ static int load_sched_routine(void)
 		return -ENOMEM;
 	}
 
+	cpu_maps_update_begin();
 	parallel_state_check_init();
 	process_id_init();
 
 	ret = sync_sched_mod(__sync_sched_install);
+	cpu_maps_update_done();
 	if (ret) {
 		sched_mempools_destroy();
 		module_put(THIS_MODULE);
@@ -429,10 +431,12 @@ static int unload_sched_routine(void)
 	printk("scheduler module is unloading\n");
 	main_start = ktime_get();
 
+	cpu_maps_update_begin();
 	parallel_state_check_init();
 	process_id_init();
 
 	ret = sync_sched_mod(__sync_sched_restore);
+	cpu_maps_update_done();
 	if (ret)
 		return ret;
 
