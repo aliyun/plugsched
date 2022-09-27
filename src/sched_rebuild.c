@@ -41,18 +41,10 @@ struct sched_class *mod_class[] = {
 struct sched_class bak_class[NR_SCHED_CLASS];
 
 
-static inline void do_write_cr0(unsigned long val)
-{
-        asm volatile("mov %0,%%cr0": "+r" (val) : : "memory");
-}
-
 void switch_sched_class(bool mod)
 {
 	int i;
 	int size = sizeof(struct sched_class);
-	unsigned long cr0 = read_cr0();
-
-	do_write_cr0(cr0 & 0xfffeffff);
 
 	for (i = 0; i < NR_SCHED_CLASS; i++) {
 		if (mod) {
@@ -62,8 +54,6 @@ void switch_sched_class(bool mod)
 			memcpy(orig_class[i], &bak_class[i], size);
 		}
 	}
-
-	do_write_cr0(cr0);
 }
 
 void clear_sched_state(bool mod)

@@ -53,8 +53,8 @@ static unsigned long mod_func_size[NR_INTERFACE_FN];
  * 2) For functions set:
  *    1. Add the function to export_jump.h file
  *    2. Call jump_init_all() to init all functions data
- *    3. Use JUMP_OPERATION(install) macro to replace the functions set
- *    4. Use JUMP_OPERATION(remove) macro to restore the functions set
+ *    3. Call jump_install() to replace the functions set
+ *    4. Call jump_remove() to restore the functions set
  */
 
 #ifdef CONFIG_X86_64
@@ -93,20 +93,17 @@ extern void __orig___fentry__(void);
 #define JUMP_REMOVE_FUNC(func) 	\
 	memcpy((unsigned char *)__orig_##func, store_orig_##func, HEAD_LEN)
 
-static inline void do_write_cr0(unsigned long val)
+static inline void disable_write_protect(void)
 {
+	unsigned long val = read_cr0() & (~X86_CR0_WP);
 	asm volatile("mov %0,%%cr0": "+r" (val) : : "memory");
 }
 
-/* Must be used in stop machine context */
-#define JUMP_OPERATION(ops) do { 	\
-		unsigned long cr0;      \
-					\
-		cr0 = read_cr0();       \
-		do_write_cr0(cr0 & 0xfffeffff);    \
-		jump_##ops();		\
-		do_write_cr0(cr0);         \
-	} while(0)
+static inline void enable_write_protect(void)
+{
+	unsigned long val = read_cr0() | X86_CR0_WP;
+	asm volatile("mov %0,%%cr0": "+r" (val) : : "memory");
+}
 
 #else /* For ARM64 */
 #define DEFINE_JUMP_FUNC(func)				\
@@ -129,9 +126,8 @@ static inline void do_write_cr0(unsigned long val)
 #define JUMP_REMOVE_FUNC(func)  \
 	aarch64_insn_patch_text_nosync(__orig_##func, store_orig_##func)
 
-#define JUMP_OPERATION(ops) do {	\
-		jump_##ops();	\
-	} while(0)
+static inline void disable_write_protect(void) {}
+static inline void enable_write_protect(void) {}
 
 #endif /* CONFIG_X86_64 */
 
