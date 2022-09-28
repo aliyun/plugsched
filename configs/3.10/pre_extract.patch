@@ -569,5 +569,17 @@ index 60cf76562..c502dd2e1 100644
  		       mpi_ptr_t s2_ptr, mpi_size_t s2_size);
  
  /*-- mpihelp-cmp.c --*/
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 91f5f4b4..b15d9c98 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -3637,7 +3637,6 @@ need_resched:
+ 	if (need_resched())
+ 		goto need_resched;
+ }
+-STACK_FRAME_NON_STANDARD(__schedule); /* switch_to() */
+ 
+ static inline void sched_submit_work(struct task_struct *tsk)
+ {
 2.32.0.604.gb1f3e1269
 

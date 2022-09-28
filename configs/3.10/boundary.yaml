@@ -33,7 +33,6 @@ function:
         - scheduler_tick
         - sched_fork
         - scheduler_ipi
-        - __schedule
         - resched_cpu
         - get_nohz_timer_target
         - nohz_balance_enter_idle
@@ -68,6 +67,10 @@ function:
         - finish_task_switch
         - sched_exec
         - yield
+        - try_to_wake_up_local
+        - deactivate_task
+        - activate_task
+        - check_preempt_curr
 global_var:
     extra_public:
     - cpu_idle_force_poll
