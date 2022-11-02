@@ -309,19 +309,6 @@ index 28bb9603d..b97c6575e 100644
  	pch_gbe_phy_write_reg_miic(hw, PHY_PHYSP_CONTROL, mii_reg);
 -
  }
-diff --git a/drivers/scsi/megaraid/megaraid_sas_base.c b/drivers/scsi/megaraid/megaraid_sas_base.c
-index 8c6105222..b06eecd8c 100644
---- a/drivers/scsi/megaraid/megaraid_sas_base.c
-+++ b/drivers/scsi/megaraid/megaraid_sas_base.c
-@@ -228,7 +228,7 @@ struct megasas_cmd *megasas_get_cmd(struct megasas_instance
-  * @instance:		Adapter soft state
-  * @cmd:		Command packet to be returned to free command pool
-  */
--inline void
-+void
- megasas_return_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
- {
- 	unsigned long flags;
 diff --git a/drivers/staging/rtl8187se/ieee80211/ieee80211.h b/drivers/staging/rtl8187se/ieee80211/ieee80211.h
 index 8fc9f588b..9fdd566e8 100644
 --- a/drivers/staging/rtl8187se/ieee80211/ieee80211.h
@@ -521,22 +508,6 @@ index 000000000..cdd1cc202
 +#define __HAVE_BUILTIN_BSWAP64__
 +#define __HAVE_BUILTIN_BSWAP16__
 +#endif /* CONFIG_ARCH_USE_BUILTIN_BSWAP */
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 39067574d..c0844a9eb 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -215,9 +215,9 @@ static inline bool mem_cgroup_disabled(void)
- 	return false;
- }
- 
--inline void mem_cgroup_begin_update_page_stat(struct page *page);
-+void mem_cgroup_begin_update_page_stat(struct page *page);
- 
--inline void mem_cgroup_end_update_page_stat(struct page *page);
-+void mem_cgroup_end_update_page_stat(struct page *page);
- 
- void mem_cgroup_update_page_stat(struct page *page,
- 				 enum mem_cgroup_page_stat_item idx,
 diff --git a/include/linux/mod_devicetable.h b/include/linux/mod_devicetable.h
 index b3bd7e737..d31364857 100644
 --- a/include/linux/mod_devicetable.h
@@ -549,26 +520,14 @@ index b3bd7e737..d31364857 100644
  struct hv_vmbus_device_id {
  	__u8 guid[16];
  	kernel_ulong_t driver_data;	/* Data private to the driver */
-@@ -547,6 +548,11 @@ struct amba_id {
-  * See documentation of "x86_match_cpu" for details.
-  */
- 
-+/*
-+ * MODULE_DEVICE_TABLE expects this struct to be called x86cpu_device_id.
-+ * Although gcc seems to ignore this error, clang fails without this define.
-+ */
-+#define x86cpu_device_id x86_cpu_id
- struct x86_cpu_id {
- 	__u16 vendor;
- 	__u16 family;
 @@ -574,6 +580,7 @@ struct ipack_device_id {
- #define MEI_CL_MODULE_PREFIX "mei:"
- #define MEI_CL_NAME_SIZE 32
- 
+  *
+  * identifies mei client device by uuid and name
+  */
 +#define mei_device_id mei_cl_device_id
  struct mei_cl_device_id {
  	char name[MEI_CL_NAME_SIZE];
- 	kernel_ulong_t driver_info;
+ 	uuid_le uuid;
 diff --git a/lib/mpi/mpi-inline.h b/lib/mpi/mpi-inline.h
 index e2b39852b..c245ea31f 100644
 --- a/lib/mpi/mpi-inline.h
@@ -610,28 +569,5 @@ index 60cf76562..c502dd2e1 100644
  		       mpi_ptr_t s2_ptr, mpi_size_t s2_size);
  
  /*-- mpihelp-cmp.c --*/
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b69b2f562..09f6cb4f6 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2702,7 +2702,7 @@ cleanup:
- 	return true;
- }
- 
--inline void mem_cgroup_begin_update_page_stat(struct page *page)
-+void mem_cgroup_begin_update_page_stat(struct page *page)
- {
- 	struct page_cgroup *pc;
- 
-@@ -2712,7 +2712,7 @@ inline void mem_cgroup_begin_update_page_stat(struct page *page)
- 	lock_page_cgroup(pc);
- }
- 
--inline void mem_cgroup_end_update_page_stat(struct page *page)
-+void mem_cgroup_end_update_page_stat(struct page *page)
- {
- 	struct page_cgroup *pc;
- 
--- 
 2.32.0.604.gb1f3e1269
 

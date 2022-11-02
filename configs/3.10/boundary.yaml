@@ -1,0 +1,105 @@
+# Copyright 2019-2022 Alibaba Group Holding Limited.
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
+mod_files:
+    - kernel/sched/core.c
+    - kernel/sched/fair.c
+    - kernel/sched/idle_task.c
+    - kernel/sched/rt.c
+    - kernel/sched/cpudeadline.c
+    - kernel/sched/deadline.c
+    - kernel/sched/cpupri.c
+    - kernel/sched/debug.c
+    - kernel/sched/stats.c
+    - kernel/sched/stop_task.c
+    - kernel/sched/cpudeadline.h
+    - kernel/sched/cpupri.h
+    - kernel/sched/sched.h
+    - kernel/sched/stats.h
+    - kernel/sched/features.h
+interface_prefix:
+    - SyS_
+    - sys_
+function:
+    interface:
+        - yield_to
+        - __balance_callback
+        - do_set_cpus_allowed
+        - set_user_nice
+        - __sched_setscheduler
+        - sched_setscheduler_nocheck
+        - __set_cpus_allowed_ptr
+        - schedule_tail
+        - scheduler_tick
+        - sched_fork
+        - scheduler_ipi
+        - __schedule
+        - resched_cpu
+        - get_nohz_timer_target
+        - nohz_balance_enter_idle
+        - sched_ttwu_pending
+        - wake_up_if_idle
+        - try_to_wake_up
+        - wake_up_new_task
+        - wake_up_nohz_cpu
+        - rt_mutex_setprio
+        - idle_cpu
+        - partition_sched_domains
+        - sched_set_stop_task
+        - task_numa_group_id
+        - should_numa_migrate_memory
+        - task_numa_free
+        - task_numa_fault
+        - proc_sched_show_task
+        - proc_sched_set_task
+        - init_idle
+        - in_sched_functions
+        - task_sched_runtime
+        - cpuset_cpumask_can_shrink
+        - task_can_attach
+        - normalize_rt_tasks
+        - sysrq_sched_debug_show
+        - sched_move_task
+        - sched_group_set_shares
+        - sched_offline_group
+        - sched_destroy_group
+        - sched_create_group
+        - sched_online_group
+        - finish_task_switch
+        - sched_exec
+        - yield
+global_var:
+    extra_public:
+    - cpu_idle_force_poll
+    - num_cpus_frozen
+    - __cfs_bandwidth_used
+    - max_load_balance_interval
+    - sched_domains_curr_level
+    - sched_domains_numa_masks
+    - default_relax_domain_level
+    - sched_domain_topology
+    - sched_domains_numa_distance
+    - sched_domains_numa_levels
+    - fallback_doms
+    - ndoms_cur
+    - doms_cur
+    - dattr_cur
+    - default_topology
+    - local_cpu_mask
+    - rt_pull_head
+    - rt_push_head
+    - dl_push_head
+    - local_cpu_mask_dl
+    - dl_pull_head
+    - nohz
+    - cfs_constraints_mutex
+    - shares_mutex
+    force_private:
+    - sysctl_sched_features
+    - sched_feat_keys
+    - stop_sched_class
+    - dl_sched_class
+    - rt_sched_class
+    - fair_sched_class
+    - idle_sched_class
+sidecar:
