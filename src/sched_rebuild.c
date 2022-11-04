@@ -5,6 +5,7 @@
 
 #include <linux/sched.h>
 #include "sched.h"
+#include "helper.h"
 
 extern void __orig_set_rq_offline(struct rq*);
 extern void __orig_set_rq_online(struct rq*);
@@ -41,29 +42,25 @@ struct sched_class *mod_class[] = {
 struct sched_class bak_class[NR_SCHED_CLASS];
 
 
-static inline void do_write_cr0(unsigned long val)
-{
-        asm volatile("mov %0,%%cr0": "+r" (val) : : "memory");
-}
-
 void switch_sched_class(bool mod)
 {
 	int i;
 	int size = sizeof(struct sched_class);
-	unsigned long cr0 = read_cr0();
-
-	do_write_cr0(cr0 & 0xfffeffff);
 
 	for (i = 0; i < NR_SCHED_CLASS; i++) {
-		if (mod) {
-			memcpy(&bak_class[i], orig_class[i], size);
-			memcpy(orig_class[i], mod_class[i], size);
-		} else {
-			memcpy(orig_class[i], &bak_class[i], size);
-		}
-	}
+		void *waddr;
 
-	do_write_cr0(cr0);
+		waddr = disable_write_protect(orig_class[i]);
+
+		if (mod) {
+			memcpy(&bak_class[i], waddr, size);
+			memcpy(waddr, mod_class[i], size);
+		} else {
+			memcpy(waddr, &bak_class[i], size);
+		}
+
+		enable_write_protect();
+	}
 }
 
 void clear_sched_state(bool mod)

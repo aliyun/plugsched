@@ -4,7 +4,6 @@
 #include <linux/list.h>
 #include <trace/events/sched.h>
 #include <linux/stacktrace.h>
-#include "helper.h"
 
 #define MAX_STACK_ENTRIES	100
 

@@ -13,6 +13,7 @@
 #include <linux/sysfs.h>
 #include <linux/version.h>
 #include "sched.h"
+#include "helper.h"
 #include "mempool.h"
 #include "head_jump.h"
 #include "stack_check.h"
