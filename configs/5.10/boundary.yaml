@@ -34,12 +34,13 @@ function:
         - send_call_function_single_ipi
         - do_set_cpus_allowed
         - set_user_nice
-        - sched_setscheduler
+        - __sched_setscheduler
         - sched_setscheduler_nocheck
         - __set_cpus_allowed_ptr
         - schedule_tail
         - scheduler_tick
         - sched_fork
+        - sched_post_fork
         - __schedule
         - resched_cpu
         - task_rq_lock
@@ -52,7 +53,7 @@ function:
         - wake_up_nohz_cpu
         - rt_mutex_setprio
         - idle_cpu
-        - partition_sched_domains
+        - partition_sched_domains_locked
         - sched_set_stop_task
         - task_numa_group_id
         - should_numa_migrate_memory
