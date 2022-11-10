@@ -93,19 +93,12 @@ extern void __orig___fentry__(void);
 #define JUMP_REMOVE_FUNC(func) 	\
 	memcpy((unsigned char *)__orig_##func, store_orig_##func, HEAD_LEN)
 
-static inline void do_write_cr0(unsigned long val)
-{
-	asm volatile("mov %0,%%cr0": "+r" (val) : : "memory");
-}
 
 /* Must be used in stop machine context */
 #define JUMP_OPERATION(ops) do { 	\
-		unsigned long cr0;      \
-					\
-		cr0 = read_cr0();       \
-		do_write_cr0(cr0 & 0xfffeffff);    \
-		jump_##ops();		\
-		do_write_cr0(cr0);         \
+		void *unused = disable_write_protect(NULL); \
+		jump_##ops();	\
+		enable_write_protect(); \
 	} while(0)
 
 #else /* For ARM64 */
