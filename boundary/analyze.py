@@ -412,8 +412,6 @@ if __name__ == '__main__':
         meta = metas_by_name[sym[1] + '.boundary']
         assert not check_redirect_mangled(sym, meta), \
             "trying to redirect the mangled function %s (%s)" % sym
-    assert not struct_properties['sched_class']['public_users'], \
-        'struct sched_class should be purely private'
 
     with open(tmp_dir + 'header_symbol.json', 'w') as f:
         json.dump(hdr_sym, f, indent=4)
