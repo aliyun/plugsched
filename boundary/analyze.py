@@ -261,6 +261,7 @@ def func_class_arithmetics(fns):
     fns.inflect_cut = fns.border | fns.init | fns.sidecar
     fns.insider = inflect(fns.initial_insider, edges) - fns.init
     fns.sched_outsider = (fns.mod_fns - fns.insider - fns.border) | fns.cb_opt
+    fns.sched_outsider |= fns.fake_global & fns.mod_fns
     fns.outsider_opt = fns.sched_outsider - fns.in_vmlinux - fns.init
     fns.public_user = fns.fn - fns.insider - fns.border
     fns.tainted = (fns.border | fns.insider | fns.sidecar) & fns.in_vmlinux
@@ -329,6 +330,7 @@ if __name__ == '__main__':
         'sdcr_fns': set(),
         'interface': set(),
         'weak': set(),
+        'fake_global': set(),
     })
 
     edges = []
@@ -375,6 +377,9 @@ if __name__ == '__main__':
         if name != 'main' and len(fn_list) != 1 and fn_list[0][0] == fn_list[1][0]:
             print('warning: Can\'t tell which %s is linked in vmlinux!' % name)
         global_fn_dict[name] = fn_list[0][1]
+        for prio, file in fn_list[1:]:
+            if prio in (WEAK_ARCH, WEAK_NORM):
+                func_class.fake_global.add((name, file))
 
     # second pass: fix vague filename, calc callback and edge set
     for meta in metas:
