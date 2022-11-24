@@ -128,6 +128,10 @@ class Collection(object):
                 return val[0].constant == section
         return False
 
+    def decl_is_weak(self, decl):
+        """Whether declaration is weak"""
+        return '__weak__' in decl.attributes or 'weak' in decl.attributes
+
     def collect_fn(self):
         """Collect all funtion properties, including interface functions"""
         src_f = gcc.get_main_input_filename()
@@ -155,6 +159,7 @@ class Collection(object):
                 'public': decl.public,
                 'static': decl.static,
                 'inline': decl.inline or 'always_inline' in decl.attributes,
+                'weak': self.decl_is_weak(decl),
                 'signature': self.decl_sig(decl),
                 'decl_str': None,
             }
