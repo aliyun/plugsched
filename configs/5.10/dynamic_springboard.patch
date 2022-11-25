@@ -8,32 +8,16 @@ Subject: [PATCH] Dynamic __schedule springboard
 
 With this springboard, we don't have to customize the kernel's __schedule.
 
-In order to match the layout of stack of __schedule in vmlinux, I change
-the attribute of prepare_task_switch to noinline which is because that,
-the frame pointer in vmlinux is optimized but not in scheduler. Whether
-the prepare_task_switch is inlined can infect whether the frame pointer
-of __schedule in module is optimized.
-
 Co-developed-by: Yihao Wu <wuyihao@linux.alibaba.com>
 Signed-off-by: Erwei Deng <erwei@linux.alibaba.com>
-
 ---
- kernel/sched/mod/core.c | 39 +++++++++++++++++++++++++++++++++++++--
- 1 file changed, 37 insertions(+), 2 deletions(-)
+ kernel/sched/mod/core.c | 38 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 37 insertions(+), 1 deletion(-)
 
 diff --git a/kernel/sched/mod/core.c b/kernel/sched/mod/core.c
-index eee32739c..49bf0d72d 100644
+index eee32739c..26ccde413 100644
 --- a/kernel/sched/mod/core.c
 +++ b/kernel/sched/mod/core.c
-@@ -3249,7 +3249,7 @@ static inline void finish_lock_switch(struct rq *rq)
-  * prepare_task_switch sets up locking and calls architecture specific
-  * hooks.
-  */
--static inline void
-+static noinline void
- prepare_task_switch(struct rq *rq, struct task_struct *prev,
- 		    struct task_struct *next)
- {
 @@ -3417,6 +3417,8 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
  /*
   * context_switch - switch to the new MM and the new thread's register state.
@@ -85,6 +69,14 @@ index eee32739c..49bf0d72d 100644
  	barrier();
  
  	return finish_task_switch(prev);
+@@ -4066,6 +4101,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+  *
+  * WARNING: must be called with preemption disabled!
+  */
++__attribute__ ((optimize("no-omit-frame-pointer")))
+ static void __sched notrace __used __schedule(bool preempt)
+ {
+ 	struct task_struct *prev, *next;
 -- 
 2.27.0
 
