@@ -18,14 +18,14 @@ Co-developed-by: Yihao Wu <wuyihao@linux.alibaba.com>
 Signed-off-by: Erwei Deng <erwei@linux.alibaba.com>
 
 ---
- kernel/sched/mod/core.c | 41 +++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 39 insertions(+), 2 deletions(-)
+ kernel/sched/mod/core.c | 39 +++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 37 insertions(+), 2 deletions(-)
 
 diff --git a/kernel/sched/mod/core.c b/kernel/sched/mod/core.c
-index d665eac45..f5038f4f0 100644
+index eee32739c..49bf0d72d 100644
 --- a/kernel/sched/mod/core.c
 +++ b/kernel/sched/mod/core.c
-@@ -3228,7 +3228,7 @@ static inline void finish_lock_switch(struct rq *rq)
+@@ -3249,7 +3249,7 @@ static inline void finish_lock_switch(struct rq *rq)
   * prepare_task_switch sets up locking and calls architecture specific
   * hooks.
   */
@@ -34,7 +34,7 @@ index d665eac45..f5038f4f0 100644
  prepare_task_switch(struct rq *rq, struct task_struct *prev,
  		    struct task_struct *next)
  {
-@@ -3413,6 +3413,8 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
+@@ -3417,6 +3417,8 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
  /*
   * context_switch - switch to the new MM and the new thread's register state.
   */
@@ -43,15 +43,14 @@ index d665eac45..f5038f4f0 100644
  static __always_inline struct rq *
  context_switch(struct rq *rq, struct task_struct *prev,
  	       struct task_struct *next, struct rq_flags *rf)
-@@ -3465,7 +3467,42 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -3469,7 +3471,40 @@ context_switch(struct rq *rq, struct task_struct *prev,
  	prepare_lock_switch(rq, next, rf);
  
  	/* Here we just switch the register state and the stack. */
 -	switch_to(prev, next, prev);
 +#ifdef CONFIG_X86_64
 +	__asm__("add %0,%%rsp\n\t"
-+		"pushq %1\n\t"
-+		"jmp __switch_to_asm"
++		"jmp *%1"
 +		:
 +		:"i"(STACKSIZE_MOD - STACKSIZE_VMLINUX), "r"(sched_springboard), "D"(prev), "S"(next)
 +		:"rbx","r12","r13","r14","r15"
@@ -74,8 +73,7 @@ index d665eac45..f5038f4f0 100644
 +		"stp x27,x28,[sp, #80]\n\t"
 +		"mov x0,%2\n\t"
 +		"mov x1,%3\n\t"
-+		"ldr x30,%1\n\t"
-+		"b __switch_to"
++		"br %1"
 +		:
 +		:"i"(STACKSIZE_SCHEDULE), "m"(sched_springboard),"r"(prev),"r"(next)
 +		:"x19","x20","x21","x22","x23","x24","x25",
