@@ -45,13 +45,13 @@ cmd_find_sym = 			                                         \
 	fi
 
 CFLAGS_core.stub.o := -DMODULE -DSTACKSIZE_MOD=0
+CFLAGS_main.stub.o := -DMODULE_FRAME_POINTER=VMLINUX_FRAME_POINTER
 $(obj)/%.stub.o: $(src)/%.c FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
 
 GET_STACK_SIZE: $(obj)/core.stub.o
-	$(eval CFLAGS_core.o += -DSTACKSIZE_MOD=$(shell bash \
-		$(plugsched_tmpdir)/springboard_search.sh build $<))
+	$(eval ccflags-y += $(shell bash $(plugsched_tmpdir)/springboard_search.sh build $<))
 
 $(obj)/.globalize: $(src)/export_jump.h $(obj-stub) FORCE
 	$(cmd_find_sym)
