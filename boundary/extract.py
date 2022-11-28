@@ -254,8 +254,8 @@ class Extraction(object):
         delete = re.compile('initcall|early_param|__init |__initdata |__setup')
         replace_list = [
             (re.compile(r'struct atomic_t'), r'atomic_t'),
-            (re.compile(r'(^const .*) ((stop|dl|rt|fair|idle)_sched_class)'),
-             r'\1 shadow_\2'),
+            (re.compile(r'^(?!extern ).*struct sched_class ((stop|dl|rt|fair|idle)_sched_class)'),
+             r'struct sched_class shadow_\1'),
         ]
 
         for (i, line) in enumerate(lines):
