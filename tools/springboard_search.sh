@@ -106,6 +106,16 @@ function get_stack_check_off_AArch64()
 	echo "stack_chk_off=$stack_chk_off; stack_chk_len=$stack_chk_len"
 }
 
+function get_stack_layout_X86_64()
+{
+	echo $schedule_asm | awk '{for(i = 0; i <= NF; i++) if($i == "push") {print $(i+1);break;}}' | hexdump -ve '"%x"'
+}
+
+function get_stack_layout_AArch64()
+{
+	echo $schedule_asm | awk '{for(i = 0; i <= NF; i++) if($i == "stp") {print $(i+1);break;}}' | hexdump -ve '"%x"'
+}
+
 function output()
 {
 	echo "ccflags-y += -DSPRINGBOARD=$target_off"
@@ -114,6 +124,7 @@ function output()
 		echo "ccflags-y += -DSTACK_PROTECTOR=$stack_chk_off"
 		echo "ccflags-y += -DSTACK_PROTECTOR_LEN=$stack_chk_len"
 	fi
+	echo "ccflags-y += -DVMLINUX_FRAME_POINTER=0x$(get_stack_layout_$arch)"
 }
 
 function read_config()
@@ -149,7 +160,9 @@ if [ "$stage" == "init" ]; then
 	do_search
 elif [ "$stage" == "build" ]; then
 	schedule_asm="$(get_function_asm)"
-	get_stack_size_$arch
+	size=$(get_stack_size_$arch)
+	stack_layout=0x$(get_stack_layout_$arch)
+	echo "-DSTACKSIZE_MOD=$size -DMODULE_FRAME_POINTER=$stack_layout"
 else
 	1>&2 echo "Usage: springboard_search.sh <stage> <object>."
 	exit 1

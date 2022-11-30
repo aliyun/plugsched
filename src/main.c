@@ -18,6 +18,10 @@
 #include "head_jump.h"
 #include "stack_check.h"
 
+#define CHECK_STACK_LAYOUT() \
+	BUILD_BUG_ON_MSG(MODULE_FRAME_POINTER != VMLINUX_FRAME_POINTER, \
+		"stack layout of __schedule can not match to it in vmlinux")
+
 #define MAX_CPU_NR		1024
 
 extern void __orig___schedule(bool);
@@ -581,6 +585,8 @@ static int register_plugsched_sysfs(void)
 static int __init sched_mod_init(void)
 {
 	int ret;
+
+	CHECK_STACK_LAYOUT();
 
 	printk("Hi, scheduler mod is installing!\n");
 	init_start = ktime_get();
