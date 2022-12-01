@@ -24,6 +24,7 @@ static void stack_check_init(void)
 	#undef EXPORT_PLUGSCHED
 	#undef EXPORT_CALLBACK
 
+	vm_func_size[NR___schedule] = 0;
 	addr_sort(vm_func_addr, vm_func_size, NR_INTERFACE_FN);
 
 	#define EXPORT_CALLBACK(fn, ...) 				\
@@ -40,6 +41,7 @@ static void stack_check_init(void)
 	#undef EXPORT_PLUGSCHED
 	#undef EXPORT_CALLBACK
 
+	mod_func_size[NR___schedule] = 0;
 	addr_sort(mod_func_addr, mod_func_size, NR_INTERFACE_FN);
 }
 
@@ -63,7 +65,7 @@ static int stack_check_fn(unsigned long *entries, unsigned int nr_entries, bool 
 
 		idx = bsearch(func_addr, 0, NR_INTERFACE_FN - 1, address);
 		if (idx == -1)
-			return 0;
+			continue;
 		if (address < func_addr[idx] + func_size[idx])
 			return -EAGAIN;
 	}
@@ -71,26 +73,91 @@ static int stack_check_fn(unsigned long *entries, unsigned int nr_entries, bool 
 	return 0;
 }
 
-/* This is basically copied from klp_check_stack */
+#ifdef CONFIG_ARCH_STACKWALK
+struct stacktrace_cookie {
+	unsigned long	*store;
+	unsigned int	size;
+	unsigned int	skip;
+	unsigned int	len;
+};
+
+static bool stack_trace_consume_entry(void *cookie, unsigned long addr)
+{
+	struct stacktrace_cookie *c = cookie;
+
+	if (c->len >= c->size)
+		return false;
+
+	if (c->skip > 0) {
+		c->skip--;
+		return true;
+	}
+	c->store[c->len++] = addr;
+	return c->len < c->size;
+}
+
+static unsigned int get_stack_trace(struct task_struct *tsk,
+		unsigned long *store, unsigned int size)
+{
+	struct stacktrace_cookie c = {
+		.store  = store,
+		.size   = size,
+		.skip   = 0
+	};
+
+	if (!try_get_task_stack(tsk))
+		return 0;
+
+	arch_stack_walk(stack_trace_consume_entry, &c, tsk, NULL);
+	put_task_stack(tsk);
+	return c.len;
+}
+#else
+#ifdef CONFIG_X86_64
+extern void __save_stack_trace(struct stack_trace *, struct task_struct *,
+		struct pt_regs *, bool);
+
+static inline void
+save_stack(struct stack_trace *trace, struct task_struct *tsk)
+{
+	__save_stack_trace(trace, tsk, NULL, false);
+}
+#else
+extern int __save_stack_trace(struct task_struct *, struct stack_trace *,
+		unsigned int);
+
+static inline void
+save_stack(struct stack_trace *trace, struct task_struct *tsk)
+{
+	__save_stack_trace(tsk, trace, 0);
+}
+#endif
+
+static unsigned int get_stack_trace(struct task_struct *tsk,
+                       unsigned long *store, unsigned int size)
+{
+        struct stack_trace trace;
+
+        trace.skip = 0;
+        trace.nr_entries = 0;
+        trace.max_entries = MAX_STACK_ENTRIES;
+        trace.entries = store;
+
+	if (!try_get_task_stack(tsk))
+		return 0;
+
+	save_stack(&trace, tsk);
+	put_task_stack(tsk);
+	return trace.nr_entries;
+}
+#endif
+
 static int stack_check_task(struct task_struct *task, bool install)
 {
 	unsigned long entries[MAX_STACK_ENTRIES];
-	unsigned int nr_entries = 0;
+	unsigned int nr_entries;
 
-#ifndef CONFIG_ARCH_STACKWALK
-	struct stack_trace trace;
-
-	trace.skip = 0;
-	trace.nr_entries = 0;
-	trace.max_entries = MAX_STACK_ENTRIES;
-	trace.entries = entries;
-
-	save_stack_trace_tsk(task, &trace);
-	nr_entries = trace.nr_entries;
-#else /* CONFIG_ARCH_STACKWALK */
-	nr_entries = stack_trace_save_tsk(task, entries, MAX_STACK_ENTRIES, 0);
-#endif /* CONFIG_ARCH_STACKWALK */
-
+	nr_entries = get_stack_trace(task, entries, MAX_STACK_ENTRIES);
 	return stack_check_fn(entries, nr_entries, install);
 }
 
