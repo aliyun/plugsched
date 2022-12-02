@@ -172,7 +172,7 @@ static void release_##name##_reserve(struct type *x)			\
 		kfree(x->field);					\
 	x->field = NULL;						\
 }									\
-static IELD_TYPE(type, field) alloc_##name##_reserve(void)		\
+static FIELD_TYPE(type, field) alloc_##name##_reserve(void)		\
 {									\
 	return simple_mempool_alloc(name##_smp);			\
 }									\
