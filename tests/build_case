@@ -6,9 +6,9 @@ source $(dirname "$0")/libs/working_dir
 source libs/catch_error
 
 podman cp $1/patch.diff plugsched:/root/patch
-podman exec -it plugsched patch -f -p1 -i patch
-podman exec -it plugsched plugsched-cli build scheduler
-podman exec -it plugsched patch -f -p1 -i patch -R
-podman exec -it plugsched ls /usr/local/lib/plugsched/rpmbuild/RPMS/$(uname -i)/
-podman exec -it plugsched bash -c "cp /usr/local/lib/plugsched/rpmbuild/RPMS/$(uname -i)/scheduler-xxx-*.rpm /root"
+podman exec plugsched patch -f -p1 -i patch
+podman exec plugsched plugsched-cli build scheduler
+podman exec plugsched patch -f -p1 -i patch -R
+podman exec plugsched ls /usr/local/lib/plugsched/rpmbuild/RPMS/$(uname -i)/
+podman exec plugsched bash -c "cp /usr/local/lib/plugsched/rpmbuild/RPMS/$(uname -i)/scheduler-xxx-*.rpm /root"
 
