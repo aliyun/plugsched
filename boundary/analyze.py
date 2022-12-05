@@ -259,7 +259,7 @@ def func_class_arithmetics(fns):
 
     # Inflect outsider functions
     fns.inflect_cut = fns.border | fns.init | fns.sidecar
-    fns.insider = inflect(fns.initial_insider, edges) - fns.init
+    fns.insider = inflect(fns.initial_insider, edges) - fns.init - fns.fake_global
     fns.sched_outsider = (fns.mod_fns - fns.insider - fns.border) | fns.cb_opt
     fns.sched_outsider |= fns.fake_global & fns.mod_fns
     fns.outsider_opt = fns.sched_outsider - fns.in_vmlinux - fns.init
