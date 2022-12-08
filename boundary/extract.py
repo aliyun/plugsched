@@ -179,7 +179,7 @@ class Extraction(object):
         # prevent gcc from removing unused variables
         for var in list(self.static_var_list):
             (row, _) = var['name_loc']
-            lines[row] = lines[row].replace('static', 'static __used')
+            lines[row] = lines[row].replace('static ', 'static __used ')
 
         # General handling all shared variables
         for var in list(self.shared_var_list):
