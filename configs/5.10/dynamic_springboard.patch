@@ -59,7 +59,7 @@ index eee32739c..26ccde413 100644
 +		"mov x1,%3\n\t"
 +		"br %1"
 +		:
-+		:"i"(STACKSIZE_SCHEDULE), "m"(sched_springboard),"r"(prev),"r"(next)
++		:"i"(STACKSIZE_VMLINUX), "r"(sched_springboard),"r"(prev),"r"(next)
 +		:"x19","x20","x21","x22","x23","x24","x25",
 +		 "x26","x27","x28","x30","x0","x1"
 +	);

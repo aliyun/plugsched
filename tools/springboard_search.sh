@@ -81,6 +81,7 @@ function get_stack_check_off_AArch64()
 	stack_chk_fail=$(awk '$3 == "bl" && $NF=="<__stack_chk_fail>"{print "0x"$1}' <<< "$schedule_asm")
 	stack_chk_fail=${stack_chk_fail%:*}
 	stack_chk_fail_off=$(printf "0x%x" $((stack_chk_fail-start_addr)))
+	stack_chk_fail_off_by_4=$(printf "0x%x" $((stack_chk_fail-start_addr-4)))
 
 	asm_sequence=$(awk '
 		/Disassembly of section/ {start = 1; next}
@@ -89,15 +90,18 @@ function get_stack_check_off_AArch64()
 		start == 1 && $3 == "ret" {print "ret"; next}
 		start == 1 && $5 == "<__schedule+'$stack_chk_fail_off'>" {print "chk"; next}
 		start == 1 && $6 == "<__schedule+'$stack_chk_fail_off'>" {print "chk"; next}
+		start == 1 && $5 == "<__schedule+'$stack_chk_fail_off_by_4'>" {print "chk"; next}
+		start == 1 && $6 == "<__schedule+'$stack_chk_fail_off_by_4'>" {print "chk"; next}
 		start == 1 {print "any"}' <<< "$schedule_asm")
 
 
-	stack_chk_seq_with_off=$(echo $asm_sequence | grep -Po 'ldr ldr (any ){1,4}chk (ldp ){6}ret' --byte-offset)
+	stack_chk_seq_with_off=$(echo $asm_sequence | grep -Po 'ldr ldr (any ){1,4}chk (ldp ){5,6}ret' --byte-offset)
 	stack_chk_off=$(cut -d: -f1 <<< "$stack_chk_seq_with_off")
 	stack_chk_seq=$(cut -d: -f2 <<< "$stack_chk_seq_with_off")
-	stack_chk_len=$(awk '{print NF - 7}' <<< "${stack_chk_seq}") # Sequence length without ldp * 6 + ret
+        # Sequence length without ldp * {5,6} + ret
+        stack_chk_len=$(echo "${stack_chk_seq}" | sed 's/chk.*/chk/g'  | awk '{print NF}')
 
-	if [ ${stack_chk_off} -eq 0 ]; then
+	if [ -z "${stack_chk_off}" ] || [ ${stack_chk_off} -eq 0 ]; then
 		>&2 echo 'ERROR: Stack protector sequence  "ldr ldr (any ){1,4}chk (ldp ){6}ret" not found:'
 		>&2 echo "$asm_sequence"
 		exit 1
