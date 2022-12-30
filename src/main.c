@@ -18,10 +18,6 @@
 #include "head_jump.h"
 #include "stack_check.h"
 
-#define CHECK_STACK_LAYOUT() \
-	BUILD_BUG_ON_MSG(MODULE_FRAME_POINTER != VMLINUX_FRAME_POINTER, \
-		"stack layout of __schedule can not match to it in vmlinux")
-
 #define MAX_CPU_NR		1024
 
 extern void __orig___schedule(bool);
@@ -35,7 +31,6 @@ DECLARE_PER_CPU(struct callback_head, dl_push_head);
 DECLARE_PER_CPU(struct callback_head, dl_pull_head);
 DECLARE_PER_CPU(struct callback_head, rt_push_head);
 DECLARE_PER_CPU(struct callback_head, rt_pull_head);
-unsigned long sched_springboard;
 
 extern struct mutex cgroup_mutex;
 
@@ -137,19 +132,9 @@ static void reset_balance_callback(void)
 }
 
 
-#if defined(CONFIG_ARM64) && defined(STACK_PROTECTOR)
-#define NOP 0xd503201f
-static void disable_stack_protector(void)
-{
-	int i;
-	void *addr = __orig___schedule + STACK_PROTECTOR;
-
-	for (i=0; i<STACK_PROTECTOR_LEN; i++, addr+=4)
-		aarch64_insn_patch_text_nosync(addr, NOP);
-}
-#else
-static void disable_stack_protector(void) { }
-#endif
+extern void save_sleepers(void);
+extern void enqueue_sleepers(bool);
+extern void wait_for_sleepers(bool);
 
 static int __sync_sched_install(void *arg)
 {
@@ -189,7 +174,6 @@ static int __sync_sched_install(void *arg)
 	if (is_first_process()) {
 		switch_sched_class(true);
 		JUMP_OPERATION(install);
-		disable_stack_protector();
 		sched_alloc_extrapad();
 		reset_balance_callback();
 	}
@@ -197,6 +181,8 @@ static int __sync_sched_install(void *arg)
 	atomic_dec(&redirect_finished);
 	atomic_cond_read_relaxed(&redirect_finished, !VAL);
 	rebuild_sched_state(true);
+	save_sleepers();
+	enqueue_sleepers(true);
 
 	if (is_first_process())
 		stop_time_p2 = ktime_get();
@@ -204,6 +190,7 @@ static int __sync_sched_install(void *arg)
 	return 0;
 }
 
+extern void init_herd(void);
 static int __sync_sched_restore(void *arg)
 {
 	int error;
@@ -244,6 +231,8 @@ static int __sync_sched_restore(void *arg)
 	atomic_dec(&redirect_finished);
 	atomic_cond_read_relaxed(&redirect_finished, !VAL);
 	rebuild_sched_state(false);
+	save_sleepers();
+	enqueue_sleepers(false);
 
 	if (is_first_process())
 		stop_time_p2 = ktime_get();
@@ -395,6 +384,7 @@ static int load_sched_routine(void)
 	printk("scheduler module is loading\n");
 	main_start = ktime_get();
 
+	init_herd();
 	if (sched_mempools_create()) {
 		printk("scheduler: Error: create mempools failed!\n");
 		module_put(THIS_MODULE);
@@ -421,6 +411,7 @@ static int load_sched_routine(void)
 	install_sched_debug_procfs();
 	install_sched_debugfs();
 #endif
+	wait_for_sleepers(true);
 
 	main_end = ktime_get();
 	report_detail_time("load");
@@ -436,6 +427,7 @@ static int unload_sched_routine(void)
 	printk("scheduler module is unloading\n");
 	main_start = ktime_get();
 
+	init_herd();
 	cpu_maps_update_begin();
 	parallel_state_check_init();
 	process_id_init();
@@ -454,6 +446,7 @@ static int unload_sched_routine(void)
 	restore_sched_debugfs();
 #endif
 
+	wait_for_sleepers(false);
 	sched_mempools_destroy();
 	main_end = ktime_get();
 	report_detail_time("unload");
@@ -586,12 +579,8 @@ static int __init sched_mod_init(void)
 {
 	int ret;
 
-	CHECK_STACK_LAYOUT();
-
 	printk("Hi, scheduler mod is installing!\n");
 	init_start = ktime_get();
-
-	sched_springboard = (unsigned long)__orig___schedule + SPRINGBOARD;
 
 	if (jump_init_all())
 		return -EBUSY;

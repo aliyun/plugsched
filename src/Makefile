@@ -22,7 +22,7 @@ objs-$(CONFIG_SCHEDSTATS) += stats.o
 objs-$(CONFIG_SCHED_DEBUG) += debug.o
 
 obj-m += scheduler.o
-scheduler-objs := $(objs-y) $(sidecar_objs) main.o sched_rebuild.o
+scheduler-objs := $(objs-y) $(sidecar_objs) main.o sched_rebuild.o herd.o
 
 search_cb  := {if (/CALLBACK/) {print "__cb_"$$2} else {print $$2}}
 search_und := grep "UND __mod_" | awk '{print substr($$8,7)}' | sort | uniq
@@ -44,19 +44,14 @@ cmd_find_sym = 			                                         \
 		exit 1;                                                  \
 	fi
 
-CFLAGS_core.stub.o := -DMODULE -DSTACKSIZE_MOD=0
-CFLAGS_main.stub.o := -DMODULE_FRAME_POINTER=VMLINUX_FRAME_POINTER
 $(obj)/%.stub.o: $(src)/%.c FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
 
-GET_STACK_SIZE: $(obj)/core.stub.o
-	$(eval ccflags-y += $(shell bash $(plugsched_tmpdir)/springboard_search.sh build $<))
-
 $(obj)/.globalize: $(src)/export_jump.h $(obj-stub) FORCE
 	$(cmd_find_sym)
 
-$(obj)/%.o: $(src)/%.c $(obj)/.globalize GET_STACK_SIZE FORCE
+$(obj)/%.o: $(src)/%.c $(obj)/.globalize FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
 	readelf -sW $@ | $(search_rdf) > $(rdf-file)

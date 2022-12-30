@@ -32,7 +32,6 @@ function:
     interface:
         - yield_to
         - wake_up_idle_ht
-        - __balance_callback
         - do_set_cpus_allowed
         - set_user_nice
         - __sched_setscheduler
@@ -78,7 +77,6 @@ function:
         - sched_create_group
         - sched_online_group
         - id_nr_invalid
-        - finish_task_switch
         - sched_exec
         - yield
 global_var:

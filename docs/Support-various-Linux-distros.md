@@ -108,8 +108,7 @@ The basic advice for you to define sched boundary
 
 # What are other files in config directory
 
-- `dynamic_springboard.patch` Internal implementation. No need to concern.
 - `pre_extract.patch` If your kernel has some strange non-standard code style, plugsched might be confused. This patch is used to refactor code styles. This file mainly serves as workarounds to strange bugs.
 - `post_extract.patch` Internal implementation. No need to concern
 
-dynamic_springboard.patch and post_extract.patch are mentioned as "Internal implementaion". But sometimes due to different kernel code bases. They need to be adjusted to make patch utility work.
+post_extract.patch is mentioned as "Internal implementaion". But sometimes due to different kernel code bases. They need to be adjusted to make patch utility work.

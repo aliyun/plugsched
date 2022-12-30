@@ -71,7 +71,6 @@ class Plugsched(object):
         self.plugsched_sh, self.mod_sh = plugsched_sh, mod_sh
         self.get_kernel_version(self.makefile)
         self.get_config_dir()
-        self.search_springboard = sh.Command(self.plugsched_path + '/tools/springboard_search.sh')
 
         with open(os.path.join(self.config_dir, 'boundary.yaml')) as f:
             self.config = load(f, Loader)
@@ -79,7 +78,6 @@ class Plugsched(object):
             self.config_dir + '/*':         self.tmp_dir,
             'boundary/*.py':                self.tmp_dir,
             'tools/symbol_resolve':         self.tmp_dir,
-            'tools/springboard_search.sh':  self.tmp_dir,
             'src/Makefile.plugsched':       self.tmp_dir,
             'src/*.[ch]':                   self.mod_path,
             'src/Makefile':                 self.mod_path,
@@ -197,11 +195,6 @@ class Plugsched(object):
         self.extract()
         logging.info('Patching extracted scheduler module with post_extractd patch')
         self.apply_patch('post_extract.patch')
-        logging.info('Patching dynamic springboard')
-        self.apply_patch('dynamic_springboard.patch')
-
-        with open(os.path.join(self.mod_path, 'Makefile'), 'a') as f:
-            self.search_springboard('init', self.vmlinux, kernel_config, _out=f)
 
         logging.info("Succeed!")
 
