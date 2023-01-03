@@ -38,7 +38,7 @@ cmd_find_sym = 			                                         \
 	readelf -sW $(obj-stub) | $(search_und) | tee $(und-file) >> $@; \
 	count1=$$(cat $(und-file) | wc -l);                              \
 	count2=$$(readelf -sW $(obj-stub) | grep -w -f $(und-file) |     \
-		  grep -v '\.' | wc -l);                                 \
+		  grep -v " UND " | grep -v '\.' | wc -l);               \
 	if [ "$$count1" != "$$count2" ]; then                            \
 		echo -e '\033[31m'$(error_msg)'\033[0m';                 \
 		exit 1;                                                  \
