@@ -2,6 +2,5 @@ schedule
 public_var
 var_uniformity
 cpu_throttle
-domain_rebuild
 sched_syscall
 mem_pressure
