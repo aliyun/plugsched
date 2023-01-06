@@ -86,6 +86,10 @@ void clear_sched_state(bool mod)
 	int cpu = smp_processor_id();
 
 	rq_lock(rq, &rf);
+
+	/* To avoid SCHED_WARN_ON(rq->clock_update_flags < RQCF_ACT_SKIP) */
+	rq->clock_update_flags = RQCF_UPDATED;
+
 	if (mod) {
 		set_rq_offline(rq);
 	} else {
@@ -98,9 +102,6 @@ void clear_sched_state(bool mod)
 
 		if (p == rq->stop)
 			continue;
-
-		/* To avoid SCHED_WARN_ON(rq->clock_update_flags < RQCF_ACT_SKIP) */
-		rq->clock_update_flags = RQCF_UPDATED;
 
 		if (task_on_rq_queued(p))
 			p->sched_class->dequeue_task(rq, p, queue_flags);
