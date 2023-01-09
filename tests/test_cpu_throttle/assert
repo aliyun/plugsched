@@ -7,40 +7,40 @@ import sh
 import os
 import sys
 import time
+import psutil
 from glob import glob
+import coloredlogs
+coloredlogs.install(level='INFO')
 
 class TestCPUThrottle:
     def setup_class(self):
-        self.test_flag = True
         print("CPU throttle test")
-        sh.mkdir('/sys/fs/cgroup/cpu/test')
-        
+        self.cgpath = '/sys/fs/cgroup/cpu/test'
+        sh.tee(sh.echo(1), '/sys/fs/cgroup/cpu/cgroup.clone_children')
+        sh.mkdir(self.cgpath)
+
     def init_cgroup(self):
-        cmd = "while :; do :; done"
-        self.start_time = time.time()
-        self.child = subprocess.Popen(cmd, shell=True)
-        sh.echo(self.child.pid, _out='/sys/fs/cgroup/cpu/test/cgroup.procs')
+        self.child = sh.bash('-c', 'while :; do :; done', _bg=True, bg_exc=False)
+        sh.tee(sh.echo(self.child.pid), '%s/cgroup.procs' % self.cgpath)
 
     def set_cfs_quota(self, t_us):
-        sh.echo(t_us, _out='/sys/fs/cgroup/cpu/test/cpu.cfs_quota_us')
-        time.sleep(10)
+        sh.echo(t_us, _out='%s/cpu.cfs_quota_us' % self.cgpath)
 
     def test_all(self):
-        self.set_cfs_quota('50000')
+        self.install_module()
         self.init_cgroup()
+        self.set_cfs_quota('50000')
         self.check_le_75()
         self.check_after_load()
         self.set_cfs_quota('100000')
         self.check_gt_75()
         self.check_after_unload()
-        
+
     def check_le_75(self):
         cpu_util = self.get_cpu_util(self.child.pid)
-        # assert cpu_util <= 75
-        if cpu_util > 75:
-            self.error_handler(0, 75)
+        self.validate_lt(cpu_util, 75)
 
-    def check_after_load(self):
+    def install_module(self):
         scheduler_rpm = glob(os.path.join('/tmp/work', 'scheduler*.rpm'))
         if len(scheduler_rpm) != 1:
             print("Please check your scheduler rpm");
@@ -48,52 +48,51 @@ class TestCPUThrottle:
             sys.exit(1)
         scheduler_rpm = scheduler_rpm[0]
         sh.rpm('-ivh', scheduler_rpm)
+        sh.tee(sh.echo(0), '/sys/kernel/plugsched/plugsched/enable')
+
+    def uninstall_module(self):
+        sh.rpm('-e', 'scheduler-xxx')
+
+    def check_after_load(self):
+        sh.tee(sh.echo(1), '/sys/kernel/plugsched/plugsched/enable')
         cpu_util = self.get_cpu_util(self.child.pid)
-        # assert cpu_util <= 75
-        if cpu_util > 75:
-            self.error_handler(0, 75)
+        self.validate_lt(cpu_util, 75)
 
     def check_gt_75(self):
         cpu_util = self.get_cpu_util(self.child.pid)
-        # assert cpu_util >= 75
-        if cpu_util < 75:
-            self.error_handler(1, 75)
+        self.validate_gt(cpu_util, 75)
 
     def check_after_unload(self):
-        sh.rpm('-e', 'scheduler-xxx')
+        sh.tee(sh.echo(0), '/sys/kernel/plugsched/plugsched/enable')
         cpu_util = self.get_cpu_util(self.child.pid)
-        # assert cpu_util >= 75
-        if cpu_util < 75:
-            self.error_handler(1, 75)
+        self.validate_gt(cpu_util, 75)
 
     def get_cpu_util(self, pid):
-        def cpu_usage():
-            time.sleep(0.5)
-            herts = float(sh.getconf('CLK_TCK'))
-            process_file = "/proc/" + str(pid) + "/stat"
-            process_stat = sh.cat(process_file).split()
-            total_time = float(process_stat[13]) + float(process_stat[14])
-            elapsed_seconds = time.time() - self.start_time
-            return 100.0 * ((total_time / herts) / elapsed_seconds)
-        
-        cpu_util_1 = cpu_usage()
-        cpu_util_2 = cpu_usage()
-        cpu_util = (cpu_util_1 + cpu_util_2) / 2
-        return cpu_util
+        return psutil.Process(pid).cpu_percent(interval=2)
 
     def teardown_class(self):
-        self.child.kill()
-        self.child.wait()
-        sh.rmdir("/sys/fs/cgroup/cpu/test")
-        tmp = subprocess.Popen("lsmod | grep scheduler", shell=True, stdout=subprocess.PIPE)
-        if tmp.stdout.read() != b'':
-            sh.rpm('-e', 'scheduler-xxx')
+        try:
+            self.child.kill()
+            self.child.wait()
+        except sh.SignalException_SIGKILL:
+            pass
+        sh.rmdir(self.cgpath)
+        if sh.grep(sh.lsmod(), 'scheduler', _ok_code=[0,1]).exit_code == 0:
+            self.uninstall_module()
 
-    def error_handler(self, ty, bound):
-        err_msg = "CPU util should " + ("less than" if ty == 0 else "greater than") + str(bound)
+    def validate_lt(self, util, bound):
+        if util >= bound:
+            self.error_handler('less', util, bound)
+
+    def validate_gt(self, util, bound):
+        if util <= bound:
+            self.error_handler('greater', util, bound)
+
+    def error_handler(self, expect, util, bound):
+        err_msg = 'CPU util is {} but should be {} than {}'.format(util, expect, bound)
         print(err_msg)
         self.teardown_class()
-        sys.exit(1)
+        raise
 
 
 if __name__ == '__main__':
