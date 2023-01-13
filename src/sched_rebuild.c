@@ -77,6 +77,8 @@ void switch_sched_class(bool mod)
 	}
 }
 
+extern void __orig_update_rq_clock(struct rq *rq);
+
 void clear_sched_state(bool mod)
 {
 	struct task_struct *g, *p;
@@ -87,12 +89,11 @@ void clear_sched_state(bool mod)
 
 	rq_lock(rq, &rf);
 
-	/* To avoid SCHED_WARN_ON(rq->clock_update_flags < RQCF_ACT_SKIP) */
-	rq->clock_update_flags = RQCF_UPDATED;
-
 	if (mod) {
+		update_rq_clock(rq);
 		set_rq_offline(rq);
 	} else {
+		__orig_update_rq_clock(rq);
 		__orig_set_rq_offline(rq);
 	}
 
@@ -142,14 +143,11 @@ void rebuild_sched_state(bool mod)
 
 	rq_lock(rq, &rf);
 
-	list_for_each_entry_rcu(p, &per_cpu(dying_task_list, cpu), tasks) {
-		p->sched_class->enqueue_task(rq, p, queue_flags);
-		list_del_init(&p->tasks);
-	}
-
 	if (mod) {
+		update_rq_clock(rq);
 		set_rq_online(rq);
 	} else {
+		__orig_update_rq_clock(rq);
 		__orig_set_rq_online(rq);
 	}
 
@@ -162,6 +160,11 @@ void rebuild_sched_state(bool mod)
 
 		if (task_on_rq_queued(p))
 			p->sched_class->enqueue_task(rq, p, queue_flags);
+	}
+
+	list_for_each_entry_rcu(p, &per_cpu(dying_task_list, cpu), tasks) {
+		p->sched_class->enqueue_task(rq, p, queue_flags);
+		list_del_init(&p->tasks);
 	}
 	rq_unlock(rq, &rf);
 
