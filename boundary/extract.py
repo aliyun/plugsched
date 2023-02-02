@@ -34,6 +34,13 @@ class Extraction(object):
         self.shared_var_list = []
         self.static_var_list = []
 
+        if src_file in self.sdcr_srcs:
+            self.dst_file = self.mod_dir + src_file
+            if not os.path.exists(os.path.dirname(self.dst_file)):
+                os.makedirs(os.path.dirname(self.dst_file))
+        else:
+            self.dst_file = self.mod_dir + os.path.basename(src_file)
+
         if src_file in self.mod_hdrs:
             file_name = tmp_dir + 'header_symbol.json'
         else:
@@ -230,7 +237,8 @@ class Extraction(object):
         if rel_header in self.mod_files:
             return line
 
-        new_header = os.path.relpath(rel_header, self.mod_dir)
+        dst_d = os.path.dirname(self.dst_file)
+        new_header = os.path.relpath(rel_header, dst_d)
         return line.replace(old_header, new_header)
 
     def merge_down_fn(self, lines, curr):
@@ -284,9 +292,9 @@ class Extraction(object):
         self.var_location()
 
         src_f = self.src_file
-        res_f = self.mod_dir + os.path.basename(src_f)
+        dst_f = self.dst_file
 
-        with open(src_f) as in_f, open(res_f, 'w') as out_f:
+        with open(src_f) as in_f, open(dst_f, 'w') as out_f:
             lines = in_f.readlines()
             self.function_extract(lines)
             self.var_extract(lines)
