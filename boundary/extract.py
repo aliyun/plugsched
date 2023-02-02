@@ -30,6 +30,7 @@ class Extraction(object):
         self.fn_list = []
         self.callback_list = []
         self.interface_list = []
+        self.sidecar_list = []
         self.shared_var_list = []
         self.static_var_list = []
 
@@ -68,6 +69,8 @@ class Extraction(object):
                 self.callback_list.append(fn)
             elif obj in self.config['function']['interface']:
                 self.interface_list.append(fn)
+            elif obj in self.config['sidecar']:
+                self.sidecar_list.append(fn)
 
     def var_location(self):
         """Get the source code location of shared global variables"""
@@ -144,7 +147,7 @@ class Extraction(object):
             lines[row_end] += ('\n' + cb_warn.format(new_name) +
                                decl_fmt.format(**decl_str))
 
-        for fn in self.interface_list:
+        for fn in self.interface_list + self.sidecar_list:
             name, public = fn['name'], fn['public']
             (row_start, _), (row_end, _) = fn['name_loc'], fn['r_brace_loc']
             used_name = '__used ' + name
