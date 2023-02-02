@@ -7,6 +7,9 @@ import sys
 import sh
 import os
 from glob import glob
+import coloredlogs
+import logging
+coloredlogs.install(level='INFO')
 
 class TestSchedSyscall:
     def setup_class(self):
@@ -39,10 +42,10 @@ class TestSchedSyscall:
         
     def test_policy_and_prio(self):
         sh.sysctl('-w', 'kernel.sched_rt_runtime_us=-1')
-        cmd = "chrt -p -f 10 " + str(self.child.pid)
-        subprocess.Popen(cmd, shell=True)
+        sh.chrt('-p', '-f', 10, self.child.pid)
         res = sh.chrt('-p', self.child.pid).split('\n')
         if res[0].split()[-1] != 'SCHED_FIFO' or res[1].split()[-1] != '10':
+            logging.info("class=%s prio=%s", res[0], res[1])
             self.error_handler()
 
     def test_all(self):
