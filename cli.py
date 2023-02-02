@@ -235,7 +235,7 @@ class Plugsched(object):
                             '--define', '%%_kerneldir %s' % os.path.realpath(self.work_dir),
                             '--define', '%%_tmpdir %s' % self.tmp_dir,
                             '--define', '%%_modpath %s' % self.mod_path,
-                            '--define', '%%_sdcrobjs %s' % ' '.join(self.sdcr_objs) + '""',
+                            '--define', '%%_sdcrobjs "%s"' % ' '.join(self.sdcr_objs),
                             '--define', '%%KVER %s' % self.KVER,
                             '--define', '%%KREL %s' % self.KREL,
                             '--define', '%%threads %d' % self.threads,
