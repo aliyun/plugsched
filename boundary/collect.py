@@ -166,23 +166,27 @@ class Collection(object):
             self.fn_prop.append(properties)
 
             # interface candidates must belongs to module source files
-            if not src_f in self.mod_srcs + self.sdcr_srcs:
-                continue
+            if src_f in self.mod_srcs + self.sdcr_srcs:
+                decl_str = {
+                    'fn': decl.name,
+                    'ret': GccBugs.fix(decl.result, decl.result.type.str_no_uid),
+                    'params': ', '.join(GccBugs.fix(arg, arg.type.str_no_uid) \
+                            for arg in decl.arguments) if decl.arguments else 'void'
+                }
 
-            decl_str = {
-                'fn': decl.name,
-                'ret': GccBugs.fix(decl.result, decl.result.type.str_no_uid),
-                'params': ', '.join(GccBugs.fix(arg, arg.type.str_no_uid) \
-                        for arg in decl.arguments) if decl.arguments else 'void'
-            }
+                GccBugs.variadic_function(decl, decl_str)
+                properties['decl_str'] = decl_str
 
-            GccBugs.variadic_function(decl, decl_str)
-            properties['decl_str'] = decl_str
+                interface = self.config['function']['interface']
+                syscall = self.config['interface_prefix']
 
-            if (decl.name in self.config['function']['interface'] or any(
-                    decl.name.startswith(prefix)
-                    for prefix in self.config['interface_prefix'])):
-                self.intf_prop.append(list(self.decl_sig(decl)))
+                # sidecars shouln't treat syscall funtions as interfaces
+                if src_f in self.mod_srcs and (
+                    decl.name in interface or any(
+                        decl.name.startswith(prefix) for prefix in syscall
+                    )
+                ):
+                    self.intf_prop.append(list(self.decl_sig(decl)))
 
     def collect_var(self):
         """Collect properties of all global variables"""
