@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 From openanolis/anolisos:8.6-x86_64
 
+RUN echo 8.6 > /etc/yum/vars/releasever
+
 RUN yum install python3 python3-devel python3-lxml gcc gcc-c++ wget libyaml-devel -y && \
     yum install python3-pip python3-Cython -y
 RUN pip3 install --upgrade setuptools && \
