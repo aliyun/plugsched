@@ -8,7 +8,7 @@ RUN yum install python3 python3-devel python3-lxml gcc gcc-c++ wget libyaml-deve
     yum install python3-pip python3-Cython -y
 RUN pip3 install --upgrade setuptools && \
     pip3 install pyyaml && \
-    pip3 install sh coloredlogs fire jinja2 docopt && \
+    pip3 install sh coloredlogs docopt && \
     yum install make bison flex python3-lxml python3-six python3-pygments \
                 gcc-plugin-devel.x86_64 \
                 systemd git \
