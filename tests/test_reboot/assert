@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright 2019-2023 Alibaba Group Holding Limited.
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 from sh import Command
 import sys

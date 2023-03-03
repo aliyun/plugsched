@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright 2019-2023 Alibaba Group Holding Limited.
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 if [[ $# -eq 0 ]]; then
     echo "Schedules a command to be run after the next reboot."
