@@ -10,6 +10,12 @@
 
 extern void __orig_set_rq_offline(struct rq*);
 extern void __orig_set_rq_online(struct rq*);
+extern void __orig_update_rq_clock(struct rq *rq);
+
+extern void __mod_set_rq_offline(struct rq*);
+extern void __mod_set_rq_online(struct rq*);
+extern void __mod_update_rq_clock(struct rq *rq);
+
 extern unsigned int process_id[];
 
 extern struct sched_class __orig_stop_sched_class;
@@ -77,8 +83,6 @@ void switch_sched_class(bool mod)
 	}
 }
 
-extern void __orig_update_rq_clock(struct rq *rq);
-
 void clear_sched_state(bool mod)
 {
 	struct task_struct *g, *p;
@@ -90,8 +94,8 @@ void clear_sched_state(bool mod)
 	rq_lock(rq, &rf);
 
 	if (mod) {
-		update_rq_clock(rq);
-		set_rq_offline(rq);
+		__mod_update_rq_clock(rq);
+		__mod_set_rq_offline(rq);
 	} else {
 		__orig_update_rq_clock(rq);
 		__orig_set_rq_offline(rq);
@@ -144,8 +148,8 @@ void rebuild_sched_state(bool mod)
 	rq_lock(rq, &rf);
 
 	if (mod) {
-		update_rq_clock(rq);
-		set_rq_online(rq);
+		__mod_update_rq_clock(rq);
+		__mod_set_rq_online(rq);
 	} else {
 		__orig_update_rq_clock(rq);
 		__orig_set_rq_online(rq);
