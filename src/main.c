@@ -268,13 +268,16 @@ static int sync_sched_mod(void *func)
 extern void __orig_register_sched_domain_sysctl(void);
 extern void __orig_unregister_sched_domain_sysctl(void);
 
+extern void __mod_register_sched_domain_sysctl(void);
+extern void __mod_unregister_sched_domain_sysctl(void);
+
 static inline void install_sched_domain_sysctl(void)
 {
 	mutex_lock(&cgroup_mutex);
 	plugsched_cpuset_lock();
 
 	__orig_unregister_sched_domain_sysctl();
-	register_sched_domain_sysctl();
+	__mod_register_sched_domain_sysctl();
 
 	plugsched_cpuset_unlock();
 	mutex_unlock(&cgroup_mutex);
@@ -285,7 +288,7 @@ static inline void restore_sched_domain_sysctl(void)
 	mutex_lock(&cgroup_mutex);
 	plugsched_cpuset_lock();
 
-	unregister_sched_domain_sysctl();
+	__mod_unregister_sched_domain_sysctl();
 	cpumask_copy(sd_sysctl_cpus, cpu_possible_mask);
 	__orig_register_sched_domain_sysctl();
 
