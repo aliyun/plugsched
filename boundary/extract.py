@@ -30,8 +30,16 @@ class Extraction(object):
         self.fn_list = []
         self.callback_list = []
         self.interface_list = []
+        self.sidecar_list = []
         self.shared_var_list = []
         self.static_var_list = []
+
+        if src_file in self.sdcr_srcs:
+            self.dst_file = self.mod_dir + src_file
+            if not os.path.exists(os.path.dirname(self.dst_file)):
+                os.makedirs(os.path.dirname(self.dst_file))
+        else:
+            self.dst_file = self.mod_dir + os.path.basename(src_file)
 
         if src_file in self.mod_hdrs:
             file_name = tmp_dir + 'header_symbol.json'
@@ -68,6 +76,8 @@ class Extraction(object):
                 self.callback_list.append(fn)
             elif obj in self.config['function']['interface']:
                 self.interface_list.append(fn)
+            elif obj in self.config['sidecar']:
+                self.sidecar_list.append(fn)
 
     def var_location(self):
         """Get the source code location of shared global variables"""
@@ -144,7 +154,7 @@ class Extraction(object):
             lines[row_end] += ('\n' + cb_warn.format(new_name) +
                                decl_fmt.format(**decl_str))
 
-        for fn in self.interface_list:
+        for fn in self.interface_list + self.sidecar_list:
             name, public = fn['name'], fn['public']
             (row_start, _), (row_end, _) = fn['name_loc'], fn['r_brace_loc']
             used_name = '__used ' + name
@@ -227,7 +237,8 @@ class Extraction(object):
         if rel_header in self.mod_files:
             return line
 
-        new_header = os.path.relpath(rel_header, self.mod_dir)
+        dst_d = os.path.dirname(self.dst_file)
+        new_header = os.path.relpath(rel_header, dst_d)
         return line.replace(old_header, new_header)
 
     def merge_down_fn(self, lines, curr):
@@ -281,9 +292,9 @@ class Extraction(object):
         self.var_location()
 
         src_f = self.src_file
-        res_f = self.mod_dir + os.path.basename(src_f)
+        dst_f = self.dst_file
 
-        with open(src_f) as in_f, open(res_f, 'w') as out_f:
+        with open(src_f) as in_f, open(dst_f, 'w') as out_f:
             lines = in_f.readlines()
             self.function_extract(lines)
             self.var_extract(lines)

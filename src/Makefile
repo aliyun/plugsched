@@ -68,3 +68,4 @@ ldflags-y += -T $(plugsched_modpath)/scheduler.lds
 ccflags-n += -DSCHEDMOD_MEMPOOL
 ccflags-y += -Wno-unused-function
 ccflags-y += -fkeep-static-functions
+ccflags-y += -D__DISABLE_EXPORTS

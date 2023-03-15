@@ -92,7 +92,7 @@ class Plugsched(object):
         self.mod_hdrs  = [f for f in self.mod_files if f.endswith('.h')]
         self.sdcr      = [] if self.config['sidecar'] is None else self.config['sidecar']
         self.sdcr_srcs = [f[1] for f in self.sdcr]
-        self.sdcr_objs = [os.path.basename(f).replace('.c', '.o') for f in self.sdcr_srcs]
+        self.sdcr_objs = [f.replace('.c', '.o') for f in self.sdcr_srcs]
         self.mod_objs  = [f+'.extract' for f in self.mod_files + self.sdcr_srcs]
 
     def get_kernel_version(self, makefile):
@@ -162,28 +162,6 @@ class Plugsched(object):
         for f, t in self.file_mapping.items():
             self.mod_sh.cp(glob(f, _cwd=self.plugsched_path), t, recursive=True, dereference=True)
 
-    def delete_export_symbol(self):
-        delete_patt = re.compile('EXPORT_.*SYMBOL')
-        for src_f in self.mod_files + self.sdcr_srcs:
-            with open(os.path.join(self.work_dir, src_f), 'r+') as f:
-                lines = f.readlines()
-                for (i, line) in enumerate(lines):
-                    if not delete_patt.search(line):
-                        continue
-
-                    # handle backslash(\) corner case, for e.g:
-                    # #define BPF_TRACE_DEFN_x(x)                \
-                    #        void bpf_trace_run##x();            \
-                    #        EXPORT_SYMBOL_GPL(bpf_trace_run##x)
-                    prev = lines[i-1] if i > 0 else ''
-                    if prev.endswith('\\\n') and not line.endswith('\\\n'):
-                        lines[i-1] = prev[:-2].rstrip() + '\n'
-                    lines[i] = ''
-
-                f.seek(0)
-                f.truncate()
-                f.writelines(lines)
-
     def cmd_init(self, kernel_src, sym_vers, kernel_config):
         self.create_sandbox(kernel_src)
         self.plugsched_sh.cp(sym_vers,      self.work_dir, force=True)
@@ -193,7 +171,6 @@ class Plugsched(object):
 
         logging.info('Patching kernel with pre_extract patch')
         self.apply_patch('pre_extract.patch')
-        self.delete_export_symbol()
         self.extract()
         logging.info('Patching extracted scheduler module with post_extractd patch')
         self.apply_patch('post_extract.patch')
@@ -235,7 +212,7 @@ class Plugsched(object):
                             '--define', '%%_kerneldir %s' % os.path.realpath(self.work_dir),
                             '--define', '%%_tmpdir %s' % self.tmp_dir,
                             '--define', '%%_modpath %s' % self.mod_path,
-                            '--define', '%%_sdcrobjs %s' % ' '.join(self.sdcr_objs) + '""',
+                            '--define', '%%_sdcrobjs "%s"' % ' '.join(self.sdcr_objs),
                             '--define', '%%KVER %s' % self.KVER,
                             '--define', '%%KREL %s' % self.KREL,
                             '--define', '%%threads %d' % self.threads,

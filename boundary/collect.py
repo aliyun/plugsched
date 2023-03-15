@@ -190,6 +190,8 @@ class Collection(object):
             decl = var.decl
             if not decl.location:
                 continue
+            if not isinstance(decl.context, gcc.TranslationUnitDecl):
+                continue
 
             properties = {
                 'name': decl.name,
