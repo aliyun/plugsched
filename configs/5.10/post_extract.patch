@@ -1,3 +1,6 @@
+// Copyright 2019-2023 Alibaba Group Holding Limited.
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
 diff --git a/arch/arm64/include/asm/stackprotector.h b/arch/arm64/include/asm/stackprotector.h
 index 7263e0bac..e01b6fc93 100644
 --- a/arch/arm64/include/asm/stackprotector.h

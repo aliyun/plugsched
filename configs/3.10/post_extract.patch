@@ -1,3 +1,6 @@
+// Copyright 2019-2023 Alibaba Group Holding Limited.
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
 diff --git a/kernel/sched/mod/Makefile b/kernel/sched/mod/Makefile
 index 38dbf6d..31c6d91 100644
 --- a/kernel/sched/mod/Makefile

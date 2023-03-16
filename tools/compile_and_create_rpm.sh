@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright 2019-2023 Alibaba Group Holding Limited.
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 # This script will compile plugsched and create a rpm package
 # test on Anolis 7.9 AHCK
 # examples/rpm_test_example.diff is the example patch_file
