@@ -4,12 +4,11 @@ From openanolis/anolisos:8.6-x86_64
 
 RUN echo 8.6 > /etc/yum/vars/releasever
 
-RUN yum install python3 python3-devel python3-lxml gcc gcc-c++ wget libyaml-devel -y && \
-    yum install python3-pip python3-Cython -y
-RUN pip3 install --upgrade setuptools && \
-    pip3 install pyyaml && \
-    pip3 install sh coloredlogs docopt && \
-    yum install make bison flex python3-lxml python3-six python3-pygments \
+RUN yum install epel-aliyuncs-release -y && \
+    yum install python3 python3-pip gcc gcc-c++ libyaml-devel -y && \
+    yum install python3-sh python3-docopt python3-pyyaml -y
+RUN pip3 install coloredlogs && \
+    yum install make bison flex \
                 gcc-plugin-devel.x86_64 \
                 systemd git \
                 elfutils-libelf-devel.x86_64 openssl openssl-devel \
