@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 From openanolis/anolisos:8.6-x86_64
 
-RUN echo 8.6 > /etc/yum/vars/releasever
-
 RUN yum install epel-aliyuncs-release -y && \
     yum install python3 python3-pip gcc gcc-c++ libyaml-devel -y && \
     yum install python3-sh python3-docopt python3-pyyaml python3-colorlog -y

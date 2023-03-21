@@ -6,26 +6,25 @@ source $(dirname "$0")/libs/working_dir
 source libs/catch_error
 
 arch=$(uname -i)
-if [ "${arch}" = "x86_64" ]; then
-	# x86_64 is the default image
-	tag="latest"
-else
-	tag="latest-${arch}"
-fi
 
 uname_r=$(uname -r)
 uname_noarch=${uname_r%.*}
-yum install anolis-repos -y
+yum install anolis-repos epel-aliyuncs-release -y
 yum install sysstat -y
 yum install podman yum-utils kernel-debuginfo-${uname_r} kernel-devel-${uname_r} --enablerepo=Plus-debuginfo --enablerepo=Plus -y
-pip3 install sh pyyaml coloredlogs
+yum install python3-psutil python3-sh python3-pyyaml python3-colorlog -y
+
+echo -e "[registries.search]\nregistries = ['docker.io']" > /etc/containers/registries.conf
+systemctl restart podman
 
 container=$(podman ps -a | awk '$NF=="plugsched"{print $1}')
 if [ -n "$container" ]; then
 	podman rm -f ${container}
 fi
 mkdir -p /tmp/work
-podman run -itd --name=plugsched -w /root/ -v /tmp/work:/root -v /usr/src/kernels:/usr/src/kernels -v /usr/lib/debug/lib/modules:/usr/lib/debug/lib/modules plugsched/plugsched-sdk:${tag} /bin/bash
+
+podman build -t plugsched-sdk:test -f ../Dockerfile.${arch} ..
+podman run -itd --name=plugsched -w /root/ -v /tmp/work:/root -v /usr/src/kernels:/usr/src/kernels -v /usr/lib/debug/lib/modules:/usr/lib/debug/lib/modules localhost/plugsched-sdk:test /bin/bash
 podman exec -it plugsched rm -rf /usr/local/lib/plugsched
 podman cp .. plugsched:/usr/local/lib/plugsched
 cd /tmp/work
