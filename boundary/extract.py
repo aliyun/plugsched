@@ -132,8 +132,7 @@ class Extraction(object):
             (row_end, _) = fn['r_brace_loc']
             (row_start, col_start) = fn['l_brace_loc']
 
-            if (inline or tuple(fn['signature'])
-                    in self.config['function']['outsider_opt']):
+            if tuple(fn['signature']) in self.config['function']['outsider_opt']:
                 lines[row_end] += warn.format(name)
             else:
                 # convert function body "{}" to ";"
