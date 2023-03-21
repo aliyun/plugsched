@@ -40,7 +40,7 @@ import sh
 from sh import rsync, cp, glob as _glob
 from multiprocessing import cpu_count
 from tempfile import mkdtemp
-import coloredlogs
+import colorlog
 import logging
 import uuid
 import stat
@@ -55,7 +55,13 @@ class ShutdownHandler(logging.StreamHandler):
         if record.levelno >= logging.CRITICAL:
             raise Exception("Fatal")
 
-coloredlogs.install(level='INFO')
+handler = colorlog.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter(
+    '%(cyan)s%(asctime)s%(reset)s %(log_color)s%(levelname)s %(white)s%(message)s%(reset)s',
+    datefmt='%Y-%m-%d %H:%M:%S'))
+
+logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().addHandler(handler)
 logging.getLogger().addHandler(ShutdownHandler())
 
 class Plugsched(object):

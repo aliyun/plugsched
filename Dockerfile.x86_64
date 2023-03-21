@@ -6,9 +6,8 @@ RUN echo 8.6 > /etc/yum/vars/releasever
 
 RUN yum install epel-aliyuncs-release -y && \
     yum install python3 python3-pip gcc gcc-c++ libyaml-devel -y && \
-    yum install python3-sh python3-docopt python3-pyyaml -y
-RUN pip3 install coloredlogs && \
-    yum install make bison flex \
+    yum install python3-sh python3-docopt python3-pyyaml python3-colorlog -y
+RUN yum install make bison flex \
                 gcc-plugin-devel.x86_64 \
                 systemd git \
                 elfutils-libelf-devel.x86_64 openssl openssl-devel \
