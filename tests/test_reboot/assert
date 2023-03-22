@@ -8,8 +8,14 @@ from glob import glob
 import os
 from sh import rpm, grep, lsmod, grubby, rpm2cpio, echo, cpio, awk, modinfo, yum, reboot, uname
 import logging
-import coloredlogs
-coloredlogs.install(level='INFO')
+import colorlog
+
+handler = logging.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter(
+    '%(cyan)s%(asctime)s%(reset)s %(log_color)s%(levelname)s %(white)s%(message)s%(reset)s',
+    datefmt='%Y-%m-%d %H:%M:%S'))
+logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().addHandler(handler)
 logging.getLogger().addHandler(logging.FileHandler('/var/log/reboot-test'))
 
 runonce = Command('test_reboot/runonce')
