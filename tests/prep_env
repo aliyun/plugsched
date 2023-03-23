@@ -23,7 +23,7 @@ if [ -n "$container" ]; then
 fi
 mkdir -p /tmp/work
 
-podman build -t plugsched-sdk:test -f ../Dockerfile.${arch} ..
+podman build -t plugsched-sdk:test -f ../Dockerfile ..
 podman run -itd --name=plugsched -w /root/ -v /tmp/work:/root -v /usr/src/kernels:/usr/src/kernels -v /usr/lib/debug/lib/modules:/usr/lib/debug/lib/modules localhost/plugsched-sdk:test /bin/bash
 podman exec -it plugsched rm -rf /usr/local/lib/plugsched
 podman cp .. plugsched:/usr/local/lib/plugsched

@@ -1,14 +1,14 @@
 # Copyright 2019-2022 Alibaba Group Holding Limited.
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
-From openanolis/anolisos:8.6-x86_64
+From openanolis/anolisos:latest
 
 RUN yum install epel-aliyuncs-release -y && \
     yum install python3 python3-pip gcc gcc-c++ libyaml-devel -y && \
     yum install python3-sh python3-docopt python3-pyyaml python3-colorlog -y
 RUN yum install make bison flex \
-                gcc-plugin-devel.x86_64 \
+                gcc-plugin-devel \
                 systemd git \
-                elfutils-libelf-devel.x86_64 openssl openssl-devel \
+                elfutils-libelf-devel openssl openssl-devel \
                 elfutils-devel-static \
                 glibc-static zlib-static \
                 libstdc++-static \
