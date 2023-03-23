@@ -6,8 +6,14 @@ import sys
 import os
 from glob import glob
 from sh import wget, unzip, make, grep, lsmod, rpm, yum, Command
-import coloredlogs
-coloredlogs.install(level='INFO')
+import colorlog
+
+handler = logging.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter(
+    '%(cyan)s%(asctime)s%(reset)s %(log_color)s%(levelname)s %(white)s%(message)s%(reset)s',
+    datefmt='%Y-%m-%d %H:%M:%S'))
+logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().addHandler(handler)
 
 class TestMemPressure:
     def setup_class(self):

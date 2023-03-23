@@ -4,10 +4,16 @@
 
 from yaml import load, dump
 from yaml import CLoader as Loader, CDumper as Dumper
-import coloredlogs
+import colorlog
 import logging
 import sys
-coloredlogs.install(level='INFO')
+
+handler = logging.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter(
+    '%(cyan)s%(asctime)s%(reset)s %(log_color)s%(levelname)s %(white)s%(message)s%(reset)s',
+    datefmt='%Y-%m-%d %H:%M:%S'))
+logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().addHandler(handler)
 
 def YamlDiff(old_file, new_file):
 
