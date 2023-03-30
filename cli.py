@@ -87,6 +87,7 @@ class Plugsched(object):
             'tools/symbol_resolve':         self.tmp_dir,
             'tools/springboard_search.sh':  self.tmp_dir,
             'src/Makefile.plugsched':       self.tmp_dir,
+            'module-contrib/*':             self.tmp_dir,
             'src/*.[ch]':                   self.mod_path,
             'src/Makefile':                 self.mod_path,
             'src/scheduler.lds':            self.mod_path,
@@ -206,23 +207,18 @@ class Plugsched(object):
             logging.fatal("plugsched: Can't find %s", self.work_dir)
         self.add_python_path()
         logging.info("Preparing rpmbuild environment")
-        rpmbuild_root = os.path.join(self.plugsched_path, 'rpmbuild')
-        self.plugsched_sh.rm('rpmbuild', recursive=True, force=True)
-        self.plugsched_sh.mkdir('rpmbuild')
+        rpmbuild_root = os.path.join(self.tmp_dir, 'rpmbuild')
+        self.mod_sh.rm(rpmbuild_root, recursive=True, force=True)
+        self.mod_sh.mkdir(rpmbuild_root)
         rpmbase_sh = sh(_cwd=rpmbuild_root)
         rpmbase_sh.mkdir(['BUILD','RPMS','SOURCES','SPECS','SRPMS'])
 
-        self.plugsched_sh.cp('module-contrib/scheduler.spec', os.path.join(rpmbuild_root, 'SPECS'), force=True)
-        rpmbase_sh.rpmbuild('--define', '%%_outdir %s' % os.path.realpath(self.plugsched_path + '/module-contrib'),
-                            '--define', '%%_topdir %s' % os.path.realpath(rpmbuild_root),
-                            '--define', '%%_dependdir %s' % os.path.realpath(self.plugsched_path),
-                            '--define', '%%_kerneldir %s' % os.path.realpath(self.work_dir),
-                            '--define', '%%_tmpdir %s' % self.tmp_dir,
-                            '--define', '%%_modpath %s' % self.mod_path,
+        self.mod_sh.cp('working/scheduler.spec', os.path.join(rpmbuild_root, 'SPECS'), force=True)
+        rpmbase_sh.rpmbuild('--define', '%%_topdir %s' % os.path.realpath(rpmbuild_root),
+                            '--define', '%%_builddir %s' % self.work_dir,
                             '--define', '%%_sdcrobjs "%s"' % ' '.join(self.sdcr_objs),
                             '--define', '%%KVER %s' % self.KVER,
                             '--define', '%%KREL %s' % self.KREL,
-                            '--define', '%%threads %d' % self.threads,
                             '-bb', 'SPECS/scheduler.spec',
                             _out=sys.stdout,
                             _err=sys.stderr)

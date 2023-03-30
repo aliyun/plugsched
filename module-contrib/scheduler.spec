@@ -3,57 +3,73 @@
 
 %define minor_name xxx
 %define release yyy
+%define _modpath kernel/sched/mod
 
 Name:		scheduler-%{minor_name}
 Version:	%{KVER}
 Release:	%{KREL}.%{release}
 Summary:	The schedule policy RPM for linux kernel scheduler subsystem
-BuildRequires:	elfutils-devel
-BuildRequires:	systemd
-Requires:	systemd
-Requires:	binutils
-Requires:	cpio
-Packager:	Yihao Wu <wuyihao@linux.alibaba.com>
+Packager:	None
 
 Group:		System Environment/Kernel
 License:	GPLv2
 URL:		None
 
+BuildRequires:	make, gcc-c++, bc, bison, flex, openssl, openssl-devel
+BuildRequires:	glibc-static, zlib-static, libstdc++-static
+BuildRequires:	elfutils-devel, elfutils-devel-static, elfutils-libelf-devel
+
+Requires:	systemd
+Requires:	binutils
+
 %description
 The scheduler policy rpm-package.
 
 %prep
-# copy files to rpmbuild/SOURCE/
-cp %{_outdir}/* %{_sourcedir}
-cp %{_tmpdir}/boundary.yaml %{_sourcedir}
-
-chmod 0644 %{_sourcedir}/{version,boundary.yaml}
-rm -f %{_sourcedir}/scheduler.spec
 
 %build
 # Build sched_mod
-make KBUILD_MODPOST_WARN=1 plugsched_tmpdir=%{_tmpdir} plugsched_modpath=%{_modpath} \
-	sidecar_objs=%{_sdcrobjs} -C %{_kerneldir} -f %{_tmpdir}/Makefile.plugsched \
-	plugsched -j %{threads}
+make KBUILD_MODPOST_WARN=1 \
+     plugsched_tmpdir=working \
+     plugsched_modpath=%{_modpath} \
+     sidecar_objs=%{?_sdcrobjs} \
+     -C . -f working/Makefile.plugsched \
+     plugsched -j $(nproc)
 
 # Build symbol resolve tool
-make -C %{_tmpdir}/symbol_resolve
+make -C working/symbol_resolve
 
 # Generate the tainted_functions file
-awk -F '[(,)]' '$2!=""{print $2" "$3" vmlinux"}' %{_modpath}/tainted_functions.h > %{_sourcedir}/tainted_functions
-chmod 0444 %{_sourcedir}/tainted_functions
+awk -F '[(,)]' '$2!=""{print $2" "$3" vmlinux"}' %{_modpath}/tainted_functions.h > working/tainted_functions
 
 %install
 #install tool, module and systemd service
 mkdir -p %{buildroot}/usr/lib/systemd/system
 mkdir -p %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
 
-install -m 755 %{_tmpdir}/symbol_resolve/symbol_resolve %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/symbol_resolve
-install -m 755 %{_modpath}/scheduler.ko %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
-install -m 644 %{_sourcedir}/plugsched.service %{buildroot}/usr/lib/systemd/system
+install -m 644 working/plugsched.service \
+	%{buildroot}/usr/lib/systemd/system/plugsched.service
 
-cp %{_sourcedir}/* %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
-rm -f %{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/plugsched.service
+install -m 755 working/symbol_resolve/symbol_resolve \
+	%{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/symbol_resolve
+
+install -m 755 %{_modpath}/scheduler.ko \
+	%{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler.ko
+
+install -m 444 working/tainted_functions \
+	%{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/tainted_functions
+
+install -m 444 working/boundary.yaml \
+	%{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/boundary.yaml
+
+install -m 755 working/scheduler-installer \
+	%{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/scheduler-installer
+
+install -m 755 working/hotfix_conflict_check \
+	%{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/hotfix_conflict_check
+
+install -m 444 working/version \
+	%{buildroot}%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/version
 
 #install kernel module after install this rpm-package
 %post
@@ -83,10 +99,8 @@ systemctl stop plugsched
 systemctl reset-failed plugsched
 
 %files
+%dir %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
 /usr/lib/systemd/system/plugsched.service
 %{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}/*
-
-%dir
-%{_localstatedir}/plugsched/%{KVER}-%{KREL}.%{_arch}
 
 %changelog

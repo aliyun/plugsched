@@ -53,7 +53,7 @@ plugsched 是 Linux 内核调度器子系统热升级的 SDK，它可以实现�
 3. 统一管理调度器热补丁，避免多个热补丁之间的冲突而引发故障；
 
 ## Quick Start
-目前，plugsched 默认支持 Anolis OS 7.9 ANCK 系统发行版，其它系统需要[调整边界配置](./docs/Support-various-Linux-distros.md)。为了减轻搭建运行环境的复杂度，我们提供了的容器镜像和 Dockerfile，开发人员不需要自己去搭建开发环境。为了方便演示，这里购买了一台阿里云 ECS（64CPU + 128GB），并安装 Anolis OS 7.9 ANCK 系统发行版，我们将会对内核调度器进行热升级。
+目前，plugsched 默认支持 Anolis OS 8.6 ANCK 系统发行版，其它系统需要[调整边界配置](./docs/Support-various-Linux-distros.md)。为了减轻搭建运行环境的复杂度，我们提供了的容器镜像和 Dockerfile，开发人员不需要自己去搭建开发环境。为了方便演示，这里购买了一台阿里云 ECS（64CPU + 128GB），并安装 Anolis OS 8.6 ANCK 系统发行版，我们将会对内核调度器进行热升级。
 
 1. 登陆云服务器后，先安装一些必要的基础软件包：
 ```shell
@@ -120,7 +120,7 @@ index 4c40fac..8d1eafd 100644
 7. 将生成的 rpm 包拷贝到宿主机，退出容器，查看当前 sched_features：
 ```text
 # uname_r=$(uname -r)
-# cp /usr/local/lib/plugsched/rpmbuild/RPMS/x86_64/scheduler-xxx-${uname_r%.*}.yyy.x86_64.rpm /tmp/work/scheduler-xxx.rpm
+# cp /tmp/work/scheduler/working/rpmbuild/RPMS/x86_64/scheduler-xxx-${uname_r%.*}.yyy.x86_64.rpm /tmp/work/scheduler-xxx.rpm
 # exit
 exit
 # cat /sys/kernel/debug/sched_features
