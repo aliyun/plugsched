@@ -53,7 +53,7 @@ After the development, the scheduler with loading/unloading and other related co
 3. Unified management of scheduler hotfixes to avoid conflicts caused by multiple hotfixes.
 
 ## Quick Start
-Plugsched currently supports Anolis OS 7.9 ANCK by default, and other OS need to adjust the [boundary configurations](./docs/Support-various-Linux-distros.md). In order to reduce the complexity of building a running environment, we provide container images and Dockerfiles, and developers do not need to build a development environment by themselves. For convenience, we purchased an Alibaba Cloud ECS (64CPU + 128GB) and installed the Anolis OS 7.9 ANCK. We will live update the kernel scheduler.
+Plugsched currently supports Anolis OS 8.6 ANCK by default, and other OS need to adjust the [boundary configurations](./docs/Support-various-Linux-distros.md). In order to reduce the complexity of building a running environment, we provide container images and Dockerfiles, and developers do not need to build a development environment by themselves. For convenience, we purchased an Alibaba Cloud ECS (64CPU + 128GB) and installed the Anolis OS 8.6 ANCK. We will live update the kernel scheduler.
 
 1. Log into the cloud server, and install some necessary basic software packages.
 ```shell
@@ -120,7 +120,7 @@ index 4c40fac..8d1eafd 100644
 7. Copy the scheduler rpm to the host, exit the container, and view the current sched_features.
 ```text
 # uname_r=$(uname -r)
-# cp /usr/local/lib/plugsched/rpmbuild/RPMS/x86_64/scheduler-xxx-${uname_r%.*}.yyy.x86_64.rpm /tmp/work/scheduler-xxx.rpm
+# cp /tmp/work/scheduler/working/rpmbuild/RPMS/x86_64/scheduler-xxx-${uname_r%.*}.yyy.x86_64.rpm /tmp/work/scheduler-xxx.rpm
 # exit
 exit
 # cat /sys/kernel/debug/sched_features
