@@ -178,8 +178,10 @@ static int __sync_sched_install(void *arg)
 		return error;
 	}
 
-	if (is_first_process())
+	if (is_first_process()) {
+		sched_alloc_extrapad();
 		stop_time_p1 = ktime_get();
+	}
 
 	clear_sched_state(false);
 	atomic_dec(&clear_finished);
@@ -190,7 +192,6 @@ static int __sync_sched_install(void *arg)
 		switch_sched_class(true);
 		JUMP_OPERATION(install);
 		disable_stack_protector();
-		sched_alloc_extrapad();
 		reset_balance_callback();
 	}
 
@@ -238,15 +239,16 @@ static int __sync_sched_restore(void *arg)
 		switch_sched_class(false);
 		JUMP_OPERATION(remove);
 		reset_balance_callback();
-		sched_free_extrapad();
 	}
 
 	atomic_dec(&redirect_finished);
 	atomic_cond_read_relaxed(&redirect_finished, !VAL);
 	rebuild_sched_state(false);
 
-	if (is_first_process())
+	if (is_first_process()) {
+		sched_free_extrapad();
 		stop_time_p2 = ktime_get();
+	}
 
 	return 0;
 }
