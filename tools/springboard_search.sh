@@ -25,7 +25,7 @@ function get_function_asm()
 	fi
 }
 
-function get_stack_size_X86_64()
+function get_stack_size_x86_64()
 {
 	stack_size=$(awk '/sub.*,%rsp/ {print $NF; exit}' <<< "$schedule_asm")
 	stack_size=${stack_size%,*}
@@ -38,7 +38,7 @@ function get_stack_size_X86_64()
 	echo $stack_size
 }
 
-function get_stack_size_AArch64()
+function get_stack_size_aarch64()
 {
 	stack_size=$(awk '/stp\s*x29, x30/{print $NF; quit}' <<< "$schedule_asm")
 	stack_size=${stack_size%]*}
@@ -64,19 +64,19 @@ function get_springboard_target()
 	echo $target_off
 }
 
-function get_springboard_target_X86_64()
+function get_springboard_target_x86_64()
 {
 	get_springboard_target __switch_to_asm
 }
 
-function get_springboard_target_AArch64()
+function get_springboard_target_aarch64()
 {
 	get_springboard_target __switch_to
 }
 
-function get_stack_check_off_X86_64() { :; }
+function get_stack_check_off_x86_64() { :; }
 
-function get_stack_check_off_AArch64()
+function get_stack_check_off_aarch64()
 {
 	stack_chk_fail=$(awk '$3 == "bl" && $NF=="<__stack_chk_fail>"{print "0x"$1}' <<< "$schedule_asm")
 	stack_chk_fail=${stack_chk_fail%:*}
@@ -110,12 +110,12 @@ function get_stack_check_off_AArch64()
 	echo "stack_chk_off=$stack_chk_off; stack_chk_len=$stack_chk_len"
 }
 
-function get_stack_layout_X86_64()
+function get_stack_layout_x86_64()
 {
 	echo $schedule_asm | awk '{for(i = 0; i <= NF; i++) if($i == "push") {print $(i+1);break;}}' | hexdump -ve '"%x"'
 }
 
-function get_stack_layout_AArch64()
+function get_stack_layout_aarch64()
 {
 	echo $schedule_asm | awk '{for(i = 0; i <= NF; i++) if($i == "stp") {print $(i+1);break;}}' | hexdump -ve '"%x"'
 }
@@ -158,7 +158,7 @@ stage=$1
 object=$2
 config=$3
 
-arch=$(readelf -h $object | awk '/Machine:/{print $NF}' | tr '-' '_')
+arch=$(arch)
 
 if [ "$stage" == "init" ]; then
 	do_search
