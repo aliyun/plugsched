@@ -1,0 +1,31 @@
+// Copyright 2019-2022 Alibaba Group Holding Limited.
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+
+From cf0e314e367f00a4beb9e38b2e69feca0138e59c Mon Sep 17 00:00:00 2001
+From: Erwei Deng <erwei@linux.alibaba.com>
+Date: Thu, 28 Jul 2022 21:32:14 +0800
+Subject: [PATCH] Dynamic __schedule springboard
+
+With this springboard, we don't have to customize the kernel's __schedule.
+
+Co-developed-by: Yihao Wu <wuyihao@linux.alibaba.com>
+Signed-off-by: Erwei Deng <erwei@linux.alibaba.com>
+---
+ kernel/sched/mod/core.c | 38 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/sched/mod/core.c b/kernel/sched/mod/core.c
+index eee32739c..26ccde413 100644
+--- a/kernel/sched/mod/core.c
++++ b/kernel/sched/mod/core.c
+@@ -4066,6 +4101,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+  *
+  * WARNING: must be called with preemption disabled!
+  */
++__attribute__ ((optimize("no-omit-frame-pointer")))
+ static void __sched notrace __used __schedule(bool preempt)
+ {
+ 	struct task_struct *prev, *next;
+-- 
+2.27.0
+
