@@ -1,3 +1,37 @@
+Release 1.3.0
+---
+
+## Features
+
+- Move sidecar files to independent dir under mod/.
+- Add conflict check with plugbpf.
+- Improve Dockerfile and dependent libraries.
+- Standardized spec of scheduler package.
+
+## Bugfix
+
+- Fix a bug when extern var inside a function.
+- Prevent compiler optimization of static functions in sidecar.
+- Fix a bug when building with multiple sidecar files.
+- Fix a bug when handling multiple lines of EXPORT_SYMBOL in macro.
+- Use the right rule to reference symbols in module.
+- Fixed a bug with __mod_ symbol reference count.
+- Set the default value for the new configs.
+- Don't collect syscalls from sidecars.
+- Don't keep inline function's code if it's not optimized.
+- Fix the bug that tasks enqueue between clear_sched_state() and rebuild_sched_state().
+
+## Docs
+
+- Add SPDX to all source files.
+- Update README about the location information of the RPM package storage and the
+system versions that plugsched supports by default.
+
+## Tests
+
+- Rebuild the container image when test.
+- Adapt to use colorlog (instead of coloredlogs) with main programs.
+
 Release 1.2.0
 ---
 
