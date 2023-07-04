@@ -69,14 +69,6 @@ index eee32739c..26ccde413 100644
  	barrier();
  
  	return finish_task_switch(prev);
-@@ -4066,6 +4101,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
-  *
-  * WARNING: must be called with preemption disabled!
-  */
-+__attribute__ ((optimize("no-omit-frame-pointer")))
- static void __sched notrace __used __schedule(bool preempt)
- {
- 	struct task_struct *prev, *next;
 -- 
 2.27.0
 

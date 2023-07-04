@@ -170,6 +170,16 @@ class Plugsched(object):
         for f, t in self.file_mapping.items():
             self.mod_sh.cp(glob(f, _cwd=self.plugsched_path), t, recursive=True, dereference=True)
 
+    def find_old_springboard(self):
+        with open(os.path.join(self.work_dir, 'kernel/sched/mod/core.c'), 'r') as f:
+            lines = f.readlines()
+            for i in range(len(lines) - 1):
+                if ('no-omit-frame-pointer' in lines[i]):
+                    if ('__schedule' in lines[i+1]):
+                        return False
+
+            return True
+
     def cmd_init(self, kernel_src, sym_vers, kernel_config):
         self.create_sandbox(kernel_src)
         self.plugsched_sh.cp(sym_vers,      self.work_dir, force=True)
@@ -184,6 +194,9 @@ class Plugsched(object):
         self.apply_patch('post_extract.patch')
         logging.info('Patching dynamic springboard')
         self.apply_patch('dynamic_springboard.patch')
+        # For old version in ANCK 5.10, we need to apply part 2 patch
+        if self.find_old_springboard():
+            self.apply_patch('dynamic_springboard_2.patch')
 
         with open(os.path.join(self.mod_path, 'Makefile'), 'a') as f:
             self.search_springboard('init', self.vmlinux, kernel_config, _out=f)
