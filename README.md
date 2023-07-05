@@ -69,7 +69,7 @@ Plugsched currently supports Anolis OS 8.6 ANCK by default, and other OS need to
 
 3. Startup the container, and spawn a shell.
 ```shell
-# podman run -itd --name=plugsched -v /tmp/work:/tmp/work -v /usr/src/kernels:/usr/src/kernels -v /usr/lib/debug/lib/modules:/usr/lib/debug/lib/modules docker.io/plugsched/plugsched-sdk
+# podman run -itd --name=plugsched -v /tmp/work:/tmp/work -v /usr/src/kernels:/usr/src/kernels -v /usr/lib/debug/lib/modules:/usr/lib/debug/lib/modules plugsched-registry.cn-hangzhou.cr.aliyuncs.com/plugsched/plugsched-sdk
 # podman exec -it plugsched bash
 # cd /tmp/work
 ```

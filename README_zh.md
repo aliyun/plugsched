@@ -69,7 +69,7 @@ plugsched 是 Linux 内核调度器子系统热升级的 SDK，它可以实现�
 
 3. 启动并进入容器：
 ```shell
-# podman run -itd --name=plugsched -v /tmp/work:/tmp/work -v /usr/src/kernels:/usr/src/kernels -v /usr/lib/debug/lib/modules:/usr/lib/debug/lib/modules docker.io/plugsched/plugsched-sdk
+# podman run -itd --name=plugsched -v /tmp/work:/tmp/work -v /usr/src/kernels:/usr/src/kernels -v /usr/lib/debug/lib/modules:/usr/lib/debug/lib/modules plugsched-registry.cn-hangzhou.cr.aliyuncs.com/plugsched/plugsched-sdk
 # podman exec -it plugsched bash
 # cd /tmp/work
 ```
