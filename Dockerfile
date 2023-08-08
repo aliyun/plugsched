@@ -13,7 +13,7 @@ RUN yum install make bison flex \
                 glibc-static zlib-static \
                 libstdc++-static \
                 platform-python-devel \
-                rpm-build rsync bc perl -y && \
+                rpm-build rsync bc perl dwarves -y && \
     yum install gcc-python-plugin --enablerepo=Plus -y && \
     yum clean all
 
