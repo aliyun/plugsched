@@ -628,4 +628,4 @@ static void __exit sched_mod_exit(void)
 
 module_init(sched_mod_init);
 module_exit(sched_mod_exit);
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

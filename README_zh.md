@@ -243,4 +243,4 @@ kpatch 是函数粒度的热升级，plugsched 是子系统范围的热升级，
 * 加载调度器模块后，不可直接 hook 内核中属于调度器模块范围内的函数，比如 perf 或者 ftrace 等工具，需要时请指定 scheduler.ko 模块；
 
 ## License
-plugsched is a linux kernel hotpluggable scheduler SDK developed by Alibaba and licensed under the GPLv2+ License or BSD-3-Clause License. This product contains various third-party components under other open source licenses. See the NOTICE file for more information.
+plugsched is a linux kernel hotpluggable scheduler SDK developed by Alibaba and licensed under the GPLv3+ License or BSD-3-Clause License. This product contains various third-party components under other open source licenses. See the NOTICE file for more information.

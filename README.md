@@ -243,4 +243,4 @@ Yes. We provide the [sidecar](./docs/Advanced-Features.md) mechanism to modify f
 * After the scheduler module is loaded, you cannot directly hook a kernel function within the scheduler boundary, such as perf or ftrace tools. If you need to, please specify the scheduler.ko module in the command.
 
 ## License
-plugsched is a linux kernel hotpluggable scheduler SDK developed by Alibaba and licensed under the GPLv2+ License or BSD-3-Clause License. This product contains various third-party components under other open source licenses. See the NOTICE file for more information.
+plugsched is a linux kernel hotpluggable scheduler SDK developed by Alibaba and licensed under the GPLv3+ License or BSD-3-Clause License. This product contains various third-party components under other open source licenses. See the NOTICE file for more information.
