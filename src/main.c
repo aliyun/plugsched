@@ -17,6 +17,7 @@
 #include "mempool.h"
 #include "head_jump.h"
 #include "stack_check.h"
+#include "tainted.h"
 
 #define CHECK_STACK_LAYOUT() \
 	BUILD_BUG_ON_MSG(MODULE_FRAME_POINTER != VMLINUX_FRAME_POINTER, \
@@ -69,23 +70,6 @@ extern void switch_sched_class(bool mod);
 
 static int scheduler_enable = 0;
 struct kobject *plugsched_dir, *plugsched_subdir, *vmlinux_moddir;
-
-struct tainted_function {
-	char *name;
-	struct kobject *kobj;
-};
-
-#undef TAINTED_FUNCTION
-#define TAINTED_FUNCTION(func,sympos) 		\
-	{ 					\
-		.name = #func "," #sympos,	\
-		.kobj = NULL,			\
-	},
-
-struct tainted_function tainted_functions[] = {
-	#include "tainted_functions.h"
-	{}
-};
 
 static inline void parallel_state_check_init(void)
 {
@@ -190,7 +174,7 @@ static int __sync_sched_install(void *arg)
 
 	if (is_first_process()) {
 		switch_sched_class(true);
-		JUMP_OPERATION(install);
+		jump_install();
 		disable_stack_protector();
 		reset_balance_callback();
 	}
@@ -237,7 +221,7 @@ static int __sync_sched_restore(void *arg)
 
 	if (is_first_process()) {
 		switch_sched_class(false);
-		JUMP_OPERATION(remove);
+		jump_remove();
 		reset_balance_callback();
 	}
 
@@ -541,30 +525,6 @@ static void unregister_plugsched_enable(void)
 	kobject_put(plugsched_dir);
 }
 
-static int register_tainted_functions(void)
-{
-	struct tainted_function *tf;
-
-	for (tf = tainted_functions; tf->name; tf++) {
-		tf->kobj = kobject_create_and_add(tf->name, vmlinux_moddir);
-		if (!tf->kobj)
-			return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void unregister_tainted_functions(void)
-{
-	struct tainted_function *tf;
-
-	for (tf = tainted_functions; tf->name; tf++) {
-		if (!tf->kobj)
-			return;
-		kobject_put(tf->kobj);
-	}
-}
-
 static inline void unregister_plugsched_sysfs(void)
 {
 	unregister_tainted_functions();
@@ -578,7 +538,7 @@ static int register_plugsched_sysfs(void)
 		return -ENOMEM;
 	}
 
-	if (register_tainted_functions()) {
+	if (register_tainted_functions(vmlinux_moddir)) {
 		printk("scheduler: Error: Register taint functions failed!\n");
 		unregister_plugsched_sysfs();
 		return -ENOMEM;

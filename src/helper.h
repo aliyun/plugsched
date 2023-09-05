@@ -1,6 +1,8 @@
 // Copyright 2019-2022 Alibaba Group Holding Limited.
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
+#ifndef __HELPER_H
+#define __HELPER_H
 
 /*
  * helper function to communicate with vmlinux
@@ -12,6 +14,16 @@ static unsigned long orig_cr0;
 static inline void do_write_cr0(unsigned long val)
 {
 	asm volatile("mov %0,%%cr0": "+r" (val) : : "memory");
+}
+
+static inline void *disable_write_protect_global(void)
+{
+	return disable_write_protect(NULL);
+}
+
+static inline void enable_write_protect_global(void)
+{
+	enable_write_protect();
 }
 
 static inline void *disable_write_protect(void *addr)
@@ -36,6 +48,9 @@ static inline void enable_write_protect(void)
 #include <asm/fixmap.h>
 #include <asm/memory.h>
 #include <asm/cacheflush.h>
+
+static inline void *disable_write_protect_global(void) { }
+static inline void enable_write_protect_global(void) { }
 
 static void *disable_write_protect(void *addr)
 {
@@ -147,3 +162,4 @@ static void addr_sort(unsigned long *addr, unsigned long *size, int n) {
 		}
 	}
 }
+#endif
