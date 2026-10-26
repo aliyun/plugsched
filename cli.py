@@ -119,8 +119,13 @@ class Plugsched(object):
 
         # strip ARCH
         for arch in ['.x86_64', '.aarch64']:
-            idx = KREL.find(arch)
-            if idx != -1: self.KREL = KREL[:idx]
+            if KREL.endswith(arch):
+                self.KREL = KREL[:-len(arch)]
+                break
+        else:
+            logging.fatal('''Unsupported EXTRAVERSION %s in Makefile (%s).
+                          EXTRAVERSION must end with .x86_64 or .aarch64.''',
+                          KREL, makefile)
 
     def get_config_dir(self):
         def common_prefix_len(s1, s2):
