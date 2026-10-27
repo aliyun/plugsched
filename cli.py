@@ -50,6 +50,19 @@ import re
 def glob(pattern, _cwd='.'):
     return _glob(os.path.join(_cwd, pattern))
 
+
+def get_kernel_paths(kernel_dir, vmlinux_dir=None):
+    """Return the kernel artifacts used by init, dev_init, and build."""
+    kernel_dir = os.path.abspath(kernel_dir)
+    vmlinux_dir = kernel_dir if vmlinux_dir is None else os.path.abspath(vmlinux_dir)
+    return (
+        os.path.join(vmlinux_dir, 'vmlinux'),
+        os.path.join(kernel_dir, 'Module.symvers'),
+        os.path.join(kernel_dir, '.config'),
+        os.path.join(kernel_dir, 'Makefile'),
+    )
+
+
 class ShutdownHandler(logging.StreamHandler):
     def emit(self, record):
         if record.levelno >= logging.CRITICAL:
@@ -65,11 +78,13 @@ logging.getLogger().addHandler(handler)
 logging.getLogger().addHandler(ShutdownHandler())
 
 class Plugsched(object):
-    def __init__(self, work_dir, vmlinux, makefile):
+    def __init__(self, work_dir, vmlinux, makefile, sym_vers, kernel_config):
         self.plugsched_path = os.path.dirname(os.path.realpath(__file__))
         self.work_dir = os.path.abspath(work_dir)
         self.vmlinux = os.path.abspath(vmlinux)
         self.makefile = os.path.abspath(makefile)
+        self.sym_vers = os.path.abspath(sym_vers)
+        self.kernel_config = os.path.abspath(kernel_config)
         self.mod_path = os.path.join(self.work_dir, 'kernel/sched/mod/')
         self.tmp_dir = os.path.join(self.work_dir, 'working/')
         plugsched_sh = sh(_cwd=self.plugsched_path)
@@ -180,10 +195,10 @@ class Plugsched(object):
 
             return True
 
-    def cmd_init(self, kernel_src, sym_vers, kernel_config):
+    def cmd_init(self, kernel_src):
         self.create_sandbox(kernel_src)
-        self.plugsched_sh.cp(sym_vers,      self.work_dir, force=True)
-        self.plugsched_sh.cp(kernel_config, self.work_dir + '/.config', force=True)
+        self.plugsched_sh.cp(self.sym_vers, self.work_dir, force=True)
+        self.plugsched_sh.cp(self.kernel_config, self.work_dir + '/.config', force=True)
         self.plugsched_sh.cp(self.makefile, self.work_dir, force=True)
         self.plugsched_sh.cp(self.vmlinux,  self.work_dir, force=True)
 
@@ -199,7 +214,7 @@ class Plugsched(object):
             self.apply_patch('dynamic_springboard_2.patch')
 
         with open(os.path.join(self.mod_path, 'Makefile'), 'a') as f:
-            self.search_springboard('init', self.vmlinux, kernel_config, _out=f)
+            self.search_springboard('init', self.vmlinux, self.kernel_config, _out=f)
 
         logging.info("Succeed!")
 
@@ -267,19 +282,17 @@ if __name__ == '__main__':
         kernel_src = arguments['<kernel_src>']
         work_dir = arguments['<work_dir>']
 
-        vmlinux = '/usr/lib/debug/lib/modules/' + release_kernel + '/vmlinux'
+        kernel_dir = '/usr/src/kernels/' + release_kernel
+        debug_dir = '/usr/lib/debug/lib/modules/' + release_kernel
+        vmlinux, sym_vers, kernel_config, makefile = get_kernel_paths(kernel_dir, debug_dir)
         if not os.path.exists(vmlinux):
             logging.fatal("%s not found, please install kernel-debuginfo-%s.rpm", vmlinux, release_kernel)
-
-        sym_vers      = '/usr/src/kernels/' + release_kernel + '/Module.symvers'
-        kernel_config = '/usr/src/kernels/' + release_kernel + '/.config'
-        makefile      = '/usr/src/kernels/' + release_kernel + '/Makefile'
 
         if not os.path.exists(kernel_config):
             logging.fatal("%s not found, please install kernel-devel-%s.rpm", kernel_config, release_kernel)
 
-        plugsched = Plugsched(work_dir, vmlinux, makefile)
-        plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
+        plugsched = Plugsched(work_dir, vmlinux, makefile, sym_vers, kernel_config)
+        plugsched.cmd_init(kernel_src)
 
     elif arguments['dev_init']:
         kernel_src = arguments['<kernel_src>']
@@ -288,25 +301,20 @@ if __name__ == '__main__':
         if not os.path.exists(kernel_src):
             logging.fatal("Kernel source directory not exists")
 
-        vmlinux = os.path.join(kernel_src, 'vmlinux')
+        vmlinux, sym_vers, kernel_config, makefile = get_kernel_paths(kernel_src)
         if not os.path.exists(vmlinux):
             logging.fatal("%s not found, please execute `make -j %s` firstly", vmlinux, cpu_count())
-
-        sym_vers      = os.path.join(kernel_src, 'Module.symvers')
-        kernel_config = os.path.join(kernel_src, '.config')
-        makefile      = os.path.join(kernel_src, 'Makefile')
 
         if not os.path.exists(kernel_config):
             logging.fatal("kernel config %s not found", kernel_config)
 
-        plugsched = Plugsched(work_dir, vmlinux, makefile)
-        plugsched.cmd_init(kernel_src, sym_vers, kernel_config)
+        plugsched = Plugsched(work_dir, vmlinux, makefile, sym_vers, kernel_config)
+        plugsched.cmd_init(kernel_src)
 
     elif arguments['build']:
         work_dir = arguments['<work_dir>']
 
-        vmlinux = os.path.join(work_dir, 'vmlinux')
-        makefile = os.path.join(work_dir, 'Makefile')
-        plugsched = Plugsched(work_dir, vmlinux, makefile)
+        vmlinux, sym_vers, kernel_config, makefile = get_kernel_paths(work_dir)
+        plugsched = Plugsched(work_dir, vmlinux, makefile, sym_vers, kernel_config)
         plugsched.cmd_build()
 
